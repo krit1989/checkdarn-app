@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // กฎสำหรับโฟลเดอร์ reports (รูปภาพในรายงาน)
+    match /reports/{allPaths=**} {
+      // อนุญาตให้อ่านได้ทุกคน
+      allow read: if true;
+      
+      // อนุญาตให้อัพโหลดได้สำหรับผู้ใช้ที่ล็อกอิน (รวม Anonymous)
+      // และจำกัดขนาดไฟล์ไม่เกิน 1MB
+      allow write: if request.auth != null
+                   && resource.size < 1 * 1024 * 1024;
+    }
+  }
+}

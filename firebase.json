@@ -1,0 +1,35 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "checkdarn-app",
+          "appId": "1:1051005565361:android:03878a41f334bff357e590",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "checkdarn-app",
+          "appId": "1:1051005565361:ios:867711c591c9f42457e590",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "checkdarn-app",
+          "configurations": {
+            "android": "1:1051005565361:android:03878a41f334bff357e590",
+            "ios": "1:1051005565361:ios:867711c591c9f42457e590",
+            "web": "1:1051005565361:web:babb8fcfb33f6b0957e590"
+          }
+        }
+      }
+    }
+  }
+}
