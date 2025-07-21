@@ -86,7 +86,7 @@ class ThailandMapData {
   // ค้นหาจังหวัดใกล้เคียง
   static List<MapEntry<String, LatLng>> findNearbyProvinces(
       LatLng center, double radiusKm) {
-    final Distance distance = Distance();
+    const Distance distance = Distance();
     return provinces.entries
         .where((entry) =>
             distance.as(LengthUnit.Kilometer, center, entry.value) <= radiusKm)
@@ -100,7 +100,7 @@ class ThailandMapData {
   static MapEntry<String, LatLng>? findNearestProvince(LatLng target) {
     if (provinces.isEmpty) return null;
 
-    final Distance distance = Distance();
+    const Distance distance = Distance();
     MapEntry<String, LatLng>? nearest;
     double minDistance = double.infinity;
 

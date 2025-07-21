@@ -23,7 +23,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   LatLng? selectedLocation;
   LocationInfo? selectedLocationInfo;
   bool isLoadingLocation = false;
-  LatLng currentCenter = LatLng(13.7563, 100.5018); // กรุงเทพเป็นค่าเริ่มต้น
+  LatLng currentCenter =
+      const LatLng(13.7563, 100.5018); // กรุงเทพเป็นค่าเริ่มต้น
 
   @override
   void initState() {
@@ -74,7 +75,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
       mapController.move(newPosition, 15.0);
       await _getLocationInfo(newPosition);
-    } catch (e) {
     } finally {
       setState(() {
         isLoadingLocation = false;
@@ -123,9 +123,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('เลือกตำแหน่ง'),
-        backgroundColor: const Color(0xFF4673E5),
-        foregroundColor: Colors.white,
+        title: const Text(
+          'เลือกตำแหน่ง',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        backgroundColor: const Color(0xFFFDC621),
+        foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -191,13 +197,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.location_on,
                           color: Colors.white,
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Text(
+                        const Text(
                           'ตำแหน่งที่เลือก',
                           style: TextStyle(
                             fontSize: 14,
@@ -207,7 +213,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                         ),
                         if (isLoadingLocation) ...[
                           const SizedBox(width: 8),
-                          SizedBox(
+                          const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
@@ -257,7 +263,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             child: ElevatedButton(
               onPressed: selectedLocation != null ? _confirmLocation : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4673E5),
+                backgroundColor: const Color(0xFFFF9800),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(

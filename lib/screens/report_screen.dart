@@ -4,9 +4,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dotted_border/dotted_border.dart';
 import 'dart:io';
 import 'dart:async';
-import 'dart:math' as math;
 import '../models/event_model.dart';
 import '../services/geocoding_service.dart';
 import '../services/firebase_service.dart';
@@ -30,46 +31,13 @@ class _ReportScreenState extends State<ReportScreen> {
   final ImagePicker _picker = ImagePicker();
   bool isSubmitting = false;
   bool isLoadingLocation = false;
+  bool hasUserSelectedLocation =
+      false; // เพิ่ม flag เพื่อเช็คว่าผู้ใช้เลือกตำแหน่งแล้วหรือยัง
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentLocation();
-  }
-
-  Future<void> _loadCurrentLocation() async {
-    setState(() {
-      isLoadingLocation = true;
-    });
-
-    try {
-      final currentLocation = await _getCurrentLocation();
-      if (currentLocation != null) {
-        final locationInfo =
-            await GeocodingService.getLocationInfo(currentLocation);
-
-        if (mounted) {
-          setState(() {
-            selectedLocation = currentLocation;
-            selectedLocationInfo = locationInfo;
-            isLoadingLocation = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            isLoadingLocation = false;
-          });
-        }
-      }
-    } catch (e) {
-      print('Error loading current location: $e');
-      if (mounted) {
-        setState(() {
-          isLoadingLocation = false;
-        });
-      }
-    }
+    // ไม่โหลดตำแหน่งปัจจุบันอัตโนมัติ ให้ผู้ใช้เลือกเอง
   }
 
   String? _validateRequiredFields() {
@@ -77,7 +45,10 @@ class _ReportScreenState extends State<ReportScreen> {
       return 'ประเภทเหตุการณ์';
     }
     if (_detailController.text.trim().isEmpty) {
-      return 'รายละเอียดเหตุการณ์';
+      return 'รายละเอียด';
+    }
+    if (!hasUserSelectedLocation || selectedLocation == null) {
+      return 'ตำแหน่งเหตุการณ์';
     }
     return null;
   }
@@ -204,6 +175,9 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _pickLocation() async {
+    // ซ่อนคีย์บอร์ดก่อนไปหน้าเลือกพิกัด
+    FocusScope.of(context).unfocus();
+
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
@@ -213,15 +187,31 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
     );
 
+    // ซ่อนคีย์บอร์ดอีกครั้งหลังจากกลับมาจากหน้าเลือกพิกัด
+    if (mounted) {
+      FocusScope.of(context).unfocus();
+      // ใช้ postFrameCallback เพื่อให้แน่ใจว่าคีย์บอร์ดจะถูกซ่อนหลังจาก widget rebuild
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          FocusScope.of(context).unfocus();
+        }
+      });
+    }
+
     if (result != null) {
       setState(() {
         selectedLocation = result['location'] as LatLng?;
         selectedLocationInfo = result['locationInfo'] as LocationInfo?;
+        hasUserSelectedLocation =
+            true; // ตั้งค่า flag เมื่อผู้ใช้เลือกตำแหน่งแล้ว
       });
     }
   }
 
   Future<void> _showImageSourceDialog() async {
+    // ซ่อนคีย์บอร์ดก่อนแสดง dialog
+    FocusScope.of(context).unfocus();
+
     return showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -305,11 +295,10 @@ class _ReportScreenState extends State<ReportScreen> {
 
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-          final fileSizeKB = await compressedFile.length() ~/ 1024;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'รูปภาพ WebP สำเร็จ! (ขนาด: $fileSizeKB KB)',
+                'อัพโหลดรูปภาพสำเร็จ!',
                 style: const TextStyle(fontFamily: 'Kanit'),
               ),
               backgroundColor: Colors.green,
@@ -377,10 +366,17 @@ class _ReportScreenState extends State<ReportScreen> {
 
     String? missingField = _validateRequiredFields();
     if (missingField != null) {
+      String errorMessage;
+      if (missingField == 'ตำแหน่งเหตุการณ์') {
+        errorMessage = 'กรุณาเลือกพิกัด: $missingField';
+      } else {
+        errorMessage = 'กรุณากรอกข้อมูล: $missingField';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'กรุณากรอกข้อมูล: $missingField',
+            errorMessage,
             style: const TextStyle(fontFamily: 'Kanit'),
           ),
           backgroundColor: Colors.red,
@@ -450,6 +446,7 @@ class _ReportScreenState extends State<ReportScreen> {
         province: finalLocationInfo?.province ?? 'ไม่ระบุ',
         imageFile: selectedImage,
         userId: userId,
+        userName: currentUser.displayName ?? currentUser.email ?? 'ไม่ระบุชื่อ',
       ).timeout(
         const Duration(seconds: 30), // ลด timeout สำหรับโหมดเร็ว
         onTimeout: () => throw TimeoutException(
@@ -541,413 +538,468 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text(
-          'รายงานเหตุการณ์',
-          style: TextStyle(
-            fontWeight: FontWeight.w400,
-            color: Colors.white,
-            fontFamily: 'Kanit',
+    return GestureDetector(
+      onTap: () {
+        // ซ่อนคีย์บอร์ดเมื่อแตะบริเวณอื่น
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          title: const Text(
+            'แจ้งอะไร?',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          centerTitle: true, // ให้ข้อความอยู่กลาง
+          backgroundColor: const Color(0xFFFDC621),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Colors.black,
+            ),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        centerTitle: true, // ให้ข้อความอยู่กลาง
-        backgroundColor: const Color(0xFFFF9800),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      backgroundColor: const Color(0xFFF9F9F9),
-      body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom:
-                math.max(MediaQuery.of(context).viewInsets.bottom + 20, 120),
-          ),
-          children: [
-            // Dropdown หมวดหมู่
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButton<EventCategory>(
-                isExpanded: true,
-                underline: const SizedBox(),
-                hint: const Text(
-                  'เลือกประเภทเหตุการณ์ *',
-                  style: TextStyle(fontFamily: 'Kanit'),
-                ),
-                value: selectedCategory,
-                icon: const Icon(Icons.keyboard_arrow_down),
-                onChanged: (value) {
-                  setState(() => selectedCategory = value);
-                },
-                items: EventCategory.values.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width - 80,
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor:
-                                category.color.withValues(alpha: 0.2),
-                            child: Text(category.emoji),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              category.label,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                fontFamily: 'Kanit',
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // กล่องข้อความ
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _detailController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'รายละเอียดเหตุการณ์ *',
-                  hintStyle: TextStyle(fontFamily: 'Kanit'),
-                  border: InputBorder.none,
-                ),
-                style: const TextStyle(fontFamily: 'Kanit'),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // เพิ่มรูปภาพ
-            OutlinedButton.icon(
-              onPressed: _showImageSourceDialog,
-              icon: const Icon(Icons.add),
-              label: const Text(
-                'เพิ่มรูปภาพ (ไม่บังคับ)',
-                style: TextStyle(fontFamily: 'Kanit'),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-
-            // แสดงรูปที่เลือกแล้ว
-            if (selectedImage != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Stack(
+        backgroundColor: const Color(0xFFF9F9F9),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // เนื้อหาหลัก
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 16,
+                  ),
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        selectedImage!,
-                        width: double.infinity,
-                        height: 200,
-                        fit: BoxFit.cover,
+                    // Dropdown หมวดหมู่
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedImage = null;
-                          });
+                      child: DropdownButton<EventCategory>(
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        hint: const Text(
+                          'เลือกประเภทเหตุการณ์ *',
+                          style: TextStyle(fontFamily: 'Kanit'),
+                        ),
+                        value: selectedCategory,
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        onChanged: (value) {
+                          setState(() => selectedCategory = value);
                         },
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+                        items: EventCategory.values.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width - 80,
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor:
+                                        category.color.withValues(alpha: 0.2),
+                                    child: Text(category.emoji),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      category.label,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        fontFamily: 'Kanit',
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ],
 
-            const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-            // ตำแหน่งที่เลือก
-            GestureDetector(
-              onTap: _pickLocation,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: selectedLocation != null
-                              ? const Color(0xFF4673E5)
-                              : Colors.grey.shade600,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'ตำแหน่งเหตุการณ์',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
-                            fontFamily: 'Kanit',
-                          ),
-                        ),
-                        const Spacer(),
-                        if (isLoadingLocation)
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF4673E5)),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (isLoadingLocation) ...[
-                      Row(
-                        children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF4673E5)),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'กำลังค้นหาตำแหน่งปัจจุบัน...',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                              fontStyle: FontStyle.italic,
-                              fontFamily: 'Kanit',
-                            ),
-                          ),
-                        ],
+                    // กล่องข้อความ
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    ] else if (selectedLocation != null &&
-                        selectedLocationInfo != null) ...[
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width - 64,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextField(
+                        controller: _detailController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: 'รายละเอียด *',
+                          hintStyle: TextStyle(fontFamily: 'Kanit'),
+                          border: InputBorder.none,
+                        ),
+                        style: const TextStyle(fontFamily: 'Kanit'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ตำแหน่งที่เลือก
+                    GestureDetector(
+                      onTap: _pickLocation,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _getDisplayAddress(selectedLocationInfo!),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                                fontFamily: 'Kanit',
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: true,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  color: hasUserSelectedLocation &&
+                                          selectedLocation != null
+                                      ? const Color(0xFF4673E5)
+                                      : Colors.grey.shade600,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'ตำแหน่งเหตุการณ์ *',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade600,
+                                    fontFamily: 'Kanit',
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (isLoadingLocation)
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF4673E5)),
+                                    ),
+                                  ),
+                              ],
                             ),
-                            if (_hasAdditionalInfo(selectedLocationInfo!)) ...[
+                            const SizedBox(height: 8),
+                            if (isLoadingLocation) ...[
+                              Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF4673E5)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'กำลังค้นหาตำแหน่งปัจจุบัน...',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                      fontStyle: FontStyle.italic,
+                                      fontFamily: 'Kanit',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ] else if (hasUserSelectedLocation &&
+                                selectedLocation != null &&
+                                selectedLocationInfo != null) ...[
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width - 64,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _getDisplayAddress(selectedLocationInfo!),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black87,
+                                        fontFamily: 'Kanit',
+                                      ),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      softWrap: true,
+                                    ),
+                                    if (_hasAdditionalInfo(
+                                        selectedLocationInfo!)) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _getAdditionalInfo(
+                                            selectedLocationInfo!),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey.shade600,
+                                          fontStyle: FontStyle.italic,
+                                          fontFamily: 'Kanit',
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        softWrap: true,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4673E5)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'ตำแหน่งที่เลือก (แตะเพื่อเปลี่ยน)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF4673E5),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              Text(
+                                'กรุณาเลือกตำแหน่งเหตุการณ์',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.red.shade600,
+                                  fontWeight: FontWeight.w500,
+                                  fontFamily: 'Kanit',
+                                ),
+                              ),
                               const SizedBox(height: 4),
                               Text(
-                                _getAdditionalInfo(selectedLocationInfo!),
+                                'แตะเพื่อเลือกตำแหน่งในแผนที่',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 14,
                                   color: Colors.grey.shade600,
                                   fontStyle: FontStyle.italic,
                                   fontFamily: 'Kanit',
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                softWrap: true,
                               ),
                             ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4673E5).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'ตำแหน่งปัจจุบัน (แตะเพื่อเปลี่ยน)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: const Color(0xFF4673E5),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // เพิ่มรูปภาพ
+                    DottedBorder(
+                      borderType: BorderType.RRect,
+                      radius: const Radius.circular(12),
+                      dashPattern: const [8, 4],
+                      color: Colors.grey.shade400,
+                      strokeWidth: 1.0, // ลดจาก 1.5 เป็น 1.0
+                      child: Container(
+                        width: double.infinity,
+                        child: selectedImage != null
+                            ? Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.file(
+                                      selectedImage!,
+                                      width: double.infinity,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          selectedImage = null;
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 8,
+                                    left: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.7),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: GestureDetector(
+                                        onTap: _showImageSourceDialog,
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.edit,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'เปลี่ยน',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontFamily: 'Kanit',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : OutlinedButton.icon(
+                                onPressed: _showImageSourceDialog,
+                                icon: const Icon(Icons.add_photo_alternate),
+                                label: const Text(
+                                  'เพิ่มรูปภาพ (ไม่บังคับ)',
+                                  style: TextStyle(fontFamily: 'Kanit'),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 18, horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  side: BorderSide.none,
+                                ),
+                              ),
                       ),
-                    ] else ...[
-                      Text(
-                        'ไม่สามารถระบุตำแหน่งปัจจุบันได้',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.red.shade600,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'Kanit',
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'แตะเพื่อเลือกตำแหน่งในแผนที่',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
-                          fontFamily: 'Kanit',
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 80),
+              // ปุ่มส่งชิดขอบล่าง
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (selectedCategory == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('กรุณาเลือกประเภทเหตุการณ์')),
+                              );
+                              return;
+                            }
 
-            // ปุ่มส่ง
-            ElevatedButton(
-              onPressed: isSubmitting
-                  ? null
-                  : () async {
-                      if (selectedCategory == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('กรุณาเลือกประเภทเหตุการณ์')),
-                        );
-                        return;
-                      }
+                            if (_detailController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('กรุณากรอกรายละเอียด')),
+                              );
+                              return;
+                            }
 
-                      if (_detailController.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('กรุณากรอกรายละเอียด')),
-                        );
-                        return;
-                      }
-
-                      await _submitReport();
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9800),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: isSubmitting
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          'กำลังส่ง...',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Kanit',
-                          ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.send,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'ส่ง',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Kanit',
-                          ),
-                        ),
-                      ],
+                            await _submitReport();
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF9800),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12), // ลดจาก 16 เป็น 12
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-            ),
-
-            const SizedBox(height: 40),
-          ],
+                    child: isSubmitting
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'กำลังส่ง...',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Kanit',
+                                ),
+                              ),
+                            ],
+                          )
+                        : Center(
+                            child: SvgPicture.asset(
+                              'assets/icons/bottom_bar/report_screen/submit.svg',
+                              width: 32,
+                              height: 32,
+                              colorFilter: const ColorFilter.mode(
+                                Colors.white,
+                                BlendMode.srcIn,
+                              ),
+                              placeholderBuilder: (context) => const Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -24,9 +24,9 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   Event                        child: Text(
                           '📍 ตำแหน่งปัจจุบัน (แตะเพื่อเปลี่ยน)',
-                          style: TextStyle(
+                          style = const TextStyle(
                             fontSize: 12,
-                            color: const Color(0xFF4673E5),
+                            color: Color(0xFF4673E5),
                             fontWeight: FontWeight.w500,
                             fontFamily: 'Kanit',
                           ),
@@ -819,9 +819,9 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                         child: Text(
                           '� ตำแหน่งปัจจุบัน (แตะเพื่อเปลี่ยน)',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: const Color(0xFF4673E5),
+                            color: Color(0xFF4673E5),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -907,15 +907,15 @@ class _ReportScreenState extends State<ReportScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.send,
                           color: Colors.white,
                           size: 20,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           'ส่ง',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 18, 
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Kanit',

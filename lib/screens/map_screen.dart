@@ -14,10 +14,10 @@ import '../utils/formatters.dart';
 import '../widgets/bottom_bar.dart';
 import '../widgets/category_selector_dialog.dart';
 import '../widgets/profile_popup.dart';
-import '../widgets/event_popup.dart';
 import '../widgets/location_marker.dart';
 import '../widgets/event_marker.dart';
 import '../widgets/location_button.dart';
+import '../widgets/comment_bottom_sheet.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -27,7 +27,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  LatLng currentPosition = LatLng(13.7563, 100.5018); // ตำแหน่งปัจจุบัน
+  LatLng currentPosition = const LatLng(13.7563, 100.5018); // ตำแหน่งปัจจุบัน
   late MapController mapController;
   double searchRadius = 10.0; // รัศมีการค้นหาในหน่วยกิโลเมตร (10-100 km)
   LocationInfo? currentLocationInfo; // ข้อมูลที่อยู่ปัจจุบัน
@@ -202,14 +202,402 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // ฟังก์ชันแสดง popup ข้อมูลเหตุการณ์
+  // ฟังก์ชันแสดง popup ข้อมูลเหตุการณ์แบบเต็มหน้าจอ
   void _showEventPopup(
       BuildContext context, Map<String, dynamic> data, EventCategory category) {
-    showDialog(
+    // ดึงข้อมูลเหมือนใน list_screen.dart
+    final title = data['title'] ??
+        (data['description']?.toString().isNotEmpty == true
+            ? data['description'].toString().length > 30
+                ? '${data['description'].toString().substring(0, 30)}...'
+                : data['description'].toString()
+            : 'ไม่มีหัวข้อ');
+    final imageUrl = data['imageUrl'] as String?;
+    final timestamp = data['timestamp'] as Timestamp?;
+    final reportId = data['id'] ?? '';
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => EventPopup(
-        data: data,
-        category: category,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize:
+            0.9, // เพิ่มจาก 85% เป็น 90% เพื่อให้ใกล้ AppBar มากขึ้น
+        minChildSize: 0.5, // ขั้นต่ำ 50%
+        maxChildSize: 0.98, // เพิ่มสูงสุดเป็น 98% เพื่อให้เกือบถึงขอบบน
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar สำหรับดึง
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 8, bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Content area
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // แถวที่ 1: emoji + หัวข้อเหตุการณ์
+                      Row(
+                        children: [
+                          Text(
+                            category.emoji,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              category.label,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // แถวที่ 2: รายละเอียด (ถ้ามี)
+                      if (data['description'] != null &&
+                          data['description'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFFFF9800).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFFFF9800)
+                                  .withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            '${data['description']}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // แถวที่ 3: ตำแหน่ง/สถานที่
+                      if (data['location'] != null &&
+                          data['location'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Text(
+                              '📍',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${data['location']}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // แถวที่ 4: รูปภาพ (ถ้ามี)
+                      if (imageUrl != null &&
+                          imageUrl.isNotEmpty &&
+                          imageUrl.trim() != '') ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () {
+                            // แสดงรูปภาพแบบเต็มจอ
+                            showDialog(
+                              context: context,
+                              builder: (context) => Dialog(
+                                backgroundColor: Colors.black,
+                                insetPadding: EdgeInsets.zero,
+                                child: Stack(
+                                  children: [
+                                    Center(
+                                      child: InteractiveViewer(
+                                        child: Image.network(
+                                          imageUrl,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Center(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.broken_image,
+                                                      size: 48,
+                                                      color: Colors.white),
+                                                  SizedBox(height: 8),
+                                                  Text('ไม่สามารถโหลดรูปภาพได้',
+                                                      style: TextStyle(
+                                                          color: Colors.white)),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 40,
+                                      right: 20,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close,
+                                            color: Colors.white, size: 30),
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            height: 180, // ลดความสูงจาก 200 เป็น 180
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.grey[300]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              Color(0xFFFF9800)),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.broken_image,
+                                            size: 32, color: Colors.grey),
+                                        SizedBox(height: 4),
+                                        Text('ไม่สามารถโหลดรูปภาพได้',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey)),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // แถวที่ 5: เวลา
+                      if (timestamp != null) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Text(
+                              '🕐',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${DateTimeFormatters.formatDate(timestamp)} · ${DateTimeFormatters.formatTimestamp(timestamp)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // แถวที่ 6: ชื่อคนโพส
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.person_outline,
+                            size: 16,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _getMaskedPosterName(data),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // ช่องว่างด้านล่างเพื่อไม่ให้เนื้อหาติดขอบ
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Footer with comment button - ติดด้านล่าง
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(color: Colors.grey[200]!, width: 1),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: FutureBuilder<QuerySnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('reports')
+                        .doc(reportId)
+                        .collection('comments')
+                        .get(),
+                    builder: (context, snapshot) {
+                      int commentCount = 0;
+                      if (snapshot.hasData) {
+                        commentCount = snapshot.data!.docs.length;
+                      }
+
+                      return ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context)
+                              .pop(); // ปิด bottom sheet ปัจจุบัน
+                          _showCommentSheet(reportId, title, category.name);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF9800),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'แสดงความคิดเห็น',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            if (commentCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '$commentCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ฟังก์ชันแสดงความคิดเห็น
+  void _showCommentSheet(String reportId, String title, String category) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentBottomSheet(
+        reportId: reportId,
+        reportType: category,
       ),
     );
   }
@@ -343,12 +731,17 @@ class _MapScreenState extends State<MapScreen> {
 
       final marker = Marker(
         point: latLng,
-        width: 23 * 1.3, // ขนาดเดิมคูณ scale 1.3
-        height: 30 * 1.3, // ขนาดเดิมคูณ scale 1.3
+        width: 23 * 1.365, // เพิ่มจาก 1.3 เป็น 1.365 (เพิ่ม 5%)
+        height: 30 * 1.365, // เพิ่มจาก 1.3 เป็น 1.365 (เพิ่ม 5%)
         child: EventMarker(
           category: eventCategory,
-          scale: 1.3, // ขนาดที่ต้องการ (ปรับได้)
-          onTap: () => _showEventPopup(context, data, eventCategory),
+          scale: 1.365, // เพิ่มจาก 1.3 เป็น 1.365 (เพิ่ม 5%)
+          onTap: () {
+            // ส่ง doc.id แทน data['id'] เพื่อให้ได้ reportId ที่ถูกต้อง
+            final dataWithId = Map<String, dynamic>.from(data);
+            dataWithId['id'] = doc.id; // เพิ่ม doc.id เข้าไปใน data
+            _showEventPopup(context, dataWithId, eventCategory);
+          },
         ),
       );
 
@@ -361,6 +754,60 @@ class _MapScreenState extends State<MapScreen> {
     return markers;
   }
 
+  // ดึงชื่อคนโพสแบบ masked (เหมือน list_screen.dart)
+  String _getMaskedPosterName(Map<String, dynamic> data) {
+    final userId = data['userId'] as String?;
+
+    if (userId == null || userId.isEmpty) {
+      return 'ผู้ใช้ไม่ระบุชื่อ';
+    }
+
+    // ถ้าเป็นผู้ใช้ปัจจุบัน ใช้ AuthService
+    if (AuthService.currentUser?.uid == userId) {
+      return AuthService.getMaskedDisplayName();
+    }
+
+    // ตรวจสอบฟิลด์ต่างๆ ในลำดับความสำคัญ
+    final displayName = data['displayName']?.toString() ??
+        data['userName']?.toString() ??
+        data['posterName']?.toString();
+
+    // ถ้ามี displayName ใน data ให้ใช้ชื่อนั้น
+    if (displayName != null && displayName.isNotEmpty) {
+      return _maskDisplayName(displayName);
+    }
+
+    // ถ้าไม่มี displayName ให้ mask userId
+    if (userId == 'anonymous') {
+      return 'ผู้ใช้ไม่ระบุชื่อ';
+    }
+
+    // Mask userId
+    if (userId.length <= 8) return userId;
+    return '${userId.substring(0, 4)}${'*' * (userId.length - 4)}';
+  }
+
+  // ฟังก์ชัน mask ชื่อ (คล้ายกับใน AuthService)
+  String _maskDisplayName(String name) {
+    final parts = name.trim().split(' ');
+
+    if (parts.isEmpty) return 'ผู้ใช้ไม่ระบุชื่อ';
+
+    if (parts.length == 1) {
+      // ถ้ามีคำเดียว เช่น "kritchapon" -> "krit*****"
+      final firstPart = parts[0];
+      if (firstPart.length <= 4) {
+        return firstPart; // ถ้าสั้นเกินไป ไม่ mask
+      }
+      return '${firstPart.substring(0, 4)}${'*' * (firstPart.length - 4)}';
+    } else {
+      // ถ้ามีหลายคำ เช่น "Krit P" -> "Krit *"
+      final firstName = parts[0];
+      final lastNameLength = parts.sublist(1).join(' ').length;
+      return '$firstName ${'*' * lastNameLength}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -369,11 +816,11 @@ class _MapScreenState extends State<MapScreen> {
           'CheckDarn',
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: Colors.black,
           ),
         ),
-        backgroundColor: const Color(0xFFF0F3F8),
+        backgroundColor: const Color(0xFFFDC621),
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: false,
@@ -394,24 +841,21 @@ class _MapScreenState extends State<MapScreen> {
                       }
                     },
               child: Container(
-                width: 32, // ลดจาก 40 เป็น 32 (ลด 20%)
-                height: 32, // ลดจาก 40 เป็น 32 (ลด 20%)
+                width: 35, // เพิ่มจาก 32 เป็น 35 (เพิ่ม 10%)
+                height: 35, // เพิ่มจาก 32 เป็น 35 (เพิ่ม 10%)
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFF4673E5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
                 ),
                 child: AuthService.isLoggedIn &&
                         AuthService.currentUser?.photoURL != null
                     ? ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(16), // ลดจาก 20 เป็น 16
+                        borderRadius: BorderRadius.circular(
+                            17.5), // ปรับตามขนาดใหม่ (35/2 = 17.5)
                         child: Image.network(
                           AuthService.currentUser!.photoURL!,
                           fit: BoxFit.cover,
@@ -419,8 +863,8 @@ class _MapScreenState extends State<MapScreen> {
                             return const Center(
                               child: Icon(
                                 Icons.person,
-                                color: Colors.white,
-                                size: 19, // ลดจาก 24 เป็น 19 (ลด 20%)
+                                color: Colors.black,
+                                size: 21, // เพิ่มจาก 19 เป็น 21 (เพิ่ม 10%)
                               ),
                             );
                           },
@@ -429,8 +873,8 @@ class _MapScreenState extends State<MapScreen> {
                     : const Center(
                         child: Icon(
                           Icons.person,
-                          color: Colors.white,
-                          size: 19, // ลดจาก 24 เป็น 19 (ลด 20%)
+                          color: Colors.black,
+                          size: 21, // เพิ่มจาก 19 เป็น 21 (เพิ่ม 10%)
                         ),
                       ),
               ),
@@ -482,9 +926,10 @@ class _MapScreenState extends State<MapScreen> {
                   markers: [
                     Marker(
                       point: currentPosition,
-                      width: 36.8, // ขนาดที่ใช้สำหรับ scale 1.6
-                      height: 48, // ขนาดที่ใช้สำหรับ scale 1.6
-                      child: const LocationMarker(scale: 1.6),
+                      width: 38.64, // เพิ่มจาก 36.8 เป็น 38.64 (เพิ่ม 5%)
+                      height: 50.4, // เพิ่มจาก 48 เป็น 50.4 (เพิ่ม 5%)
+                      child: const LocationMarker(
+                          scale: 1.68), // เพิ่มจาก 1.6 เป็น 1.68 (เพิ่ม 5%)
                     ),
                   ],
                 ),
@@ -497,7 +942,7 @@ class _MapScreenState extends State<MapScreen> {
 
                     if (snapshot.hasError) {
                       print('Debug: StreamBuilder error = ${snapshot.error}');
-                      return MarkerLayer(
+                      return const MarkerLayer(
                           markers: []); // แสดงแผนที่เปล่าเมื่อเกิดข้อผิดพลาด
                     }
 
@@ -505,13 +950,13 @@ class _MapScreenState extends State<MapScreen> {
                     if (snapshot.connectionState == ConnectionState.waiting &&
                         !snapshot.hasData) {
                       print('Debug: StreamBuilder waiting for first data...');
-                      return MarkerLayer(
+                      return const MarkerLayer(
                           markers: []); // แสดง MarkerLayer เปล่าแทน SizedBox.shrink()
                     }
 
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       print('Debug: StreamBuilder no data or empty docs');
-                      return MarkerLayer(
+                      return const MarkerLayer(
                           markers: []); // แสดงแผนที่เปล่าเมื่อไม่มีข้อมูล
                     }
 
@@ -536,19 +981,18 @@ class _MapScreenState extends State<MapScreen> {
             // แท่งสไลด์บาร์รัศมีการค้นหา (แนวตั้ง)
             Positioned(
               right:
-                  18, // ขยับเข้ามาเพื่อให้อยู่ตรงกลางระหว่างซ้ายขวาของปุ่มหาตำแหน่ง
-              top: 180, // ขยับลงจาก 150 เป็น 180
+                  22, // ปรับให้อยู่ตรงกลางของปุ่มค้นหาตำแหน่ง (16 + 24 - 18 = 22)
+              top: 320, // กลับไปตำแหน่งเดิม
               child: Container(
-                width:
-                    30, // ลดจาก 36 เป็น 30 (ลด 15% จาก 36 * 0.85 = 30.6 ≈ 30)
-                height: 144, // เพิ่มจาก 120 เป็น 144 (เพิ่ม 20%)
+                width: 36, // ลดจาก 40 เป็น 36 (ลด 10%)
+                height: 180, // เพิ่มจาก 158 เป็น 180 (เพิ่ม 14%)
                 padding: const EdgeInsets.symmetric(
-                    vertical: 6,
-                    horizontal: 5), // ลด horizontal padding ตามขนาดใหม่
+                    vertical: 7,
+                    horizontal: 5), // ปรับ padding: บน-ล่าง 7px, ซ้าย-ขวา 5px
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(
-                      15), // ปรับ radius ตามขนาดใหม่ (30/2 = 15)
+                      18), // ปรับ radius ตามขนาดใหม่ (36/2 = 18)
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.1),
@@ -563,7 +1007,7 @@ class _MapScreenState extends State<MapScreen> {
                     Text(
                       '${searchRadius.toInt()}',
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 12, // เพิ่มจาก 10 เป็น 12
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF4673E5),
                       ),
@@ -571,23 +1015,23 @@ class _MapScreenState extends State<MapScreen> {
                     Text(
                       'กม.',
                       style: TextStyle(
-                        fontSize: 8,
+                        fontSize: 10, // เพิ่มจาก 8 เป็น 10
                         color: Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(
-                        height: 1), // ลดจาก 4 เป็น 1 เพื่อให้หลอดยาวขึ้น
+                        height: 0), // ลบระยะห่างระหว่าง "กม." กับสไลด์
                     Expanded(
                       child: RotatedBox(
                         quarterTurns: 3, // หมุน 270 องศา เพื่อให้เป็นแนวตั้ง
                         child: SliderTheme(
                           data: SliderTheme.of(context).copyWith(
-                            trackHeight: 3, // เปลี่ยนกลับเป็น 3 (ความหนาปกติ)
+                            trackHeight: 4, // เพิ่มจาก 3 เป็น 4
                             thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6,
+                              enabledThumbRadius: 8, // เพิ่มจาก 6 เป็น 8
                             ),
                             overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 12,
+                              overlayRadius: 16, // เพิ่มจาก 12 เป็น 16
                             ),
                           ),
                           child: Slider(
@@ -614,12 +1058,12 @@ class _MapScreenState extends State<MapScreen> {
 
             // ปุ่มกลับมาหาตำแหน่งตัวเอง
             Positioned(
-              right: 13, // ปรับตำแหน่งให้อยู่ตรงกลางของ Slider
-              top: 344, // ขยับลงให้ไม่ทับแท่งสไลด์บาร์
+              right: 16, // ปรับตำแหน่งให้อยู่ตรงกลางของ Slider ใหม่
+              top: 520, // กลับไปตำแหน่งเดิม (320 + 180 + 20 = 520)
               child: LocationButton(
                 onPressed: _goToMyLocation,
                 isLoading: isLoadingLocation,
-                size: 40,
+                size: 48, // เพิ่มจาก 40 เป็น 48 (เพิ่ม 20%)
               ),
             ),
 

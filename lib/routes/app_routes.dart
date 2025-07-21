@@ -3,6 +3,7 @@ import '../screens/splash_screen.dart';
 import '../screens/map_screen.dart';
 import '../screens/report_screen.dart';
 import '../screens/list_screen.dart';
+import '../screens/emergency_contacts.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -10,6 +11,7 @@ class AppRoutes {
   static const String report = '/report';
   static const String list = '/list';
   static const String detail = '/detail';
+  static const String emergencyContacts = '/emergency_contacts';
 
   static Map<String, WidgetBuilder> get routes {
     return {
@@ -17,6 +19,7 @@ class AppRoutes {
       map: (context) => const MapScreen(),
       report: (context) => const ReportScreen(),
       list: (context) => const ListScreen(),
+      emergencyContacts: (context) => const EmergencyContactsScreen(),
       // detail route is removed since DetailScreen requires eventData
     };
   }

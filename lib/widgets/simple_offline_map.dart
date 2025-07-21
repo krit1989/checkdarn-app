@@ -161,7 +161,7 @@ class TilePainter extends CustomPainter {
     final paint = Paint();
 
     // วาดพื้นหลังไล่สี
-    final gradient = const LinearGradient(
+    const gradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [

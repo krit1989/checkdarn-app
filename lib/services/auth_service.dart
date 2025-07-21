@@ -173,7 +173,7 @@ class AuthService {
 
       // ตรวจสอบว่า Firebase Auth สำเร็จหรือไม่ ก่อนที่จะ error
       print('🔍 Checking if Firebase Auth actually succeeded...');
-      await Future.delayed(Duration(milliseconds: 500)); // รอ Firebase update
+      await Future.delayed(const Duration(milliseconds: 500)); // รอ Firebase update
 
       final currentFirebaseUser = _auth.currentUser;
       if (currentFirebaseUser != null) {
@@ -422,7 +422,7 @@ class AuthService {
                         const SizedBox(height: 24),
 
                         // 🔵 ส่วนที่ 4: ปุ่มเข้าสู่ระบบ Google Material Style
-                        Container(
+                        SizedBox(
                           width: double.infinity,
                           height: 40,
                           child: Material(
@@ -534,7 +534,7 @@ class AuthService {
                                           ),
                                         )
                                       else
-                                        Container(
+                                        SizedBox(
                                           width: 20,
                                           height: 20,
                                           child: Image.network(
@@ -683,7 +683,7 @@ class AuthService {
           print(
               '❌ ความพยายามครั้งที่ $attempt ล้มเหลว: ${e.toString().substring(0, 100)}...');
           if (attempt < 3) {
-            await Future.delayed(Duration(seconds: 2)); // รอ 2 วินาที
+            await Future.delayed(const Duration(seconds: 2)); // รอ 2 วินาที
           }
         }
       }

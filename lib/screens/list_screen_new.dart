@@ -496,9 +496,9 @@ class _ListScreenState extends State<ListScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: const Text(
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 2),
+                                    child: Text(
                                       '💬',
                                       style: TextStyle(fontSize: 14),
                                     ),
@@ -634,8 +634,9 @@ class _ListScreenState extends State<ListScreen> {
                                               fit: BoxFit.contain,
                                               loadingBuilder: (context, child,
                                                   loadingProgress) {
-                                                if (loadingProgress == null)
+                                                if (loadingProgress == null) {
                                                   return child;
+                                                }
                                                 return const Center(
                                                   child:
                                                       CircularProgressIndicator(
@@ -696,15 +697,15 @@ class _ListScreenState extends State<ListScreen> {
                                       width: 1,
                                     ),
                                   ),
-                                  child: Row(
+                                  child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Text(
+                                      Text(
                                         '📷',
                                         style: TextStyle(fontSize: 14),
                                       ),
-                                      const SizedBox(width: 8),
-                                      const Text(
+                                      SizedBox(width: 8),
+                                      Text(
                                         'คลิกดูรูปภาพ',
                                         style: TextStyle(
                                           fontSize: 14,
@@ -712,8 +713,8 @@ class _ListScreenState extends State<ListScreen> {
                                           color: Colors.black87,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      const Text(
+                                      SizedBox(width: 8),
+                                      Text(
                                         '🔍',
                                         style: TextStyle(fontSize: 14),
                                       ),

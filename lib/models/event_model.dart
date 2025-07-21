@@ -78,10 +78,9 @@ extension EventCategoryExtension on EventCategory {
   Color get color {
     switch (this) {
       case EventCategory.checkpoint:
-        return const Color(
-            0xFF1A237E); // Navy Blue - ให้ความรู้สึกเข้มข้น จริงจัง
+        return const Color(0xFF9C3A3A); // สีแดงอมน้ำตาลตามรูป
       case EventCategory.accident:
-        return const Color(0xFFD32F2F); // Strong Red - สีแดงเตือนภัยชัดเจน
+        return const Color(0xFFFDC621); // เหลืองเหมือน AppBar
       case EventCategory.fire:
         return const Color(0xFFF4511E); // Deep Orange - สีส้มอมแดง ร้อนแรง
       case EventCategory.floodRain:
@@ -91,11 +90,11 @@ extension EventCategoryExtension on EventCategory {
         return const Color(0xFF0097A7); // Teal - ฟ้าอมเขียว สื่อถึงคลื่น/ทะเล
       case EventCategory.earthquake:
         return const Color(
-            0xFF5D4037); // Earth Brown - น้ำตาลเข้ม สื่อถึงแผ่นดิน
+            0xFF607D8B); // Blue Grey - สีเทาน้ำเงิน สื่อถึงหิน/แผ่นดิน
       case EventCategory.animalLost:
         return const Color(0xFF689F38); // Lime Green - เขียวให้ความรู้สึกหวังดี
       case EventCategory.question:
-        return const Color(0xFF7B1FA2); // Soft Purple - ม่วงกลาง สบายตา
+        return const Color(0xFF90A4AE); // สีเทาน้ำเงินอ่อน
     }
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/event_model.dart';
 import '../screens/report_screen.dart';
 import '../screens/list_screen.dart';
+import '../screens/emergency_contacts.dart';
 
 class BottomBar extends StatelessWidget {
   final List<EventCategory> selectedCategories;
@@ -27,7 +29,7 @@ class BottomBar extends StatelessWidget {
           bottom: 1, // ลด padding ด้านล่างให้ชิดขอบมากที่สุด
         ),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
+          color: Colors.white,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(6), // ลดความโค้งจาก 12 เป็น 6
             topRight: Radius.circular(6), // ลดความโค้งจาก 12 เป็น 6
@@ -36,6 +38,68 @@ class BottomBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
+            // ปุ่มเบอร์ฉุกเฉิน (ซ้ายสุด)
+            Flexible(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const EmergencyContactsScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  splashColor: const Color(0xFFC3E7FF).withValues(alpha: 0.3),
+                  highlightColor:
+                      const Color(0xFFC3E7FF).withValues(alpha: 0.1),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 3.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 44, // เพิ่มจาก 38 เป็น 44 (+15%)
+                          height: 26, // เพิ่มจาก 23 เป็น 26 (+15%)
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius:
+                                BorderRadius.circular(13), // ปรับตาม width ใหม่
+                          ),
+                          child: Center(
+                            child: SizedBox(
+                              width: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              height: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              child: SvgPicture.asset(
+                                'assets/icons/bottom_bar/sos.svg',
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.red,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'ฉุกเฉิน',
+                          style: TextStyle(
+                            fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF424743),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
             // ปุ่มเลือกประเภท
             Flexible(
               child: Material(
@@ -48,20 +112,37 @@ class BottomBar extends StatelessWidget {
                       const Color(0xFFC3E7FF).withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0), // ลดความสูงของปุ่ม
+                        horizontal: 8.0, vertical: 3.0), // ลดความสูงของปุ่ม
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.filter_list,
-                          color: Color(0xFF424743),
-                          size: 22,
+                        Container(
+                          width: 44, // เพิ่มจาก 38 เป็น 44 (+15%)
+                          height: 26, // เพิ่มจาก 23 เป็น 26 (+15%)
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius:
+                                BorderRadius.circular(13), // ปรับตาม width ใหม่
+                          ),
+                          child: Center(
+                            child: SizedBox(
+                              width: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              height: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              child: SvgPicture.asset(
+                                'assets/icons/bottom_bar/sort.svg',
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.red,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'ประเภท',
-                          style: const TextStyle(
-                            fontSize: 10,
+                          style: TextStyle(
+                            fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF424743),
                           ),
@@ -92,28 +173,37 @@ class BottomBar extends StatelessWidget {
                       const Color(0xFFC3E7FF).withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0), // ลดความสูงของปุ่ม
+                        horizontal: 8.0, vertical: 3.0), // ลดความสูงของปุ่ม
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFF5252),
-                            shape: BoxShape.circle,
+                          width: 44, // เพิ่มจาก 38 เป็น 44 (+15%)
+                          height: 26, // เพิ่มจาก 23 เป็น 26 (+15%)
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius:
+                                BorderRadius.circular(13), // ปรับตาม width ใหม่
                           ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 18,
+                          child: Center(
+                            child: SizedBox(
+                              width: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              height: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              child: SvgPicture.asset(
+                                'assets/icons/bottom_bar/siren.svg',
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.red,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'แจ้งด่วน',
+                          'แจ้งอะไร?',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF424743),
                           ),
@@ -146,21 +236,37 @@ class BottomBar extends StatelessWidget {
                       const Color(0xFFC3E7FF).withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0), // ลดความสูงของปุ่ม
+                        horizontal: 8.0, vertical: 3.0), // ลดความสูงของปุ่ม
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          '📋',
-                          style: TextStyle(
-                            fontSize: 22,
+                        Container(
+                          width: 44, // เพิ่มจาก 38 เป็น 44 (+15%)
+                          height: 26, // เพิ่มจาก 23 เป็น 26 (+15%)
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius:
+                                BorderRadius.circular(13), // ปรับตาม width ใหม่
+                          ),
+                          child: Center(
+                            child: SizedBox(
+                              width: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              height: 25, // เพิ่มจาก 22 เป็น 25 (+15%)
+                              child: SvgPicture.asset(
+                                'assets/icons/bottom_bar/near_me.svg',
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.red,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'รายการ',
+                          'ใกล้ฉัน',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF424743),
                           ),

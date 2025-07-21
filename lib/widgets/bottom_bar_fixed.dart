@@ -151,20 +151,20 @@ class BottomBar extends StatelessWidget {
                   splashColor: const Color(0xFFC3E7FF).withValues(alpha: 0.3),
                   highlightColor:
                       const Color(0xFFC3E7FF).withValues(alpha: 0.1),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 6.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           '📋',
                           style: TextStyle(
                             fontSize: 22,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
+                        SizedBox(height: 2),
+                        Text(
                           'รายการ',
                           style: TextStyle(
                             fontSize: 10,

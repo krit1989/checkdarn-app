@@ -25,7 +25,7 @@ class OfflineMapWidget extends StatefulWidget {
 
 class _OfflineMapWidgetState extends State<OfflineMapWidget> {
   late TransformationController _controller;
-  LatLng _currentCenter = LatLng(13.7563, 100.5018);
+  LatLng _currentCenter = const LatLng(13.7563, 100.5018);
   double _currentZoom = 15.0;
 
   @override
@@ -57,7 +57,7 @@ class _OfflineMapWidgetState extends State<OfflineMapWidget> {
             // อัปเดตการแสดงผลเมื่อมีการ pan/zoom
             setState(() {});
           },
-          child: Container(
+          child: SizedBox(
             width: double.infinity,
             height: double.infinity,
             child: CustomPaint(
@@ -229,7 +229,7 @@ class OfflineMapPainter extends CustomPainter {
     paint.strokeWidth = 0.5;
     paint.style = PaintingStyle.stroke;
 
-    final gridSize = 50.0;
+    const gridSize = 50.0;
     for (double x = 0; x <= size.width; x += gridSize) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }

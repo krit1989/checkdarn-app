@@ -259,6 +259,7 @@ class FirebaseService {
     String? imageUrl,
     File? imageFile,
     String? userId,
+    String? userName,
   }) async {
     try {
       final effectiveUserId = userId ?? 'anonymous';
@@ -322,6 +323,8 @@ class FirebaseService {
           'province': province,
           'imageUrl': finalImageUrl ?? '',
           'userId': effectiveUserId,
+          'userName': userName ?? 'ไม่ระบุชื่อ',
+          'displayName': userName ?? 'ไม่ระบุชื่อ',
           'status': 'active',
           'expireAt': Timestamp.fromDate(expireAt),
         });
@@ -334,7 +337,7 @@ class FirebaseService {
             {
               'lastReportAt': FieldValue.serverTimestamp(),
               'totalReports': FieldValue.increment(1),
-              'lastReportLocation': '${district}, ${province}',
+              'lastReportLocation': '$district, $province',
             },
             SetOptions(merge: true));
 

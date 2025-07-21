@@ -35,11 +35,13 @@ dependencies:
   flutter_image_compress: ^2.1.0
   path_provider: ^2.1.1
   cached_network_image: ^3.3.1  # เพิ่มสำหรับ cache รูปภาพ
+  dotted_border: ^2.1.0
   
   # HTTP requests
   http: ^1.5.0-beta.2
   shared_preferences: ^2.5.3
   url_launcher: ^6.1.12
+  flutter_svg: ^2.0.7
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +56,8 @@ flutter:
     - assets/fonts/
     - assets/images/
     - assets/map_tiles/
+    - assets/icons/bottom_bar/
+    - assets/icons/bottom_bar/report_screen/
 
   fonts:
     - family: Kanit

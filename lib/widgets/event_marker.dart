@@ -16,8 +16,8 @@ class EventMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // คำนวณขนาดตาม scale
-    final double baseWidth = 23.0;
-    final double baseHeight = 30.0;
+    const double baseWidth = 23.0;
+    const double baseHeight = 30.0;
     final double width = baseWidth * scale;
     final double height = baseHeight * scale;
 

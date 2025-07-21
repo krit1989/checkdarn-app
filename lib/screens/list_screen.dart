@@ -68,8 +68,9 @@ class _ListScreenState extends State<ListScreen> {
     final postLat = data['lat']?.toDouble() ?? data['latitude']?.toDouble();
     final postLng = data['lng']?.toDouble() ?? data['longitude']?.toDouble();
 
-    if (postLat == null || postLng == null)
+    if (postLat == null || postLng == null) {
       return true; // ถ้าไม่มีพิกัด ให้แสดง
+    }
 
     // คำนวณระยะทาง
     final distanceInMeters = LocationService.calculateDistance(
@@ -442,18 +443,17 @@ class _ListScreenState extends State<ListScreen> {
         title: const Text(
           'รายการแจ้งเหตุ',
           style: TextStyle(
-            fontWeight: FontWeight.w400,
-            color: Colors.white,
-            fontFamily: 'Kanit',
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
           ),
         ),
         centerTitle: true, // ให้ข้อความอยู่กลาง
-        backgroundColor: const Color(0xFFFF9800),
+        backgroundColor: const Color(0xFFFDC621),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios,
-            color: Colors.white,
+            color: Colors.black,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -464,7 +464,7 @@ class _ListScreenState extends State<ListScreen> {
               onPressed: _showCleanupStats,
               icon: const Icon(
                 Icons.info_outline,
-                color: Colors.white,
+                color: Colors.black,
               ),
               tooltip: 'ดูสถิติโพสต์ (Dev Only)',
             ),
@@ -478,7 +478,7 @@ class _ListScreenState extends State<ListScreen> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                   ),
                 ),
               ),
@@ -819,8 +819,9 @@ class _ListScreenState extends State<ListScreen> {
                                               fit: BoxFit.contain,
                                               loadingBuilder: (context, child,
                                                   loadingProgress) {
-                                                if (loadingProgress == null)
+                                                if (loadingProgress == null) {
                                                   return child;
+                                                }
                                                 return const Center(
                                                   child:
                                                       CircularProgressIndicator(
@@ -880,18 +881,18 @@ class _ListScreenState extends State<ListScreen> {
                                         width: 1,
                                       ),
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 4),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Text(
+                                          Text(
                                             '📷',
                                             style: TextStyle(fontSize: 13),
                                           ),
-                                          const SizedBox(width: 6),
-                                          const Text(
+                                          SizedBox(width: 6),
+                                          Text(
                                             'คลิกดูรูปภาพ',
                                             style: TextStyle(
                                               fontSize: 13,
@@ -938,7 +939,7 @@ class _ListScreenState extends State<ListScreen> {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.person_outline,
                                   size: 16,
                                   color: Colors.red,

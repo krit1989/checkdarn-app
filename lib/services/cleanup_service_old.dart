@@ -115,7 +115,7 @@ class CleanupService {
   }
 
   /// ลบโพสต์เก่าด้วยตนเอง (สำหรับทดสอบ)
-  static Future<int> manualCleanup() async {
+  Future<int> manualCleanup() async {
     print('🧹 Starting manual cleanup...');
     await _performCleanup();
 
@@ -137,7 +137,7 @@ class CleanupService {
   }
 
   /// ดูสถิติโพสต์
-  static Future<Map<String, int>> getPostStatistics() async {
+  Future<Map<String, int>> getPostStatistics() async {
     try {
       final now = DateTime.now();
       final fortyEightHoursAgo = now.subtract(const Duration(hours: 48));
