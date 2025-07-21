@@ -280,7 +280,7 @@ flutter build ios --release
 - ✅ 48-hour freshness filter
 - ✅ Radius-based search (10-100 km)
 
-**อัปเดตล่าสุด:** มกราคม 2025
+**อัปเดตล่าสุด:** กรกฎาคม 2025
 - เพิ่ม EventMarker และ LocationMarker components
 - อัปเดตสีหมวดหมู่ให้สื่อความหมายชัดเจน
 - ปรับปรุง UI/UX และลบเงาไม่จำเป็น
