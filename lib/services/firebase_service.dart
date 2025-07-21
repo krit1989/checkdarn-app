@@ -374,12 +374,13 @@ class FirebaseService {
     }
   }
 
-  /// ดึงรายงานทั้งหมด (สำหรับแผนที่)
+  /// ดึงรายงานทั้งหมด (สำหรับแผนที่) - ปรับปรุงประสิทธิภาพ
   static Stream<QuerySnapshot> getReportsStream() {
     print('Debug: Getting reports stream from collection: $_collection');
     return _firestore
         .collection(_collection)
         .orderBy('timestamp', descending: true)
+        .limit(100) // จำกัดจำนวนเอกสารที่โหลด
         .snapshots();
   }
 

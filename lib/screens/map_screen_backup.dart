@@ -5,7 +5,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/event_model.dart';
@@ -47,29 +46,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   late BackgroundFetchService _backgroundFetchService;
   StreamSubscription? _backgroundDataSubscription;
 
-  // Preloading cache
-  final Set<String> _preloadedImageUrls = <String>{};
-  Timer? _preloadTimer;
-
-  // Offline mode
-  bool _isOfflineMode = false;
-  Timer? _connectivityTimer;
-
-  // Real-time updates
-  StreamSubscription? _realtimeSubscription;
-  final List<String> _realtimeNotifications = [];
-
-  // Analytics
-  final Map<String, int> _analyticsCounters = {
-    'marker_taps': 0,
-    'category_changes': 0,
-    'location_updates': 0,
-    'image_preloads': 0,
-    'offline_events': 0,
-  };
-  Timer? _analyticsTimer;
-  DateTime? _sessionStartTime;
-
   List<EventCategory> selectedCategories = EventCategory.values.toList();
 
   @override
@@ -90,18 +66,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     // Initialize background fetch service
     _initializeBackgroundFetch();
 
-    // Start image preloading
-    _startImagePreloading();
-
-    // Start connectivity monitoring
-    _startConnectivityMonitoring();
-
-    // Setup real-time notifications
-    _setupRealtimeNotifications();
-
-    // Start analytics tracking
-    startAnalytics();
-
     // Listen for map zoom changes
     mapController.mapEventStream.listen((event) {
       if (event is MapEventMoveEnd) {
@@ -120,18 +84,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _mapAnimationController.dispose(); // Dispose animation controller
     _backgroundDataSubscription?.cancel(); // ยกเลิก background subscription
     _backgroundFetchService.dispose(); // ปิด background service
-    _preloadTimer?.cancel(); // ยกเลิก preload timer
-    _connectivityTimer?.cancel(); // ยกเลิก connectivity timer
-    _realtimeSubscription?.cancel(); // ยกเลิก real-time subscription
-    _analyticsTimer?.cancel(); // ยกเลิก analytics timer
     mapController.dispose(); // Dispose mapController
-
+    
     // เคลียร์ image cache เพื่อจัดการ memory
     WidgetsBinding.instance.addPostFrameCallback((_) {
       imageCache.clear();
-      _preloadedImageUrls.clear();
     });
-
+    
     super.dispose();
   }
 
@@ -139,14 +98,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Future<void> _initializeBackgroundFetch() async {
     _backgroundFetchService = BackgroundFetchService.instance;
     await _backgroundFetchService.initialize();
-
+    
     // Listen to background data
-    _backgroundDataSubscription =
-        _backgroundFetchService.dataStream.listen((backgroundData) {
+    _backgroundDataSubscription = _backgroundFetchService.dataStream.listen((backgroundData) {
       if (mounted && backgroundData.isNotEmpty) {
         if (kDebugMode) {
-          debugPrint(
-              'Background fetch: Received ${backgroundData.length} documents');
+          debugPrint('Background fetch: Received ${backgroundData.length} documents');
         }
         // อาจจะใช้ข้อมูลนี้เพื่อ cache หรือ pre-load markers
         // สำหรับตอนนี้แค่ log ไว้
@@ -156,246 +113,38 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   /// Start background fetching for current location and settings
   void _startBackgroundFetch() {
-    // แปลง EventCategory เป็น BackgroundEventCategory
-    final backgroundCategories = selectedCategories.map((cat) {
-      switch (cat) {
-        case EventCategory.checkpoint:
-          return BackgroundEventCategory.police;
-        case EventCategory.accident:
-          return BackgroundEventCategory.accident;
-        case EventCategory.fire:
-          return BackgroundEventCategory.other;
-        case EventCategory.floodRain:
-          return BackgroundEventCategory.weather;
-        case EventCategory.tsunami:
-          return BackgroundEventCategory.weather;
-        case EventCategory.earthquake:
-          return BackgroundEventCategory.other;
-        case EventCategory.animalLost:
-          return BackgroundEventCategory.other;
-        case EventCategory.question:
-          return BackgroundEventCategory.other;
-      }
-    }).toList();
-
-    _backgroundFetchService.startFetching(
-      lat: currentPosition.latitude,
-      lng: currentPosition.longitude,
-      searchRadius: searchRadius,
-      categories: backgroundCategories,
-      interval: const Duration(minutes: 3), // fetch ทุก 3 นาที
-    );
-
-    if (kDebugMode) {
-      debugPrint(
-          'Background fetch: Started with ${backgroundCategories.length} categories');
-    }
-  }
-
-  /// Preload images that are nearby to improve performance
-  void _startImagePreloading() {
-    _preloadTimer?.cancel();
-    _preloadTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      _preloadNearbyImages();
-    });
-  }
-
-  /// Preload images for events within the current search radius
-  Future<void> _preloadNearbyImages() async {
-    try {
-      final snapshot = await FirebaseService.getReportsStream().first;
-      final filteredDocs = _filterDocuments(snapshot.docs);
-
-      for (final doc in filteredDocs.take(20)) {
-        // จำกัดที่ 20 รูปแรก
-        final data = doc.data() as Map<String, dynamic>;
-        final imageUrl = data['imageUrl'] as String?;
-
-        if (imageUrl != null &&
-            imageUrl.isNotEmpty &&
-            !_preloadedImageUrls.contains(imageUrl)) {
-          _preloadedImageUrls.add(imageUrl);
-
-          // Preload image ในพื้นหลัง
-          precacheImage(
-            NetworkImage(imageUrl),
-            context,
-          ).catchError((error) {
-            // Remove from cache if preload fails
-            _preloadedImageUrls.remove(imageUrl);
-            if (kDebugMode) {
-              debugPrint('Failed to preload image: $imageUrl');
-            }
-          });
-
-          if (kDebugMode) {
-            debugPrint('Preloading image: $imageUrl');
-          }
-
-          // Track analytics
-          trackAction('image_preloads');
+    if (currentPosition != null) {
+      // แปลง EventCategory เป็น BackgroundEventCategory
+      final backgroundCategories = selectedCategories.map((cat) {
+        switch (cat) {
+          case EventCategory.traffic:
+            return BackgroundEventCategory.traffic;
+          case EventCategory.accident:
+            return BackgroundEventCategory.accident;
+          case EventCategory.roadwork:
+            return BackgroundEventCategory.roadwork;
+          case EventCategory.police:
+            return BackgroundEventCategory.police;
+          case EventCategory.weather:
+            return BackgroundEventCategory.weather;
+          default:
+            return BackgroundEventCategory.other;
         }
-      }
+      }).toList();
 
-      // ทำความสะอาด cache ถ้าเก็บมากเกินไป
-      if (_preloadedImageUrls.length > 50) {
-        final excess = _preloadedImageUrls.length - 50;
-        final toRemove = _preloadedImageUrls.take(excess).toList();
-        _preloadedImageUrls.removeAll(toRemove);
-      }
-    } catch (e) {
+      _backgroundFetchService.startFetching(
+        lat: currentPosition!.latitude,
+        lng: currentPosition!.longitude,
+        searchRadius: searchRadius,
+        categories: backgroundCategories,
+        interval: const Duration(minutes: 3), // fetch ทุก 3 นาที
+      );
+      
       if (kDebugMode) {
-        debugPrint('Error preloading images: $e');
+        debugPrint('Background fetch: Started with ${backgroundCategories.length} categories');
       }
     }
   }
-
-  /// Check connectivity and manage offline mode
-  void _startConnectivityMonitoring() {
-    _connectivityTimer?.cancel();
-    _connectivityTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      _checkConnectivity();
-    });
-
-    // Check immediately
-    _checkConnectivity();
-  }
-
-  /// Check if device is online or offline
-  Future<void> _checkConnectivity() async {
-    try {
-      // Simple connectivity check by trying to reach Firebase
-      await FirebaseService.getReportsStream()
-          .timeout(const Duration(seconds: 5))
-          .first;
-
-      if (_isOfflineMode) {
-        setState(() {
-          _isOfflineMode = false;
-        });
-        if (kDebugMode) {
-          debugPrint('Back online - switching to online mode');
-        }
-      }
-    } catch (e) {
-      if (!_isOfflineMode) {
-        setState(() {
-          _isOfflineMode = true;
-        });
-
-        // Track analytics
-        trackAction('offline_events');
-
-        if (kDebugMode) {
-          debugPrint('Going offline - switching to offline mode');
-        }
-      }
-    }
-  }
-
-  /// Cache tiles for offline use
-  Future<void> _cacheTilesForOffline() async {
-    if (kDebugMode) {
-      debugPrint('Starting tile caching for offline use...');
-    }
-
-    // Cache tiles around current position
-    final bounds = _calculateTileBounds(currentPosition, searchRadius);
-
-    // This would typically integrate with a tile caching library
-    // For now, we'll just log the bounds that should be cached
-    if (kDebugMode) {
-      debugPrint('Would cache tiles for bounds: $bounds');
-    }
-  }
-
-  /// Calculate tile bounds for caching
-  Map<String, dynamic> _calculateTileBounds(LatLng center, double radiusKm) {
-    const double earthRadius = 6371; // Earth radius in km
-    final double latOffset = (radiusKm / earthRadius) * (180 / math.pi);
-    final double lngOffset =
-        latOffset / math.cos(center.latitude * math.pi / 180);
-
-    return {
-      'north': center.latitude + latOffset,
-      'south': center.latitude - latOffset,
-      'east': center.longitude + lngOffset,
-      'west': center.longitude - lngOffset,
-      'zoom_levels': [10, 11, 12, 13, 14, 15, 16], // Cache multiple zoom levels
-    };
-  }
-
-  /// Setup real-time notifications for new events
-  void _setupRealtimeNotifications() {
-    _realtimeSubscription?.cancel();
-
-    // Listen to new reports in real-time
-    _realtimeSubscription =
-        FirebaseService.getReportsStream().listen((QuerySnapshot snapshot) {
-      if (!mounted) return;
-
-      // Check for new documents
-      for (final change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data() as Map<String, dynamic>?;
-          if (data != null) {
-            _handleNewRealtimeEvent(change.doc.id, data);
-          }
-        }
-      }
-    }, onError: (error) {
-      if (kDebugMode) {
-        debugPrint('Real-time subscription error: $error');
-      }
-    });
-  }
-
-  /// Handle new real-time event
-  void _handleNewRealtimeEvent(String docId, Map<String, dynamic> data) {
-    // Check if event is within current search radius
-    final lat = (data['lat'] ?? 0.0) as double;
-    final lng = (data['lng'] ?? 0.0) as double;
-
-    if (lat == 0.0 && lng == 0.0) return;
-
-    final distance = FirebaseService.calculateDistance(
-      currentPosition.latitude,
-      currentPosition.longitude,
-      lat,
-      lng,
-    );
-
-    if (distance <= searchRadius) {
-      final category = data['category'] as String? ?? 'unknown';
-      final eventCategory = FirebaseService.getCategoryFromName(category);
-
-      // Only show notification if category is selected
-      if (selectedCategories.contains(eventCategory)) {
-        // _showRealtimeNotification(eventCategory, distance); // ปิดการแจ้งเตือน
-
-        // Add to notifications list
-        final notification =
-            '${eventCategory.emoji} ${eventCategory.label} - ${distance.toStringAsFixed(1)} กม.';
-        _realtimeNotifications.insert(0, notification);
-
-        // Keep only last 10 notifications
-        if (_realtimeNotifications.length > 10) {
-          _realtimeNotifications.removeLast();
-        }
-
-        if (kDebugMode) {
-          debugPrint('New real-time event: $notification');
-        }
-      }
-    }
   }
 
   // ฟังก์ชันโหลดการตั้งค่าที่บันทึกไว้
@@ -509,9 +258,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       setState(() => currentPosition = userPosition);
       mapController.move(userPosition, 15.0);
       await _getLocationInfo(userPosition);
-
-      // Track analytics
-      trackAction('location_updates');
     } catch (e) {
       _showLocationErrorSnackbar('ไม่สามารถหาตำแหน่งได้: ${e.toString()}');
     } finally {
@@ -555,9 +301,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           setState(() {
             selectedCategories = categories;
           });
-
-          // Track analytics
-          trackAction('category_changes');
         },
       ),
     );
@@ -792,9 +535,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 fit: BoxFit.cover,
                                 cacheWidth: 600, // จำกัดขนาดแคช
                                 cacheHeight: 400,
-                                headers: const {
-                                  'User-Agent': 'CheckDarn/1.0',
-                                },
+                                // ใช้ loading builder ที่มีประสิทธิภาพ
                                 loadingBuilder:
                                     (context, child, loadingProgress) {
                                   if (loadingProgress == null) return child;
@@ -1103,12 +844,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           'Debug: 🔥 Selected categories = ${selectedCategories.map((c) => c.toString().split('.').last).toList()}');
     }
 
+    // ใช้ฟังก์ชันกรองที่แยกออกมาแล้ว
     final filteredDocs = _filterDocuments(docs);
 
     if (kDebugMode) {
       debugPrint('Debug: Filtered docs count = ${filteredDocs.length}');
+
       if (filteredDocs.isEmpty) {
         debugPrint('Debug: ⚠️  No fresh markers found!');
+        debugPrint(
+            'Debug: - Selected categories: ${selectedCategories.map((c) => c.toString().split('.').last).toList()}');
+        debugPrint('Debug: - Search radius: $searchRadius km');
+        debugPrint('Debug: - Time window: last 48 hours (for freshness)');
       } else {
         debugPrint('Debug: ✅ Found ${filteredDocs.length} fresh events');
       }
@@ -1138,21 +885,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     // ใช้ clustering เมื่อ zoom level ต่ำ และมี markers เยอะ
     final shouldCluster = _currentZoom < 14.0 && clusterMarkers.length > 10;
-
+    
     if (shouldCluster) {
       final clusteredMarkers = MarkerClusteringService.clusterMarkers(
         markers: clusterMarkers,
         currentZoom: _currentZoom,
         onMarkerTap: (clusterMarker) {
+          // Handle single marker tap
           final data = clusterMarker.data['data'] as Map<String, dynamic>;
           final doc = clusterMarker.data['doc'] as DocumentSnapshot;
           final eventCategory = clusterMarker.data['category'] as EventCategory;
-
+          
           final dataWithId = Map<String, dynamic>.from(data);
           dataWithId['id'] = doc.id;
           _showEventPopup(context, dataWithId, eventCategory);
         },
         onClusterTap: (clusterCenter) {
+          // Handle cluster tap - zoom in to show more detail
           if (mounted) {
             mapController.move(
               clusterCenter,
@@ -1161,12 +910,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           }
         },
       );
-
+      
       if (kDebugMode) {
-        debugPrint(
-            'Debug: 🔗 Clustered ${clusterMarkers.length} markers into ${clusteredMarkers.length} clusters');
+        debugPrint('Debug: 🔗 Clustered ${clusterMarkers.length} markers into ${clusteredMarkers.length} clusters');
       }
-
+      
       return clusteredMarkers;
     }
 
@@ -1178,19 +926,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
       return Marker(
         point: clusterMarker.point,
-        width: 55 * 1.16, // ลดขนาดลง 15% (1.365 → 1.16)
-        height: 55 * 1.16, // ใช้ขนาดเดียวกันเพราะเป็นวงกลม
+        width: 23 * 1.365,
+        height: 30 * 1.365,
         child: EventMarker(
-          category: eventCategory, // ใช้ EventCategory โดยตรง ไม่ต้องแปลง
-          scale: 1.16, // ลดขนาดลง 15% จาก 1.365
-          isPost: true, // เพิ่ม parameter ใหม่
+          category: eventCategory,
+          scale: 1.365,
           onTap: () {
             final dataWithId = Map<String, dynamic>.from(data);
             dataWithId['id'] = doc.id;
-
-            // Track analytics
-            trackAction('marker_taps');
-
             _showEventPopup(context, dataWithId, eventCategory);
           },
         ),
@@ -1198,8 +941,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }).toList();
 
     if (kDebugMode) {
-      debugPrint(
-          'Debug: 🔥 Final markers count = ${markers.length} (no clustering)');
+      debugPrint('Debug: 🔥 Final markers count = ${markers.length} (no clustering)');
       debugPrint('Debug: 🔥 === MARKERS BUILDING COMPLETE ===');
     }
     return markers;
@@ -1357,22 +1099,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.checkdarn',
-                  fallbackUrl:
-                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  // เพิ่ม fallback URLs สำหรับประสิทธิภาพที่ดีกว่า
+                  fallbackUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                   subdomains: const ['a', 'b', 'c'],
+                  // ปรับปรุงการจัดการแคช
                   maxZoom: 18,
                   maxNativeZoom: 18,
+                  // ปรับปรุงการโหลด
                   tileProvider: NetworkTileProvider(),
                   additionalOptions: const {
                     'attribution': '© OpenStreetMap contributors',
-                  },
-                  tileBuilder: (context, widget, tile) {
-                    return FadeTransition(
-                      opacity: AlwaysStoppedAnimation(
-                        tile.loadStarted == null ? 0.0 : 1.0,
-                      ),
-                      child: widget,
-                    );
                   },
                 ),
                 // วงรัศมีการค้นหา
@@ -1401,7 +1137,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                // หมุดเหตุการณ์จาก Firebase
+                // หมุดเหตุการณ์จาก Firebase (ปรับปรุงประสิทธิภาพ)
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseService.getReportsStream(),
                   builder: (context, snapshot) {
@@ -1457,7 +1193,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     // แสดงหมุดด้วย Key เพื่อให้ Flutter rebuild ได้ถูกต้อง
                     return MarkerLayer(
                       key: ValueKey(
-                          'markers_${filteredDocs.length}_${selectedCategories.length}_${searchRadius.toInt()}'),
+                          'markers_${filteredDocs.length}_${selectedCategories.length}_${searchRadius.toInt()}_${DateTime.now().millisecondsSinceEpoch ~/ 30000}'), // เพิ่ม timestamp ทุก 30 วินาที
                       markers: markers,
                     );
                   },
@@ -1643,81 +1379,4 @@ class SimpleMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Analytics and Performance Extensions
-extension MapScreenAnalytics on _MapScreenState {
-  /// Start analytics tracking
-  void startAnalytics() {
-    _sessionStartTime = DateTime.now();
-
-    _analyticsTimer?.cancel();
-    _analyticsTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      logAnalytics();
-    });
-  }
-
-  /// Log analytics data
-  void logAnalytics() {
-    final sessionDuration = _sessionStartTime != null
-        ? DateTime.now().difference(_sessionStartTime!).inMinutes
-        : 0;
-
-    final analyticsData = {
-      'session_duration_minutes': sessionDuration,
-      'current_zoom': _currentZoom,
-      'search_radius': searchRadius,
-      'selected_categories_count': selectedCategories.length,
-      'is_offline_mode': _isOfflineMode,
-      'preloaded_images_count': _preloadedImageUrls.length,
-      'notifications_count': _realtimeNotifications.length,
-      ..._analyticsCounters,
-    };
-
-    if (kDebugMode) {
-      debugPrint('📊 Analytics: $analyticsData');
-    }
-
-    // Here you would typically send to Firebase Analytics or your analytics service
-    // Example: FirebaseAnalytics.instance.logEvent(name: 'map_session', parameters: analyticsData);
-  }
-
-  /// Track user action for analytics
-  void trackAction(String action) {
-    if (_analyticsCounters.containsKey(action)) {
-      _analyticsCounters[action] = (_analyticsCounters[action] ?? 0) + 1;
-    }
-  }
-
-  /// Get performance metrics
-  Map<String, dynamic> getPerformanceMetrics() {
-    return {
-      'memory_usage_mb': getMemoryUsage(),
-      'image_cache_size': imageCache.currentSize,
-      'image_cache_count': imageCache.currentSizeBytes,
-      'fps': getCurrentFPS(),
-      'offline_mode': _isOfflineMode,
-    };
-  }
-
-  /// Get approximate memory usage
-  double getMemoryUsage() {
-    // This is a simplified estimation
-    // In a real app, you'd use more sophisticated memory monitoring
-    final imagesCacheSize =
-        imageCache.currentSizeBytes / (1024 * 1024); // Convert to MB
-    final approximateAppMemory = 50.0; // Base app memory estimate
-    return approximateAppMemory + imagesCacheSize;
-  }
-
-  /// Get current FPS (simplified)
-  double getCurrentFPS() {
-    // This is a placeholder - real FPS monitoring would require
-    // integration with Flutter's performance tools
-    return 60.0; // Assume 60 FPS for now
-  }
 }

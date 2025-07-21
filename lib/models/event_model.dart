@@ -94,7 +94,7 @@ extension EventCategoryExtension on EventCategory {
       case EventCategory.animalLost:
         return const Color(0xFF689F38); // Lime Green - เขียวให้ความรู้สึกหวังดี
       case EventCategory.question:
-        return const Color(0xFF90A4AE); // สีเทาน้ำเงินอ่อน
+        return const Color(0xFF2196F3); // สีน้ำเงินสดใส - เป็นมิตรและน่าสนใจ
     }
   }
 

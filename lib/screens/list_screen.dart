@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter/foundation.dart'; // สำหรับ kDebugMode
 import 'package:geolocator/geolocator.dart';
 import '../widgets/comment_bottom_sheet.dart';
+import '../widgets/event_marker.dart'; // เพิ่ม import EventMarker
 import '../utils/formatters.dart';
 import '../models/event_model.dart';
 import '../services/cleanup_service.dart';
@@ -22,6 +23,9 @@ class ListScreen extends StatefulWidget {
 class _ListScreenState extends State<ListScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Cache สำหรับ EventCategory เพื่อประหยัดการแปลงซ้ำ
+  final Map<String, EventCategory> _categoryCache = {};
+
   // ตัวแปรสำหรับ location filtering
   Position? _currentPosition;
   String? _currentProvince;
@@ -37,15 +41,18 @@ class _ListScreenState extends State<ListScreen> {
   // ฟังก์ชันหาตำแหน่งปัจจุบันและจังหวัด
   Future<void> _getCurrentLocation() async {
     try {
+      if (!mounted) return; // ตรวจสอบก่อน setState
       setState(() => _isLoadingLocation = true);
 
       final position = await LocationService.getCurrentLocation();
       if (position != null) {
+        if (!mounted) return; // ตรวจสอบก่อน setState
         setState(() => _currentPosition = position);
 
         // ดึงข้อมูลจังหวัด
         final locationInfo = await GeocodingService.getLocationInfo(
             LatLng(position.latitude, position.longitude));
+        if (!mounted) return; // ตรวจสอบก่อน setState
         setState(() => _currentProvince = locationInfo?.province);
 
         print(
@@ -55,7 +62,9 @@ class _ListScreenState extends State<ListScreen> {
     } catch (e) {
       print('Error getting location: $e');
     } finally {
-      setState(() => _isLoadingLocation = false);
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
     }
   }
 
@@ -131,24 +140,27 @@ class _ListScreenState extends State<ListScreen> {
     );
   }
 
-  // ฟังก์ชันดึง emoji สำหรับ category
-  String _getCategoryEmoji(String category) {
-    try {
-      final eventCategory = EventCategoryExtension.fromString(category);
-      return eventCategory.emoji;
-    } catch (e) {
-      return '📋'; // fallback
-    }
+  // ฟังก์ชันดึง EventCategory แบบ cache เพื่อประหยัดการแปลงซ้ำ
+  EventCategory _getCachedCategory(String categoryString) {
+    return _categoryCache.putIfAbsent(categoryString, () {
+      try {
+        return EventCategoryExtension.fromString(categoryString);
+      } catch (e) {
+        return EventCategory.checkpoint; // fallback
+      }
+    });
   }
 
-  // ฟังก์ชันดึงชื่อหมวดหมู่ภาษาไทย
+  // ฟังก์ชันดึง emoji สำหรับ category (เก็บไว้เพื่อ backward compatibility)
+  String _getCategoryEmoji(String category) {
+    final eventCategory = _getCachedCategory(category);
+    return eventCategory.emoji;
+  }
+
+  // ฟังก์ชันดึงชื่อหมวดหมู่ภาษาไทย (เก็บไว้เพื่อ backward compatibility)
   String _getCategoryName(String category) {
-    try {
-      final eventCategory = EventCategoryExtension.fromString(category);
-      return eventCategory.label;
-    } catch (e) {
-      return 'อื่นๆ'; // fallback
-    }
+    final eventCategory = _getCachedCategory(category);
+    return eventCategory.label;
   }
 
   // ดึงชื่อคนโพสแบบ masked
@@ -275,70 +287,12 @@ class _ListScreenState extends State<ListScreen> {
     }
   }
 
-  // Widget สำหรับหมุดตำแหน่งที่เลือก
-  Widget _buildLocationMarker() {
-    return SizedBox(
-      width: 34.5, // เพิ่มจาก 23 เป็น 34.5 (1.5 เท่า)
-      height: 45, // เพิ่มจาก 30 เป็น 45 (1.5 เท่า)
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // ขาหมุดสีแดง (ส่วนล่าง) - ลดความกว้าง 60%
-          Positioned(
-            bottom: 0,
-            child: Container(
-              width: 3.6, // เพิ่มจาก 2.4 เป็น 3.6 (1.5 เท่า)
-              height: 19.5, // เพิ่มจาก 13 เป็น 19.5 (1.5 เท่า)
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF5252), // สีแดง
-                borderRadius: BorderRadius.circular(1.8), // เพิ่มจาก 1.2
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // วงกลมสีฟ้า (ส่วนบน) - เพิ่มขนาด 1.5 เท่า
-          Positioned(
-            top: 0,
-            child: Container(
-              width: 26.25, // เพิ่มจาก 17.5 เป็น 26.25 (1.5 เท่า)
-              height: 26.25, // เพิ่มจาก 17.5 เป็น 26.25 (1.5 เท่า)
-              decoration: BoxDecoration(
-                color: const Color(0xFF4673E5), // สีฟ้า
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2.25, // เพิ่มจาก 1.5 เป็น 2.25 (1.5 เท่า)
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1.5),
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.location_on,
-                  color: Colors.white,
-                  size: 13.5, // เพิ่มจาก 9 เป็น 13.5 (1.5 เท่า)
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ฟังก์ชันแสดงแผนที่เต็มจอ
-  void _showMapDialog(double latitude, double longitude, String? locationName) {
+  void _showMapDialog(double latitude, double longitude, String? locationName,
+      String category) {
+    // ใช้ cached category แทนการแปลงใหม่
+    final eventCategory = _getCachedCategory(category);
+
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -363,10 +317,16 @@ class _ListScreenState extends State<ListScreen> {
                   MarkerLayer(
                     markers: [
                       Marker(
-                        width: 34.5,
-                        height: 45,
+                        width: 55.0,
+                        height: 55.0,
                         point: LatLng(latitude, longitude),
-                        child: _buildLocationMarker(),
+                        child: EventMarker(
+                          category: eventCategory,
+                          scale:
+                              1.2, // ขยายให้ใหญ่ขึ้นเล็กน้อยเพื่อให้เห็นชัดในแผนที่
+                          isPost:
+                              true, // เพิ่มการกำหนดให้เป็นหมุดโพส เพื่อแสดง emoji
+                        ),
                       ),
                     ],
                   ),
@@ -600,17 +560,8 @@ class _ListScreenState extends State<ListScreen> {
                     data['type'] ??
                     'other'; // fallback ถ้าไม่มี category
 
-                // Debug: แสดงข้อมูล imageUrl ใน console
-                if (imageUrl != null && imageUrl.isNotEmpty) {
-                  print('Debug ListScreen - imageUrl found: $imageUrl');
-                } else {
-                  print('Debug ListScreen - No imageUrl for report: $reportId');
-                }
-                print(
-                    'Debug ListScreen - All data keys: ${data.keys.toList()}');
-
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
                   elevation: 2,
                   color: Colors.white, // เปลี่ยนพื้นหลังเป็นสีขาว
                   shape: RoundedRectangleBorder(
@@ -731,6 +682,7 @@ class _ListScreenState extends State<ListScreen> {
                                         data['lat'].toDouble(),
                                         data['lng'].toDouble(),
                                         data['location']?.toString(),
+                                        category, // เพิ่ม category parameter
                                       );
                                     },
                                     child: Row(
@@ -767,6 +719,7 @@ class _ListScreenState extends State<ListScreen> {
                                         data['latitude'].toDouble(),
                                         data['longitude'].toDouble(),
                                         data['location'] ?? 'ไม่ระบุสถานที่',
+                                        category, // เพิ่ม category parameter
                                       );
                                     },
                                     child: Row(

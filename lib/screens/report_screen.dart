@@ -610,8 +610,8 @@ class _ReportScreenState extends State<ReportScreen> {
                               child: Row(
                                 children: [
                                   CircleAvatar(
-                                    backgroundColor:
-                                        category.color.withValues(alpha: 0.2),
+                                    backgroundColor: category
+                                        .color, // ใช้สีเดียวกันกับ EventCategory model
                                     child: Text(category.emoji),
                                   ),
                                   const SizedBox(width: 12),
