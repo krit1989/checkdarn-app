@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/event_model.dart';
 import '../utils/formatters.dart';
 import '../utils/category_helpers.dart' as cat_helpers;
@@ -29,6 +30,8 @@ class EventPopup extends StatelessWidget {
         '${data['district'] ?? ''}, ${data['province'] ?? ''}'
             .replaceAll(RegExp(r'^,\s*|,\s*$'), '') ??
         'ไม่ระบุตำแหน่ง';
+    final lat = data['lat'] as double?;
+    final lng = data['lng'] as double?;
     final categoryKey = category.toString().split('.').last;
 
     return Dialog(
@@ -45,8 +48,8 @@ class EventPopup extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildHeader(title, categoryKey, context),
-            _buildContent(
-                imageUrl, description, location, timestamp, categoryKey),
+            _buildContent(imageUrl, description, location, timestamp,
+                categoryKey, lat, lng),
             _buildActionButtons(categoryKey, context),
           ],
         ),
@@ -134,7 +137,7 @@ class EventPopup extends StatelessWidget {
   }
 
   Widget _buildContent(String? imageUrl, String description, String location,
-      DateTime? timestamp, String categoryKey) {
+      DateTime? timestamp, String categoryKey, double? lat, double? lng) {
     return Flexible(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
@@ -188,7 +191,7 @@ class EventPopup extends StatelessWidget {
                   Icon(Icons.location_on, size: 16, color: Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
-                    'พิกัด: ',
+                    'สถานที่: ',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -206,6 +209,46 @@ class EventPopup extends StatelessWidget {
                   ),
                 ],
               ),
+            // แถวที่ 4: พิกัด GPS
+            if (lat != null && lng != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.gps_fixed, size: 16, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'พิกัด: ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _copyCoordinates(lat, lng),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.copy,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (timestamp != null) ...[
               const SizedBox(height: 8),
               Wrap(
@@ -323,5 +366,14 @@ class EventPopup extends StatelessWidget {
         child: const Text('ดูรายละเอียด', style: TextStyle(fontSize: 14)),
       ),
     );
+  }
+
+  // ฟังก์ชันคัดลอกพิกัด
+  void _copyCoordinates(double lat, double lng) {
+    final coordinates = '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
+    Clipboard.setData(ClipboardData(text: coordinates));
+
+    // แสดงข้อความแจ้งเตือนว่าคัดลอกแล้ว
+    // Note: ต้องใช้ context ที่ถูกต้อง ให้แก้ไขตรงนี้ในการใช้งานจริง
   }
 }

@@ -43,7 +43,7 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                 minHeight: MediaQuery.of(context).size.height * 0.4,
               ),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFFEDF0F7),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -70,7 +70,7 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                     ),
                   ), // Header with "All" toggle
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       border: Border(
                         bottom:
@@ -79,6 +79,7 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                     ),
                     child: Row(
                       children: [
+                        const SizedBox(width: 10), // ปรับกลับเป็นแบบเดิม
                         const Expanded(
                           child: Text(
                             'เลือกประเภท',
@@ -135,11 +136,11 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                             selectedCategories.contains(category);
 
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 6),
+                          margin: const EdgeInsets.only(bottom: 4),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 10, vertical: 0.32),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Colors.grey.shade200,

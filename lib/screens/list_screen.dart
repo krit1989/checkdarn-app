@@ -399,6 +399,7 @@ class _ListScreenState extends State<ListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFEDF0F7),
       appBar: AppBar(
         title: const Text(
           'รายการแจ้งเหตุ',

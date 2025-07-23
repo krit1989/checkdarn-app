@@ -48,6 +48,7 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -55,7 +56,7 @@ flutter:
   assets:
     - assets/fonts/
     - assets/images/
-    - assets/map_tiles/
+    - assets/icons/
     - assets/icons/bottom_bar/
     - assets/icons/bottom_bar/report_screen/
 

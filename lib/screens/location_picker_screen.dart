@@ -180,11 +180,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.4),
+                  color: Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -199,7 +199,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       children: [
                         const Icon(
                           Icons.location_on,
-                          color: Colors.white,
+                          color: Colors.blue,
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -208,7 +208,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: Colors.black,
                           ),
                         ),
                         if (isLoadingLocation) ...[
@@ -219,7 +219,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                                Colors.blue,
                               ),
                             ),
                           ),
@@ -234,7 +234,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 3,

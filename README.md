@@ -30,6 +30,8 @@
 - รูปภาพประกอบ
 - แผนที่แสดงตำแหน่งเหตุการณ์
 - ข้อมูลเวลาและระยะทาง
+- **📍 พิกัด GPS** - แสดงพิกัดแม่นยำพร้อมปุ่มคัดลอก (เฉพาะโพสใหม่)
+- EventPopup widget ที่ปรับปรุงใหม่
 
 ## ประเภทเหตุการณ์
 
@@ -55,6 +57,7 @@ lib/
 ├── widgets/
 │   ├── location_marker.dart        # Custom location marker (Scale 1.68)
 │   ├── event_marker.dart           # Custom event marker (Scale 1.365)
+│   ├── event_popup.dart            # Event detail popup with GPS coordinates
 │   ├── location_button.dart        # Location button (48px)
 │   ├── bottom_bar.dart             # Bottom navigation bar
 │   ├── profile_popup.dart          # User profile popup
@@ -88,7 +91,8 @@ lib/
 
 ### Custom Components
 - **LocationMarker** - Custom location pin with triangle tip
-- **EventMarker** - Category-based event markers
+- **EventMarker** - Category-based event markers (simplified design)
+- **EventPopup** - Enhanced popup with GPS coordinates display and copy functionality
 - **LocationButton** - Reusable location button with loading states
 
 ## การติดตั้ง
@@ -157,6 +161,7 @@ enum EventCategory {
 - เลือกประเภทเหตุการณ์จาก 8 หมวดหมู่
 - อัปโหลดรูปภาพประกอบ
 - เลือกตำแหน่งบนแผนที่ได้
+- **บันทึกพิกัด GPS อัตโนมัติ** สำหรับการแสดงผลในป๊อปอัพ
 - ระบบคอมเมนต์สำหรับแต่ละเหตุการณ์
 
 ### 🏷️ หมวดหมู่เหตุการณ์
@@ -195,6 +200,15 @@ flutter build ios --release
 ```
 
 ## ฟีเจอร์เพิ่มเติม
+
+### 📍 ระบบพิกัด GPS (ใหม่!)
+- แสดงพิกัดแม่นยำในป๊อปอัพเหตุการณ์ (6 ตำแหน่งทศนิยม)
+- ปุ่มคัดลอกพิกัดไปยัง Clipboard
+- รองรับเฉพาะโพสใหม่ที่สร้างหลังจากอัปเดต
+- รูปแบบพิกัด: `latitude, longitude` (เช่น `13.123456, 100.123456`)
+- โพสเก่าที่ไม่มีพิกัดจะไม่แสดงแถวพิกัด (ซ่อนอัตโนมัติ)
+
+> **หมายเหตุ:** ฟีเจอร์พิกัดจะใช้ได้กับโพสใหม่เท่านั้น เนื่องจากโพสเก่าในฐานข้อมูลไม่มีข้อมูลพิกัด
 
 ### ระบบ Authentication
 - Google Sign-In integration
@@ -262,16 +276,17 @@ flutter build ios --release
 - เลือกหมวดหมู่เหตุการณ์
 - อัปโหลดรูปภาพ
 
-### หน้ารายการเหตุการณ์
+### หน้ารายละเอียดเหตุการณ์
 - แสดงรายการแบบ real-time
 - กรองตามหมวดหมู่
 - รายละเอียดเหตุการณ์
+- **พิกัด GPS พร้อมปุ่มคัดลอก** (สำหรับโพสใหม่)
 
 ---
 
 ## เวอร์ชัน
 
-**เวอร์ชันปัจจุบัน:** 1.0.0
+**เวอร์ชันปัจจุบัน:** 1.1.0
 - ✅ Custom Location & Event Markers
 - ✅ Real-time data streaming
 - ✅ Google Authentication
@@ -279,8 +294,14 @@ flutter build ios --release
 - ✅ Category-based filtering
 - ✅ 48-hour freshness filter
 - ✅ Radius-based search (10-100 km)
+- ✅ **GPS Coordinates Display** - แสดงพิกัดในป๊อปอัพพร้อมปุ่มคัดลอก
+- ✅ **Enhanced EventPopup** - ป๊อปอัพที่ปรับปรุงใหม่
 
 **อัปเดตล่าสุด:** กรกฎาคม 2025
+- ✨ เพิ่มการแสดงพิกัด GPS ในป๊อปอัพเหตุการณ์
+- ✨ เพิ่มปุ่มคัดลอกพิกัดไปยัง Clipboard
+- 🔧 ปรับปรุง EventPopup widget ให้รองรับพิกัด
+- 🔧 อัปเดต FirebaseService ให้บันทึกพิกัดสำหรับโพสใหม่
 - เพิ่ม EventMarker และ LocationMarker components
 - อัปเดตสีหมวดหมู่ให้สื่อความหมายชัดเจน
 - ปรับปรุง UI/UX และลบเงาไม่จำเป็น

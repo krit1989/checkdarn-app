@@ -564,7 +564,7 @@ class _ReportScreenState extends State<ReportScreen> {
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        backgroundColor: const Color(0xFFF9F9F9),
+        backgroundColor: const Color(0xFFEDF0F7),
         body: SafeArea(
           child: Column(
             children: [
@@ -583,7 +583,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.white.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
@@ -592,7 +592,10 @@ class _ReportScreenState extends State<ReportScreen> {
                         underline: const SizedBox(),
                         hint: const Text(
                           'เลือกประเภทเหตุการณ์ *',
-                          style: TextStyle(fontFamily: 'Kanit'),
+                          style: TextStyle(
+                            fontFamily: 'Kanit',
+                            color: Colors.black,
+                          ),
                         ),
                         value: selectedCategory,
                         icon: const Icon(Icons.keyboard_arrow_down),
@@ -640,7 +643,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     // กล่องข้อความ
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.white.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
@@ -650,10 +653,16 @@ class _ReportScreenState extends State<ReportScreen> {
                         maxLines: 3,
                         decoration: const InputDecoration(
                           hintText: 'รายละเอียด *',
-                          hintStyle: TextStyle(fontFamily: 'Kanit'),
+                          hintStyle: TextStyle(
+                            fontFamily: 'Kanit',
+                            color: Colors.black,
+                          ),
                           border: InputBorder.none,
                         ),
-                        style: const TextStyle(fontFamily: 'Kanit'),
+                        style: const TextStyle(
+                          fontFamily: 'Kanit',
+                          color: Colors.black,
+                        ),
                       ),
                     ),
 
@@ -665,9 +674,16 @@ class _ReportScreenState extends State<ReportScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.white.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.shade300),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -684,11 +700,11 @@ class _ReportScreenState extends State<ReportScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'ตำแหน่งเหตุการณ์ *',
+                                  'พิกัด *',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade600,
+                                    color: Colors.black,
                                     fontFamily: 'Kanit',
                                   ),
                                 ),
@@ -702,6 +718,12 @@ class _ReportScreenState extends State<ReportScreen> {
                                       valueColor: AlwaysStoppedAnimation<Color>(
                                           Color(0xFF4673E5)),
                                     ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: Colors.grey.shade400,
+                                    size: 16,
                                   ),
                               ],
                             ),
@@ -723,7 +745,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     'กำลังค้นหาตำแหน่งปัจจุบัน...',
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: Colors.grey.shade600,
+                                      color: Colors.black,
                                       fontStyle: FontStyle.italic,
                                       fontFamily: 'Kanit',
                                     ),
@@ -761,7 +783,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                             selectedLocationInfo!),
                                         style: TextStyle(
                                           fontSize: 13,
-                                          color: Colors.grey.shade600,
+                                          color: Colors.black,
                                           fontStyle: FontStyle.italic,
                                           fontFamily: 'Kanit',
                                         ),
@@ -792,23 +814,26 @@ class _ReportScreenState extends State<ReportScreen> {
                                 ),
                               ),
                             ] else ...[
-                              Text(
-                                'กรุณาเลือกตำแหน่งเหตุการณ์',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade600,
-                                  fontWeight: FontWeight.w500,
-                                  fontFamily: 'Kanit',
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'แตะเพื่อเลือกตำแหน่งในแผนที่',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                  fontFamily: 'Kanit',
+                              Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.touch_app,
+                                      color: Colors.blue.shade600,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'คลิกเพื่อเลือกตำแหน่ง',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w500,
+                                        fontFamily: 'Kanit',
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -828,6 +853,10 @@ class _ReportScreenState extends State<ReportScreen> {
                       strokeWidth: 1.0, // ลดจาก 1.5 เป็น 1.0
                       child: Container(
                         width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: selectedImage != null
                             ? Stack(
                                 children: [
@@ -836,7 +865,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     child: Image.file(
                                       selectedImage!,
                                       width: double.infinity,
-                                      height: 200,
+                                      height: 340,
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -902,14 +931,22 @@ class _ReportScreenState extends State<ReportScreen> {
                               )
                             : OutlinedButton.icon(
                                 onPressed: _showImageSourceDialog,
-                                icon: const Icon(Icons.add_photo_alternate),
+                                icon: Icon(
+                                  Icons.add_photo_alternate,
+                                  size: 48,
+                                  color: Colors.blue.shade600,
+                                ),
                                 label: const Text(
                                   'เพิ่มรูปภาพ (ไม่บังคับ)',
-                                  style: TextStyle(fontFamily: 'Kanit'),
+                                  style: TextStyle(
+                                    fontFamily: 'Kanit',
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
                                 ),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 18, horizontal: 16),
+                                      vertical: 54, horizontal: 16),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                   side: BorderSide.none,

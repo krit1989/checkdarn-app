@@ -17,11 +17,11 @@ import '../services/background_fetch_service.dart';
 import '../utils/formatters.dart';
 import '../widgets/bottom_bar.dart';
 import '../widgets/category_selector_dialog.dart';
-import '../widgets/profile_popup.dart';
 import '../widgets/location_marker.dart';
 import '../widgets/event_marker.dart';
 import '../widgets/location_button.dart';
 import '../widgets/comment_bottom_sheet.dart';
+import 'settings_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -38,7 +38,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool isLoadingLocation = false; // สถานะการโหลดข้อมูลที่อยู่
   Timer? _realtimeTimer; // Timer สำหรับปรับปรุงหมุดแบบเรียลไทม์
   bool _isUserLoggedIn = false; // สถานะการล็อกอิน
-  bool _showProfileMenu = false; // สถานะการแสดงเมนูโปรไฟล์
   late AnimationController
       _mapAnimationController; // Animation controller สำหรับแผนที่
   double _currentZoom = 15.0; // เก็บ zoom level ปัจจุบัน
@@ -563,18 +562,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ฟังก์ชันแสดง popup โปรไฟล์
-  void _showProfilePopup() {
-    showDialog(
-      context: context,
-      builder: (context) => ProfilePopup(
-        onLogout: () {
-          setState(() {
-            _isUserLoggedIn = false;
-          });
-        },
+  // ฟังก์ชันนำทางไปหน้า Settings
+  void _navigateToSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
       ),
-    );
+    ).then((_) {
+      // Refresh state when returning from settings
+      if (mounted) {
+        setState(() {
+          _isUserLoggedIn = AuthService.isLoggedIn;
+        });
+      }
+    });
   }
 
   // ฟังก์ชันแสดง popup ข้อมูลเหตุการณ์แบบเต็มหน้าจอ
@@ -1124,6 +1126,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final lng = (data['lng'] ?? 0.0) as double;
       final latLng = LatLng(lat, lng);
 
+      // Debug: แสดงข้อมูล timestamp ของ document แรก
+      if (kDebugMode && filteredDocs.indexOf(doc) == 0) {
+        print('🕐 Debug MapScreen - Sample doc data: ${data.keys.toList()}');
+        print(
+            '🕐 Debug MapScreen - Sample timestamp field: ${data['timestamp']}');
+        print(
+            '🕐 Debug MapScreen - Sample timestamp type: ${data['timestamp'].runtimeType}');
+      }
+
       return ClusterMarker(
         point: latLng,
         category: eventCategory,
@@ -1262,310 +1273,320 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'CheckDarn',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+      extendBodyBehindAppBar: true, // ให้ body ขยายไปข้างหลัง AppBar
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80), // ลดความสูงลงเล็กน้อย
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.transparent, // ทำให้พื้นหลัง AppBar โปร่งใส
           ),
-        ),
-        backgroundColor: const Color(0xFFFDC621),
-        foregroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: false,
-        actions: [
-          // ปุ่มโปรไฟล์กลม หรือ ปุ่มล็อกอิน
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: GestureDetector(
-              onTap: AuthService.isLoggedIn
-                  ? _showProfilePopup
-                  : () async {
-                      final success =
-                          await AuthService.showLoginDialog(context);
-                      if (success && mounted) {
-                        setState(() {
-                          _isUserLoggedIn = AuthService.isLoggedIn;
-                        });
-                      }
-                    },
-              child: Container(
-                width: 35, // เพิ่มจาก 32 เป็น 35 (เพิ่ม 10%)
-                height: 35, // เพิ่มจาก 32 เป็น 35 (เพิ่ม 10%)
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF4673E5),
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
+          child: SafeArea(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10, left: 12, right: 12),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical:
+                      6), // ลด padding อีกครั้ง จาก h:16,v:8 เป็น h:12,v:6
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDC621),
+                borderRadius: BorderRadius.circular(25), // โค้งมนทั้งแถบ
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-                child: AuthService.isLoggedIn &&
-                        AuthService.currentUser?.photoURL != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                            17.5), // ปรับตามขนาดใหม่ (35/2 = 17.5)
-                        child: Image.network(
-                          AuthService.currentUser!.photoURL!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // ส่วนโลโก้ CheckDarn
+                  const Text(
+                    'CheckDarn',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+
+                  // ส่วนโปรไฟล์
+                  GestureDetector(
+                    onTap: AuthService.isLoggedIn
+                        ? _navigateToSettings
+                        : () async {
+                            final success =
+                                await AuthService.showLoginDialog(context);
+                            if (success && mounted) {
+                              setState(() {
+                                _isUserLoggedIn = AuthService.isLoggedIn;
+                              });
+                            }
+                          },
+                    child: Container(
+                      width: 35,
+                      height: 35,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF4673E5),
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
+                      ),
+                      child: AuthService.isLoggedIn &&
+                              AuthService.currentUser?.photoURL != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(17.5),
+                              child: Image.network(
+                                AuthService.currentUser!.photoURL!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.black,
+                                      size: 21,
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                          : const Center(
                               child: Icon(
                                 Icons.person,
                                 color: Colors.black,
-                                size: 21, // เพิ่มจาก 19 เป็น 21 (เพิ่ม 10%)
+                                size: 21,
                               ),
-                            );
-                          },
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.black,
-                          size: 21, // เพิ่มจาก 19 เป็น 21 (เพิ่ม 10%)
-                        ),
-                      ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
-      body: GestureDetector(
-        onTap: () {
-          // ปิดเมนูโปรไฟล์เมื่อคลิกที่อื่น
-          if (_showProfileMenu) {
-            setState(() {
-              _showProfileMenu = false;
-            });
-          }
-        },
-        child: Stack(
-          children: [
-            // แผนที่ FlutterMap ที่ทำงานได้แน่นอน
-            FlutterMap(
-              mapController: mapController,
-              options: MapOptions(
-                initialCenter: currentPosition,
-                initialZoom: 15.0,
-                minZoom: 5.0,
-                maxZoom: 18.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.checkdarn',
-                  fallbackUrl:
-                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c'],
-                  maxZoom: 18,
-                  maxNativeZoom: 18,
-                  tileProvider: NetworkTileProvider(),
-                  additionalOptions: const {
-                    'attribution': '© OpenStreetMap contributors',
-                  },
-                  tileBuilder: (context, widget, tile) {
-                    return FadeTransition(
-                      opacity: AlwaysStoppedAnimation(
-                        tile.loadStarted == null ? 0.0 : 1.0,
-                      ),
-                      child: widget,
-                    );
-                  },
-                ),
-                // วงรัศมีการค้นหา
-                CircleLayer(
-                  circles: [
-                    CircleMarker(
-                      point: currentPosition,
-                      radius: searchRadius * 1000, // แปลงเป็นเมตร
-                      useRadiusInMeter: true,
-                      color: const Color(0xFF4673E5).withValues(alpha: 0.15),
-                      borderColor:
-                          const Color(0xFF4673E5).withValues(alpha: 0.5),
-                      borderStrokeWidth: 2,
-                    ),
-                  ],
-                ),
-                // หมุดตำแหน่งผู้ใช้
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: currentPosition,
-                      width: 38.64, // เพิ่มจาก 36.8 เป็น 38.64 (เพิ่ม 5%)
-                      height: 50.4, // เพิ่มจาก 48 เป็น 50.4 (เพิ่ม 5%)
-                      child: const LocationMarker(
-                          scale: 1.68), // เพิ่มจาก 1.6 เป็น 1.68 (เพิ่ม 5%)
-                    ),
-                  ],
-                ),
-                // หมุดเหตุการณ์จาก Firebase
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseService.getReportsStream(),
-                  builder: (context, snapshot) {
-                    if (kDebugMode) {
-                      debugPrint(
-                          'Debug: StreamBuilder state = ${snapshot.connectionState}');
-                    }
-
-                    if (snapshot.hasError) {
-                      if (kDebugMode) {
-                        debugPrint(
-                            'Debug: StreamBuilder error = ${snapshot.error}');
-                      }
-                      return const MarkerLayer(
-                          markers: []); // แสดงแผนที่เปล่าเมื่อเกิดข้อผิดพลาด
-                    }
-
-                    // แสดงหมุดเปล่าขณะรอข้อมูลครั้งแรก
-                    if (snapshot.connectionState == ConnectionState.waiting &&
-                        !snapshot.hasData) {
-                      if (kDebugMode) {
-                        debugPrint(
-                            'Debug: StreamBuilder waiting for first data...');
-                      }
-                      return const MarkerLayer(
-                          markers: []); // แสดง MarkerLayer เปล่า
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      if (kDebugMode) {
-                        debugPrint(
-                            'Debug: StreamBuilder no data or empty docs');
-                      }
-                      return const MarkerLayer(
-                          markers: []); // แสดงแผนที่เปล่าเมื่อไม่มีข้อมูล
-                    }
-
-                    final docs = snapshot.data!.docs;
-                    if (kDebugMode) {
-                      debugPrint(
-                          'Debug: ✅ StreamBuilder received ${docs.length} documents from Firebase');
-                    }
-
-                    // ใช้ฟังก์ชันกรองที่แยกออกมาแล้วเพื่อประสิทธิภาพ
-                    final filteredDocs = _filterDocuments(docs);
-                    final markers =
-                        _buildEventMarkersFromFirebase(filteredDocs);
-                    if (kDebugMode) {
-                      debugPrint(
-                          'Debug: ✅ Created ${markers.length} markers for map - DISPLAYING NOW');
-                    }
-
-                    // แสดงหมุดด้วย Key เพื่อให้ Flutter rebuild ได้ถูกต้อง
-                    return MarkerLayer(
-                      key: ValueKey(
-                          'markers_${filteredDocs.length}_${selectedCategories.length}_${searchRadius.toInt()}'),
-                      markers: markers,
-                    );
-                  },
-                ),
-              ],
+      body: Stack(
+        children: [
+          // แผนที่ FlutterMap ที่ทำงานได้แน่นอน
+          FlutterMap(
+            mapController: mapController,
+            options: MapOptions(
+              initialCenter: currentPosition,
+              initialZoom: 15.0,
+              minZoom: 5.0,
+              maxZoom: 18.0,
             ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.checkdarn',
+                fallbackUrl:
+                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c'],
+                maxZoom: 18,
+                maxNativeZoom: 18,
+                tileProvider: NetworkTileProvider(),
+                additionalOptions: const {
+                  'attribution': '© OpenStreetMap contributors',
+                },
+                tileBuilder: (context, widget, tile) {
+                  return FadeTransition(
+                    opacity: AlwaysStoppedAnimation(
+                      tile.loadStarted == null ? 0.0 : 1.0,
+                    ),
+                    child: widget,
+                  );
+                },
+              ),
+              // วงรัศมีการค้นหา
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: currentPosition,
+                    radius: searchRadius * 1000, // แปลงเป็นเมตร
+                    useRadiusInMeter: true,
+                    color: const Color(0xFF4673E5).withValues(alpha: 0.15),
+                    borderColor: const Color(0xFF4673E5).withValues(alpha: 0.5),
+                    borderStrokeWidth: 2,
+                  ),
+                ],
+              ),
+              // หมุดตำแหน่งผู้ใช้
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: currentPosition,
+                    width: 38.64, // เพิ่มจาก 36.8 เป็น 38.64 (เพิ่ม 5%)
+                    height: 50.4, // เพิ่มจาก 48 เป็น 50.4 (เพิ่ม 5%)
+                    child: const LocationMarker(
+                        scale: 1.68), // เพิ่มจาก 1.6 เป็น 1.68 (เพิ่ม 5%)
+                  ),
+                ],
+              ),
+              // หมุดเหตุการณ์จาก Firebase
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseService.getReportsStream(),
+                builder: (context, snapshot) {
+                  if (kDebugMode) {
+                    debugPrint(
+                        'Debug: StreamBuilder state = ${snapshot.connectionState}');
+                  }
 
-            // แท่งสไลด์บาร์รัศมีการค้นหา (แนวตั้ง)
-            Positioned(
-              right:
-                  22, // ปรับให้อยู่ตรงกลางของปุ่มค้นหาตำแหน่ง (16 + 24 - 18 = 22)
-              top: 320, // กลับไปตำแหน่งเดิม
-              child: Container(
-                width: 36, // ลดจาก 40 เป็น 36 (ลด 10%)
-                height: 180, // เพิ่มจาก 158 เป็น 180 (เพิ่ม 14%)
-                padding: const EdgeInsets.symmetric(
-                    vertical: 7,
-                    horizontal: 5), // ปรับ padding: บน-ล่าง 7px, ซ้าย-ขวา 5px
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(
-                      18), // ปรับ radius ตามขนาดใหม่ (36/2 = 18)
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                  if (snapshot.hasError) {
+                    if (kDebugMode) {
+                      debugPrint(
+                          'Debug: StreamBuilder error = ${snapshot.error}');
+                    }
+                    return const MarkerLayer(
+                        markers: []); // แสดงแผนที่เปล่าเมื่อเกิดข้อผิดพลาด
+                  }
+
+                  // แสดงหมุดเปล่าขณะรอข้อมูลครั้งแรก
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    if (kDebugMode) {
+                      debugPrint(
+                          'Debug: StreamBuilder waiting for first data...');
+                    }
+                    return const MarkerLayer(
+                        markers: []); // แสดง MarkerLayer เปล่า
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    if (kDebugMode) {
+                      debugPrint('Debug: StreamBuilder no data or empty docs');
+                    }
+                    return const MarkerLayer(
+                        markers: []); // แสดงแผนที่เปล่าเมื่อไม่มีข้อมูล
+                  }
+
+                  final docs = snapshot.data!.docs;
+                  if (kDebugMode) {
+                    debugPrint(
+                        'Debug: ✅ StreamBuilder received ${docs.length} documents from Firebase');
+                  }
+
+                  // ใช้ฟังก์ชันกรองที่แยกออกมาแล้วเพื่อประสิทธิภาพ
+                  final filteredDocs = _filterDocuments(docs);
+                  final markers = _buildEventMarkersFromFirebase(filteredDocs);
+                  if (kDebugMode) {
+                    debugPrint(
+                        'Debug: ✅ Created ${markers.length} markers for map - DISPLAYING NOW');
+                  }
+
+                  // แสดงหมุดด้วย Key เพื่อให้ Flutter rebuild ได้ถูกต้อง
+                  return MarkerLayer(
+                    key: ValueKey(
+                        'markers_${filteredDocs.length}_${selectedCategories.length}_${searchRadius.toInt()}'),
+                    markers: markers,
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // แท่งสไลด์บาร์รัศมีการค้นหา (แนวตั้ง)
+          Positioned(
+            right: 22,
+            top: 280, // ปรับจาก 120 เป็น 280 เพื่อให้อยู่กลางๆ หน้าจอ
+            child: Container(
+              width: 36, // ลดจาก 40 เป็น 36 (ลด 10%)
+              height: 180, // เพิ่มจาก 158 เป็น 180 (เพิ่ม 14%)
+              padding: const EdgeInsets.symmetric(
+                  vertical: 7,
+                  horizontal: 5), // ปรับ padding: บน-ล่าง 7px, ซ้าย-ขวา 5px
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(
+                    18), // ปรับ radius ตามขนาดใหม่ (36/2 = 18)
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${searchRadius.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 12, // เพิ่มจาก 10 เป็น 12
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4673E5),
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${searchRadius.toInt()}',
-                      style: const TextStyle(
-                        fontSize: 12, // เพิ่มจาก 10 เป็น 12
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF4673E5),
-                      ),
+                  ),
+                  const Text(
+                    'กม.',
+                    style: TextStyle(
+                      fontSize: 10, // เพิ่มจาก 8 เป็น 10
+                      color: Colors.grey,
                     ),
-                    const Text(
-                      'กม.',
-                      style: TextStyle(
-                        fontSize: 10, // เพิ่มจาก 8 เป็น 10
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(
-                        height: 0), // ลบระยะห่างระหว่าง "กม." กับสไลด์
-                    Expanded(
-                      child: RotatedBox(
-                        quarterTurns: 3, // หมุน 270 องศา เพื่อให้เป็นแนวตั้ง
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 4, // เพิ่มจาก 3 เป็น 4
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 8, // เพิ่มจาก 6 เป็น 8
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 16, // เพิ่มจาก 12 เป็น 16
-                            ),
+                  ),
+                  const SizedBox(height: 0), // ลบระยะห่างระหว่าง "กม." กับสไลด์
+                  Expanded(
+                    child: RotatedBox(
+                      quarterTurns: 3, // หมุน 270 องศา เพื่อให้เป็นแนวตั้ง
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4, // เพิ่มจาก 3 เป็น 4
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 8, // เพิ่มจาก 6 เป็น 8
                           ),
-                          child: Slider(
-                            value: searchRadius,
-                            min: 10.0,
-                            max: 100.0,
-                            divisions: 18,
-                            activeColor: const Color(0xFF4673E5),
-                            inactiveColor: Colors.grey.shade300,
-                            onChanged: (value) {
-                              setState(() {
-                                searchRadius = value;
-                              });
-                              _saveSettings(); // บันทึกค่าทันทีเมื่อมีการเปลี่ยนแปลง
-                            },
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 16, // เพิ่มจาก 12 เป็น 16
                           ),
+                        ),
+                        child: Slider(
+                          value: searchRadius,
+                          min: 10.0,
+                          max: 100.0,
+                          divisions: 18,
+                          activeColor: const Color(0xFF4673E5),
+                          inactiveColor: Colors.grey.shade300,
+                          onChanged: (value) {
+                            setState(() {
+                              searchRadius = value;
+                            });
+                            _saveSettings(); // บันทึกค่าทันทีเมื่อมีการเปลี่ยนแปลง
+                          },
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+          ),
 
-            // ปุ่มกลับมาหาตำแหน่งตัวเอง
-            Positioned(
-              right: 16, // ปรับตำแหน่งให้อยู่ตรงกลางของ Slider ใหม่
-              top: 520, // กลับไปตำแหน่งเดิม (320 + 180 + 20 = 520)
-              child: LocationButton(
-                onPressed: _goToMyLocation,
-                isLoading: isLoadingLocation,
-                size: 48, // เพิ่มจาก 40 เป็น 48 (เพิ่ม 20%)
-              ),
+          // ปุ่มกลับมาหาตำแหน่งตัวเอง
+          Positioned(
+            right: 16,
+            bottom:
+                100, // ย้ายจาก top: 320 มาเป็น bottom: 100 เพื่อให้อยู่ด้านล่าง
+            child: LocationButton(
+              onPressed: _goToMyLocation,
+              isLoading: isLoadingLocation,
+              size: 48, // เพิ่มจาก 40 เป็น 48 (เพิ่ม 20%)
             ),
+          ),
 
-            // แถบหมวดหมู่แนวนอนด้านล่าง
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: BottomBar(
-                selectedCategories: selectedCategories,
-                onCategorySelectorTap: _showCategorySelector,
-              ),
+          // แถบหมวดหมู่แนวนอนด้านล่าง
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: BottomBar(
+              selectedCategories: selectedCategories,
+              onCategorySelectorTap: _showCategorySelector,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
