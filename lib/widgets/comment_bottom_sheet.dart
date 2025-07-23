@@ -137,213 +137,226 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return Container(
-      height: screenHeight * 0.8,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+    return DraggableScrollableSheet(
+      initialChildSize: 0.8,
+      minChildSize: 0.3,
+      maxChildSize: 0.95,
+      snap: false,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar สำหรับดึง
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.chat_bubble_outline, color: Colors.blue),
-                const SizedBox(width: 8),
-                const Text(
-                  'ความคิดเห็น',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-          ),
 
-          // Comments List
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: CommentService.getCommentsStream(widget.reportId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline,
-                            size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'ยังไม่มีความคิดเห็น',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'เป็นคนแรกที่แสดงความคิดเห็น!',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                      ],
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.chat_bubble_outline, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'ความคิดเห็น',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                  );
-                }
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
 
-                final comments = snapshot.data!.docs;
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: comments.length,
-                  itemBuilder: (context, index) {
-                    final comment = comments[index];
-                    final data = comment.data() as Map<String, dynamic>;
+            // Comments List
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: CommentService.getCommentsStream(widget.reportId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Comment text
+                          Icon(Icons.chat_bubble_outline,
+                              size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
                           Text(
-                            data['comment'] ?? 'ไม่มีข้อความ',
-                            style: const TextStyle(fontSize: 15),
+                            'ยังไม่มีความคิดเห็น',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
-                          const SizedBox(height: 8),
-
-                          // Footer: User and time
-                          Row(
-                            children: [
-                              Icon(Icons.person_outline,
-                                  size: 16, color: Colors.grey.shade600),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  data['userId'] == 'anonymous'
-                                      ? 'ผู้ใช้ไม่ระบุชื่อ'
-                                      : _getMaskedUserName(
-                                          data['userId'], data),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const Text(' • ',
-                                  style: TextStyle(color: Colors.grey)),
-                              Flexible(
-                                child: Text(
-                                  CommentService.formatCommentTime(
-                                      data['timestamp']),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // Report button
-                              GestureDetector(
-                                onTap: () => _reportComment(comment.id),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.flag_outlined,
-                                          size: 14, color: Colors.red.shade400),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'รายงาน',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.red.shade400),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                          SizedBox(height: 8),
+                          Text(
+                            'เป็นคนแรกที่แสดงความคิดเห็น!',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
                         ],
                       ),
                     );
-                  },
-                );
-              },
-            ),
-          ),
+                  }
 
-          // Add Comment Button
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
-            ),
-            child: GestureDetector(
-              onTap: () => _showCommentInput(context),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius:
-                      BorderRadius.circular(12), // ลดความโค้งจาก 20 เป็น 12
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.person_outline,
-                        size: 20, color: Colors.grey.shade600),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'เพิ่มความคิดเห็น...',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.grey.shade600,
+                  final comments = snapshot.data!.docs;
+                  return ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: comments.length,
+                    itemBuilder: (context, index) {
+                      final comment = comments[index];
+                      final data = comment.data() as Map<String, dynamic>;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Comment text
+                            Text(
+                              data['comment'] ?? 'ไม่มีข้อความ',
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Footer: User and time
+                            Row(
+                              children: [
+                                Icon(Icons.person_outline,
+                                    size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    data['userId'] == 'anonymous'
+                                        ? 'ผู้ใช้ไม่ระบุชื่อ'
+                                        : _getMaskedUserName(
+                                            data['userId'], data),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const Text(' • ',
+                                    style: TextStyle(color: Colors.grey)),
+                                Flexible(
+                                  child: Text(
+                                    CommentService.formatCommentTime(
+                                        data['timestamp']),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+
+                                // Report button
+                                GestureDetector(
+                                  onTap: () => _reportComment(comment.id),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.flag_outlined,
+                                            size: 14,
+                                            color: Colors.red.shade400),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'รายงาน',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.red.shade400),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+
+            // Add Comment Button - ติดด้านล่าง
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: GestureDetector(
+                  onTap: () => _showCommentInput(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    Icon(Icons.send_outlined,
-                        size: 20, color: Colors.grey.shade600),
-                  ],
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline,
+                            size: 20, color: Colors.grey.shade600),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'เพิ่มความคิดเห็น...',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.send_outlined,
+                            size: 20, color: Colors.grey.shade600),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

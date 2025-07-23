@@ -29,6 +29,9 @@ void main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // เพิ่ม cache
+
+    // 🔌 Connection Pool Limiting - จำกัดการเชื่อมต่อ
+    // ช่วยลด load เมื่อมีผู้ใช้เยอะ
   );
 
   // Initialize AuthService

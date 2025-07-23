@@ -77,6 +77,10 @@ class CommentService {
       });
 
       print('Comment added successfully with ID: ${docRef.id}');
+
+      // 🔔 ส่งแจ้งเตือนให้เจ้าของโพสต์ (ถ้าไม่ใช่คนเดียวกัน)
+      await _notifyPostOwner(reportId, userId, filteredComment, displayName);
+
       return docRef.id;
     } catch (e) {
       print('Error adding comment: $e');
@@ -189,4 +193,51 @@ class CommentService {
   /// ข้อมูลขีดจำกัด
   static int get maxCommentsPerDay => _maxCommentsPerDay;
   static int get maxCommentLength => _maxCommentLength;
+
+  /// 🔔 แจ้งเตือนเจ้าของโพสต์เมื่อมีคอมเมนต์ใหม่
+  /// - ไม่ต้องใช้ Index เพิ่ม เพราะใช้ doc.get() แทน query
+  /// - ตรวจสอบว่าคนคอมเมนต์ไม่ใช่เจ้าของโพสต์เอง
+  static Future<void> _notifyPostOwner(
+    String reportId,
+    String commenterUserId,
+    String comment,
+    String? commenterDisplayName,
+  ) async {
+    try {
+      // ดึงข้อมูลโพสต์เพื่อหาเจ้าของ
+      final reportDoc =
+          await _firestore.collection('reports').doc(reportId).get();
+
+      if (!reportDoc.exists) {
+        print('Report not found: $reportId');
+        return;
+      }
+
+      final reportData = reportDoc.data() as Map<String, dynamic>;
+      final postOwnerId = reportData['userId'] as String?;
+      final postTitle = reportData['title'] as String? ??
+          reportData['description'] as String? ??
+          'โพสต์';
+
+      // ตรวจสอบว่าคนคอมเมนต์ไม่ใช่เจ้าของโพสต์เอง
+      if (postOwnerId == null || postOwnerId == commenterUserId) {
+        print('Skip notification: same user or no owner');
+        return;
+      }
+
+      print('🔔 Sending notification to post owner: $postOwnerId');
+      print('📝 Post: $postTitle');
+      print(
+          '💬 Comment: ${comment.length > 50 ? comment.substring(0, 50) + '...' : comment}');
+      print('👤 Commenter: ${commenterDisplayName ?? 'ผู้ใช้ไม่ระบุชื่อ'}');
+
+      // TODO: ส่งแจ้งเตือนจริงๆ ผ่าน FCM
+      // - ดึง FCM token ของ postOwnerId
+      // - ส่ง push notification
+      // - บันทึกประวัติการแจ้งเตือน (ถ้าต้องการ)
+    } catch (e) {
+      print('Error notifying post owner: $e');
+      // ไม่ throw error เพื่อไม่ให้กระทบการเพิ่มคอมเมนต์
+    }
+  }
 }

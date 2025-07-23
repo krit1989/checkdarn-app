@@ -36,6 +36,7 @@ dependencies:
   path_provider: ^2.1.1
   cached_network_image: ^3.3.1  # เพิ่มสำหรับ cache รูปภาพ
   dotted_border: ^2.1.0
+  popover: ^0.2.6  # เพิ่ม popover package
   
   # HTTP requests
   http: ^1.5.0-beta.2
