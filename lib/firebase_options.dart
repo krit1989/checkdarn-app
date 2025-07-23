@@ -69,11 +69,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBmjWx-Demo-Key-For-Testing',
-    appId: '1:123456789:ios:demo-app-id',
-    messagingSenderId: '123456789',
-    projectId: 'checkdarn-demo',
-    iosClientId: 'demo-ios-client-id.apps.googleusercontent.com',
+    apiKey: 'AIzaSyAXvkGJEs31ucJtLUcG4gfn7wK2htXOsGc',
+    appId: '1:1051005565361:ios:867711c591c9f42457e590',
+    messagingSenderId: '1051005565361',
+    projectId: 'checkdarn-app',
+    storageBucket: 'checkdarn-app.firebasestorage.app',
     iosBundleId: 'com.example.checkDarn',
   );
 }

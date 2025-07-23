@@ -329,17 +329,19 @@ class FirebaseService {
           'expireAt': Timestamp.fromDate(expireAt),
         });
 
-        // อัปเดต user stats พร้อมกัน
+        // อัปเดต user stats พร้อมกัน - ใช้ UID เป็น document ID ตาม Firebase Rules
         final userStatsRef =
             _firestore.collection('user_stats').doc(effectiveUserId);
         transaction.set(
             userStatsRef,
             {
+              'userId': effectiveUserId, // เพิ่ม userId field สำหรับความชัดเจน
               'lastReportAt': FieldValue.serverTimestamp(),
               'totalReports': FieldValue.increment(1),
               'lastReportLocation': '$district, $province',
+              'updatedAt': FieldValue.serverTimestamp(),
             },
-            SetOptions(merge: true));
+            SetOptions(merge: true)); // merge เพื่อไม่ทับข้อมูลเดิม
 
         print('🚀 Transaction completed - ultra fast atomic operation!');
       }).timeout(
