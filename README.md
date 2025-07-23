@@ -5,7 +5,7 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-Latest-orange.svg)](https://firebase.google.com/)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-green.svg)]()
-[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.2.1-blue.svg)]()
 
 ## 🌟 ฟีเจอร์หลัก
 
@@ -13,9 +13,9 @@
 - 🗺️ แสดงเหตุการณ์บนแผนที่ **OpenStreetMap** แบบเรียลไทม์
 - 📍 ตำแหน่งปัจจุบันของผู้ใช้พร้อม **Custom Location Marker**
 - 🎯 กรองเหตุการณ์ตามประเภท (8 หมวดหมู่)
-- 📌 หมุดแบ่งตามหมวดหมู่ด้วย **EventMarker component**
+- 📌 หมุดแบ่งตามหมวดหมู่ด้วย **EventMarker component** พร้อม marker clustering
 - 🔍 ปรับขนาดรัศมีการค้นหา (10-100 กม.)
-- ⏰ แสดงเฉพาะเหตุการณ์ล่าสุด (7 วัน พร้อม Auto-cleanup)
+- ⏰ แสดงเฉพาะเหตุการณ์ล่าสุด (48 ชั่วโมง พร้อม Auto-cleanup)
 
 ### 📝 รายงานเหตุการณ์
 - 📸 รายงานเหตุการณ์ใหม่พร้อมรูปภาพ (WebP compression)
@@ -33,7 +33,11 @@
 
 ### 🔍 รายละเอียดเหตุการณ์
 - 📊 ข้อมูลครบถ้วนของเหตุการณ์
-- 🖼️ รูปภาพประกอบ
+- 🖼️ รูปภาพประกอบ **พร้อมระบบแสดงภาพปรับปรุงใหม่**
+  - 🎬 **Black Background Container** - พื้นหลังสีดำสไตล์โรงภาพยนตร์
+  - 📐 **Aspect Ratio Control** - รักษาสัดส่วน 16:9 โดยอัตโนมัติ
+  - 🔍 **BoxFit.contain** - แสดงรูปแบบเต็มไม่บิดเบี้ยว
+  - 📱 **Responsive Design** - ปรับขนาดตามหน้าจอ
 - 🗺️ แผนที่แสดงตำแหน่งเหตุการณ์
 - ⏱️ ข้อมูลเวลาและระยะทาง
 - **📍 พิกัด GPS** - แสดงพิกัดแม่นยำพร้อมปุ่มคัดลอก (เฉพาะโพสใหม่)
@@ -71,8 +75,8 @@ lib/
 │   └── location_picker_screen.dart   # 📍 เลือกตำแหน่งบนแผนที่
 ├── widgets/
 │   ├── location_marker.dart          # 📍 Custom location marker (Scale 1.68)
-│   ├── event_marker.dart             # 📌 Custom event marker (Scale 1.365)
-│   ├── event_popup.dart              # 💬 Event detail popup with GPS coordinates
+│   ├── event_marker.dart             # 📌 Custom event marker (Scale 1.16, 15% smaller)
+│   ├── event_popup.dart              # 💬 Event detail popup with enhanced image display
 │   ├── location_button.dart          # 🔘 Location button (48px)
 │   ├── bottom_bar.dart               # 📱 Bottom navigation bar
 │   ├── profile_popup.dart            # 👤 User profile popup
@@ -111,9 +115,10 @@ functions/                            # ☁️ Firebase Cloud Functions
 
 ### 🎨 Custom Components
 - **LocationMarker** - Custom location pin with triangle tip
-- **EventMarker** - Category-based event markers (simplified design)
-- **EventPopup** - Enhanced popup with GPS coordinates display and copy functionality
+- **EventMarker** - Category-based event markers (optimized size: scale 1.16)
+- **EventPopup** - Enhanced popup with cinema-style image display and GPS coordinates
 - **LocationButton** - Reusable location button with loading states
+- **Marker Clustering** - Intelligent grouping for better performance
 
 ## 🚀 การติดตั้งและใช้งาน
 
@@ -227,11 +232,24 @@ service cloud.firestore {
 
 ## 🆕 ฟีเจอร์ใหม่ล่าสุด
 
-### 📍 ระบบพิกัด GPS (NEW!)
+### �️ Enhanced Image Display System (NEW!)
+- 🎬 **Cinema-style Display** - พื้นหลังสีดำเพื่อความสวยงาม
+- 📐 **Smart Aspect Ratio** - รักษาสัดส่วน 16:9 โดยอัตโนมัติ
+- 🔍 **BoxFit.contain** - แสดงรูปเต็มไม่บิดเบี้ยว
+- 📱 **Responsive Layout** - ปรับขนาดตามอุปกรณ์
+- ⚡ **ConstrainedBox** - จำกัดความสูงสูงสุด 300px
+
+### �📍 ระบบพิกัด GPS
 - ✨ แสดงพิกัดแม่นยำในป๊อปอัพเหตุการณ์ (6 ตำแหน่งทศนิยม)
 - 📋 ปุ่มคัดลอกพิกัดไปยัง Clipboard
 - 🔄 รองรับเฉพาะโพสใหม่ที่สร้างหลังจากอัปเดต
 - 📐 รูปแบบพิกัด: `latitude, longitude` (เช่น `13.123456, 100.123456`)
+
+### 🎯 Performance Optimizations
+- 🔗 **Marker Clustering** - จัดกลุ่ม markers เมื่อซูมไกล
+- 📏 **Optimized Marker Size** - ลดขนาด event markers ลง 15%
+- ⏰ **48-hour Filter** - แสดงเฉพาะเหตุการณ์ล่าสุด 48 ชั่วโมง
+- 🧠 **Smart Filtering** - กรองข้อมูลอย่างมีประสิทธิภาพ
 
 ### ⚡ TURBO Transaction Mode
 - 🚀 บันทึกข้อมูลแบบ atomic operation
@@ -262,9 +280,10 @@ flood: Color(0xFF3F51B5)            // Slate Blue
 ### 📐 Component Sizes
 - **Radius Slider**: 36x180px ตำแหน่ง right:22
 - **Profile Button**: 35px 
-- **Event Markers**: Scale 1.365 (ขยายขนาด 36.5%)
+- **Event Markers**: Scale 1.16 (ลดขนาดลง 15% เพื่อประสิทธิภาพ)
 - **Location Marker**: Scale 1.68 (ขยายขนาด 68%)
 - **Location Button**: 48px
+- **Image Display**: 16:9 aspect ratio with black background container
 
 ### 🎭 Animations & Interactions
 - ✨ Smooth map transitions
@@ -311,6 +330,7 @@ exports.cleanupOldReports = functions.pubsub
 ### 🐛 Known Issues
 - Firebase Composite Index warning (ปกติสำหรับโปรเจคใหม่)
 - พิกัด GPS แสดงเฉพาะโพสใหม่เท่านั้น
+- Marker clustering ใช้งานได้เมื่อซูมน้อยกว่า 14x และมี markers มากกว่า 10 อัน
 
 ## 📄 การมีส่วนร่วม
 
@@ -328,7 +348,9 @@ exports.cleanupOldReports = functions.pubsub
 
 ## 📝 เวอร์ชันและการอัปเดต
 
-### 🏷️ Version 1.2.0 (ปัจจุบัน)
+### 🏷️ Version 1.2.1 (ปัจจุบัน)
+- ✅ Enhanced Image Display System - Cinema-style with aspect ratio control
+- ✅ Performance Optimizations - Smaller markers, 48h filter, clustering
 - ✅ GPS Coordinates Display
 - ✅ TURBO Transaction Mode
 - ✅ Auto Cleanup System
@@ -340,6 +362,7 @@ exports.cleanupOldReports = functions.pubsub
 ### 📅 Version History
 | Version | Date | Features |
 |---------|------|----------|
+| 1.2.1 | กรกฎาคม 2025 | Enhanced Image Display, Performance Optimizations, Marker Clustering |
 | 1.2.0 | กรกฎาคม 2025 | GPS Coordinates, Auto Cleanup, Enhanced Security |
 | 1.1.0 | มิถุนายน 2025 | Real-time Updates, Custom Markers |
 | 1.0.0 | พฤษภาคม 2025 | Initial Release |

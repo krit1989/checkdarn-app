@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -546,8 +547,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   // ฟังก์ชันแสดง popup เลือกหมวดหมู่
   void _showCategorySelector() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      isDismissible: true,
+      enableDrag: true,
+      useSafeArea: true,
+      clipBehavior: Clip.antiAlias,
       builder: (context) => CategorySelectorDialog(
         initiallySelectedCategories: selectedCategories,
         onCategoriesSelected: (categories) {
@@ -602,10 +611,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       isDismissible: true,
       enableDrag: true,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize:
-            0.9, // เพิ่มจาก 85% เป็น 90% เพื่อให้ใกล้ AppBar มากขึ้น
-        minChildSize: 0.5, // ขั้นต่ำ 50%
-        maxChildSize: 0.98, // เพิ่มสูงสุดเป็น 98% เพื่อให้เกือบถึงขอบบน
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.98,
+        snap: false, // ปิด snap เพื่อให้ลื่นต่อเนื่อง
         builder: (context, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -628,7 +637,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
 
               // Content area
-              Expanded(
+              Flexible(
+                // เปลี่ยนจาก Expanded เป็น Flexible
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.all(16),
@@ -713,7 +723,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         ),
                       ],
 
-                      // แถวที่ 4: รูปภาพ (ถ้ามี)
+                      // แถวที่ 4: พิกัด GPS
+                      const SizedBox(height: 12),
+                      StatefulBuilder(
+                        builder: (context, setIconState) {
+                          return _CopyCoordinatesWidget(data: data);
+                        },
+                      ),
+
+                      // แถวที่ 5: รูปภาพ (ถ้ามี)
                       if (imageUrl != null &&
                           imageUrl.isNotEmpty &&
                           imageUrl.trim() != '') ...[
@@ -777,69 +795,76 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             );
                           },
                           child: Container(
-                            width: double.infinity,
-                            height: 180, // ลดความสูงจาก 200 เป็น 180
                             decoration: BoxDecoration(
-                              color: Colors.grey[100],
+                              color: Colors.black, // พื้นหลังสีดำสวยงาม
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.grey[300]!,
-                                width: 1,
-                              ),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                imageUrl,
-                                fit: BoxFit.cover,
-                                cacheWidth: 600, // จำกัดขนาดแคช
-                                cacheHeight: 400,
-                                headers: const {
-                                  'User-Agent': 'CheckDarn/1.0',
-                                },
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value:
-                                          loadingProgress.expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                      .cumulativeBytesLoaded /
-                                                  loadingProgress
-                                                      .expectedTotalBytes!
-                                              : null,
-                                      valueColor:
-                                          const AlwaysStoppedAnimation<Color>(
-                                              Color(0xFFFF9800)),
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.broken_image,
-                                            size: 32, color: Colors.grey),
-                                        SizedBox(height: 4),
-                                        Text('ไม่สามารถโหลดรูปภาพได้',
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey)),
-                                      ],
-                                    ),
-                                  );
-                                },
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxHeight: 300, // จำกัดความสูงสูงสุด
+                                ),
+                                child: AspectRatio(
+                                  aspectRatio: 16 / 9, // กำหนดสัดส่วน 16:9
+                                  child: Image.network(
+                                    imageUrl,
+                                    fit: BoxFit
+                                        .contain, // รักษาสัดส่วนเดิมของรูป
+                                    headers: const {
+                                      'User-Agent': 'CheckDarn/1.0',
+                                    },
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: Colors.grey[100],
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress
+                                                        .expectedTotalBytes !=
+                                                    null
+                                                ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                                : null,
+                                            valueColor:
+                                                const AlwaysStoppedAnimation<
+                                                    Color>(Color(0xFFFF9800)),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[100],
+                                        child: const Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.broken_image,
+                                                  size: 32, color: Colors.grey),
+                                              SizedBox(height: 4),
+                                              Text('ไม่สามารถโหลดรูปภาพได้',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey)),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ],
 
-                      // แถวที่ 5: เวลา
+                      // แถวที่ 6: เวลา
                       if (timestamp != null) ...[
                         const SizedBox(height: 12),
                         Row(
@@ -861,7 +886,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         ),
                       ],
 
-                      // แถวที่ 6: ชื่อคนโพส
+                      // แถวที่ 7: ชื่อคนโพส
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -1740,5 +1765,127 @@ extension MapScreenAnalytics on _MapScreenState {
     // This is a placeholder - real FPS monitoring would require
     // integration with Flutter's performance tools
     return 60.0; // Assume 60 FPS for now
+  }
+}
+
+// Widget แยกสำหรับการคัดลอกพิกัด
+class _CopyCoordinatesWidget extends StatefulWidget {
+  final Map<String, dynamic> data;
+
+  const _CopyCoordinatesWidget({required this.data});
+
+  @override
+  State<_CopyCoordinatesWidget> createState() => _CopyCoordinatesWidgetState();
+}
+
+class _CopyCoordinatesWidgetState extends State<_CopyCoordinatesWidget> {
+  bool isCopied = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Text(
+          '🌐',
+          style: TextStyle(fontSize: 16),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GestureDetector(
+            onTap: () async {
+              final lat = widget.data['lat'] as double?;
+              final lng = widget.data['lng'] as double?;
+
+              // Debug log เพื่อตรวจสอบพิกัด
+              if (kDebugMode) {
+                debugPrint('🌐 Debug coordinates: lat=$lat, lng=$lng');
+                debugPrint('🌐 Debug data keys: ${widget.data.keys.toList()}');
+              }
+
+              if (lat != null && lng != null) {
+                final coordinates =
+                    '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
+
+                // เปลี่ยนไอคอนเป็น check mark
+                setState(() {
+                  isCopied = true;
+                });
+
+                await Clipboard.setData(ClipboardData(text: coordinates));
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('คัดลอกพิกัดแล้ว'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+
+                  // เปลี่ยนกลับเป็นไอคอน copy หลัง 2 วินาที
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (mounted) {
+                      setState(() {
+                        isCopied = false;
+                      });
+                    }
+                  });
+                }
+              } else {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('ไม่มีข้อมูลพิกัด'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isCopied ? Colors.green[50] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: isCopied ? Colors.green[300]! : Colors.grey[300]!,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Expanded(
+                    child: Text(
+                      () {
+                        final lat = widget.data['lat'] as double?;
+                        final lng = widget.data['lng'] as double?;
+                        if (lat != null && lng != null) {
+                          return '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
+                        }
+                        return 'ไม่มีพิกัด';
+                      }(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isCopied ? Colors.green[700] : Colors.grey[700],
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Icon(
+                      isCopied ? Icons.check : Icons.copy,
+                      key: ValueKey(isCopied),
+                      size: 14,
+                      color: isCopied ? Colors.green[600] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
