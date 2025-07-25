@@ -23,10 +23,11 @@ dependencies:
   
   # Maps & Location
   location: ^5.0.3
-  geolocator: ^10.1.0
+  geolocator: ^14.0.2
   flutter_map: ^8.1.1
   latlong2: ^0.9.1
   flutter_map_cache: ^1.0.0
+  sensors_plus: ^6.1.1
   
   # UI Components
   cupertino_icons: ^1.0.2
@@ -43,6 +44,7 @@ dependencies:
   shared_preferences: ^2.5.3
   url_launcher: ^6.1.12
   flutter_svg: ^2.0.7
+  flutter_compass: ^0.8.0
 
 dev_dependencies:
   flutter_test:
@@ -59,7 +61,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/icons/bottom_bar/
-    - assets/icons/bottom_bar/report_screen/
+    - assets/icons/report_screen/
 
   fonts:
     - family: Kanit
@@ -74,6 +76,8 @@ flutter:
           weight: 600
     - family: Sarabun
       fonts:
+        - asset: assets/fonts/Sarabun-ExtraLight.ttf
+          weight: 200
         - asset: assets/fonts/Sarabun-Regular.ttf
           weight: 400
         - asset: assets/fonts/Sarabun-Bold.ttf

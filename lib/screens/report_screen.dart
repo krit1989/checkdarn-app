@@ -6,6 +6,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dotted_border/dotted_border.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'dart:io';
 import 'dart:async';
 import '../models/event_model.dart';
@@ -342,20 +343,6 @@ class _ReportScreenState extends State<ReportScreen> {
     return locationInfo.shortAddress;
   }
 
-  bool _hasAdditionalInfo(LocationInfo locationInfo) {
-    return locationInfo.postcode != null && locationInfo.postcode!.isNotEmpty;
-  }
-
-  String _getAdditionalInfo(LocationInfo locationInfo) {
-    List<String> additionalParts = [];
-
-    if (locationInfo.postcode != null && locationInfo.postcode!.isNotEmpty) {
-      additionalParts.add('รหัสไปรษณีย์: ${locationInfo.postcode}');
-    }
-
-    return additionalParts.join(' • ');
-  }
-
   Future<void> _submitReport() async {
     if (isSubmitting) return;
 
@@ -549,6 +536,7 @@ class _ReportScreenState extends State<ReportScreen> {
           title: const Text(
             'แจ้งอะไร?',
             style: TextStyle(
+              fontFamily: 'Kanit-ExtraLight',
               fontWeight: FontWeight.w600,
               color: Colors.black,
             ),
@@ -600,7 +588,14 @@ class _ReportScreenState extends State<ReportScreen> {
                         value: selectedCategory,
                         icon: const Icon(Icons.keyboard_arrow_down),
                         onChanged: (value) {
-                          setState(() => selectedCategory = value);
+                          setState(() {
+                            // ถ้าเปลี่ยนจาก animalLost ไปหมวดอื่น ให้ล้างรูปภาพ
+                            if (selectedCategory == EventCategory.animalLost &&
+                                value != EventCategory.animalLost) {
+                              selectedImage = null;
+                            }
+                            selectedCategory = value;
+                          });
                         },
                         items: EventCategory.values.map((category) {
                           return DropdownMenuItem(
@@ -672,7 +667,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     GestureDetector(
                       onTap: _pickLocation,
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        height: 160, // กำหนดความสูงให้การ์ด
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(12),
@@ -685,240 +680,102 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  color: hasUserSelectedLocation &&
-                                          selectedLocation != null
-                                      ? const Color(0xFF4673E5)
-                                      : Colors.grey.shade600,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'พิกัด *',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
-                                    fontFamily: 'Kanit',
-                                  ),
-                                ),
-                                const Spacer(),
-                                if (isLoadingLocation)
-                                  const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF4673E5)),
-                                    ),
-                                  )
-                                else
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.grey.shade400,
-                                    size: 16,
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            if (isLoadingLocation) ...[
-                              Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF4673E5)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'กำลังค้นหาตำแหน่งปัจจุบัน...',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.black,
-                                      fontStyle: FontStyle.italic,
-                                      fontFamily: 'Kanit',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ] else if (hasUserSelectedLocation &&
-                                selectedLocation != null &&
-                                selectedLocationInfo != null) ...[
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.of(context).size.width - 64,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _getDisplayAddress(selectedLocationInfo!),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.black87,
-                                        fontFamily: 'Kanit',
-                                      ),
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                      softWrap: true,
-                                    ),
-                                    if (_hasAdditionalInfo(
-                                        selectedLocationInfo!)) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _getAdditionalInfo(
-                                            selectedLocationInfo!),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.black,
-                                          fontStyle: FontStyle.italic,
-                                          fontFamily: 'Kanit',
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        softWrap: true,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF4673E5)
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'ตำแหน่งที่เลือก (แตะเพื่อเปลี่ยน)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF4673E5),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ] else ...[
-                              Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.touch_app,
-                                      color: Colors.blue.shade600,
-                                      size: 48,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'คลิกเพื่อเลือกตำแหน่ง',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w500,
-                                        fontFamily: 'Kanit',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // เพิ่มรูปภาพ
-                    DottedBorder(
-                      borderType: BorderType.RRect,
-                      radius: const Radius.circular(12),
-                      dashPattern: const [8, 4],
-                      color: Colors.grey.shade400,
-                      strokeWidth: 1.0, // ลดจาก 1.5 เป็น 1.0
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.8),
+                        child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: selectedImage != null
-                            ? Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(
-                                      selectedImage!,
-                                      width: double.infinity,
-                                      height: 340,
-                                      fit: BoxFit.cover,
+                          child: hasUserSelectedLocation &&
+                                  selectedLocation != null
+                              ? // แสดงแผนที่เต็มพื้นที่เมื่อเลือกตำแหน่งแล้ว
+                              Stack(
+                                  children: [
+                                    // แผนที่เต็มพื้นที่
+                                    FlutterMap(
+                                      options: MapOptions(
+                                        initialCenter: selectedLocation!,
+                                        initialZoom: 16.0,
+                                        interactionOptions:
+                                            const InteractionOptions(
+                                          flags: InteractiveFlag.none,
+                                        ),
+                                      ),
+                                      children: [
+                                        TileLayer(
+                                          urlTemplate:
+                                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                          userAgentPackageName:
+                                              'com.example.check_darn',
+                                        ),
+                                        MarkerLayer(
+                                          markers: [
+                                            Marker(
+                                              point: selectedLocation!,
+                                              width: 50,
+                                              height: 50,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                              alpha: 0.3),
+                                                      blurRadius: 4,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Icon(
+                                                  Icons.location_on,
+                                                  color: Color(0xFF4673E5),
+                                                  size: 30,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          selectedImage = null;
-                                        });
-                                      },
+                                    // ข้อมูลตำแหน่งด้านล่าง
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
                                       child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black
+                                                  .withValues(alpha: 0.7),
+                                            ],
+                                          ),
                                         ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 8,
-                                    left: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Colors.black.withValues(alpha: 0.7),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: GestureDetector(
-                                        onTap: _showImageSourceDialog,
-                                        child: const Row(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(
-                                              Icons.edit,
-                                              color: Colors.white,
-                                              size: 16,
-                                            ),
-                                            SizedBox(width: 4),
                                             Text(
-                                              'เปลี่ยน',
-                                              style: TextStyle(
+                                              _getDisplayAddress(
+                                                  selectedLocationInfo!),
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
                                                 color: Colors.white,
+                                                fontFamily: 'Kanit',
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              'แตะเพื่อเปลี่ยนตำแหน่ง',
+                                              style: TextStyle(
                                                 fontSize: 12,
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.8),
                                                 fontFamily: 'Kanit',
                                               ),
                                             ),
@@ -926,34 +783,265 @@ class _ReportScreenState extends State<ReportScreen> {
                                         ),
                                       ),
                                     ),
+                                    // ไอคอน arrow ด้านขวาบน
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.9),
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.2),
+                                              blurRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          Icons.arrow_forward_ios,
+                                          color: Colors.grey.shade600,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : // แสดงการ์ดขาวสำหรับเลือกตำแหน่ง
+                              Container(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (isLoadingLocation) ...[
+                                        const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    Color(0xFF4673E5)),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'กำลังค้นหาตำแหน่งปัจจุบัน...',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                            fontStyle: FontStyle.italic,
+                                            fontFamily: 'Kanit',
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ] else ...[
+                                        SvgPicture.asset(
+                                          'assets/icons/report_screen/add_location.svg',
+                                          width: 48,
+                                          height: 48,
+                                          colorFilter: const ColorFilter.mode(
+                                            Color(0xFF4CAF50),
+                                            BlendMode.srcIn,
+                                          ),
+                                          placeholderBuilder: (context) =>
+                                              const Icon(
+                                            Icons.add_location,
+                                            size: 48,
+                                            color: Color(0xFF4CAF50),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'คลิกเพื่อเลือกตำแหน่ง',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w500,
+                                            fontFamily: 'Kanit-ExtraLight',
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'เลือกจุดที่เกิดเหตุ *',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                            fontFamily: 'Kanit',
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                ],
-                              )
-                            : OutlinedButton.icon(
-                                onPressed: _showImageSourceDialog,
-                                icon: Icon(
-                                  Icons.add_photo_alternate,
-                                  size: 48,
-                                  color: Colors.blue.shade600,
                                 ),
-                                label: const Text(
-                                  'เพิ่มรูปภาพ (ไม่บังคับ)',
-                                  style: TextStyle(
-                                    fontFamily: 'Kanit',
-                                    fontSize: 16,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 54, horizontal: 16),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  side: BorderSide.none,
-                                ),
-                              ),
+                        ),
                       ),
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // ข้อความอธิบายเกี่ยวกับการแนบรูปภาพ - แสดงเฉพาะเมื่อไม่ได้เลือก "สัตว์หาย"
+                    if (selectedCategory != null &&
+                        selectedCategory != EventCategory.animalLost) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.blue.shade600,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'สามารถแนบรูปภาพได้เฉพาะในหัวข้อ "สัตว์หาย" เท่านั้น\nเพื่อป้องกันเนื้อหาที่ไม่เหมาะสม',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade700,
+                                  fontFamily: 'Kanit',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // เพิ่มรูปภาพ - แสดงเฉพาะสำหรับหมวด "สัตว์หาย" เท่านั้น
+                    if (selectedCategory == EventCategory.animalLost) ...[
+                      DottedBorder(
+                        borderType: BorderType.RRect,
+                        radius: const Radius.circular(12),
+                        dashPattern: const [8, 4],
+                        color: Colors.grey.shade400,
+                        strokeWidth: 1.0, // ลดจาก 1.5 เป็น 1.0
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: selectedImage != null
+                              ? Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        selectedImage!,
+                                        width: double.infinity,
+                                        height: 340,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            selectedImage = null;
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 8,
+                                      left: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.7),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: GestureDetector(
+                                          onTap: _showImageSourceDialog,
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.edit,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'เปลี่ยน',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontFamily: 'Kanit',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : OutlinedButton.icon(
+                                  onPressed: _showImageSourceDialog,
+                                  icon: SvgPicture.asset(
+                                    'assets/icons/report_screen/add_photo_alternate.svg',
+                                    width: 48,
+                                    height: 48,
+                                    colorFilter: ColorFilter.mode(
+                                      Colors.blue.shade600,
+                                      BlendMode.srcIn,
+                                    ),
+                                    placeholderBuilder: (context) => Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 48,
+                                      color: Colors.blue.shade600,
+                                    ),
+                                  ),
+                                  label: const Text(
+                                    'เพิ่มรูปภาพ (ไม่บังคับ)',
+                                    style: TextStyle(
+                                      fontFamily: 'Kanit',
+                                      fontSize: 16,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 54, horizontal: 16),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                    side: BorderSide.none,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1018,7 +1106,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           )
                         : Center(
                             child: SvgPicture.asset(
-                              'assets/icons/bottom_bar/report_screen/submit.svg',
+                              'assets/icons/report_screen/submit.svg',
                               width: 32,
                               height: 32,
                               colorFilter: const ColorFilter.mode(

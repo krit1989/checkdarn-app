@@ -867,7 +867,7 @@ class _ListScreenState extends State<ListScreen> {
                                         data['description']
                                             .toString()
                                             .isNotEmpty) ...[
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 5),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 4),
@@ -889,7 +889,7 @@ class _ListScreenState extends State<ListScreen> {
                                             color: Colors.black,
                                             height: 1.3,
                                             fontFamily: 'Sarabun',
-                                            fontWeight: FontWeight.w200,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -902,7 +902,7 @@ class _ListScreenState extends State<ListScreen> {
                                         data['location']
                                             .toString()
                                             .isNotEmpty) ...[
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 5),
                                       Row(
                                         children: [
                                           const Text(
@@ -918,9 +918,9 @@ class _ListScreenState extends State<ListScreen> {
                                           Expanded(
                                             child: Text(
                                               '${data['location']}${_getDistanceText(data)}',
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 fontSize: 14,
-                                                color: Colors.grey[600],
+                                                color: Colors.black,
                                                 fontWeight:
                                                     FontWeight.w400, // Regular
                                                 fontFamily: 'Kanit',
@@ -934,7 +934,7 @@ class _ListScreenState extends State<ListScreen> {
                                     ],
 
                                     // แถวที่ 4: ปุ่มดูแผนที่
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 5),
                                     Row(
                                       children: [
                                         // ปุ่มดูแผนที่ด้านซ้าย (ลบการ์ดออก แค่แสดง emoji + text)
@@ -1021,7 +1021,7 @@ class _ListScreenState extends State<ListScreen> {
                                     if (imageUrl != null &&
                                         imageUrl.isNotEmpty &&
                                         imageUrl.trim() != '') ...[
-                                      const SizedBox(height: 10),
+                                      const SizedBox(height: 5),
                                       GestureDetector(
                                         onTap: () {
                                           // แสดงรูปภาพแบบเต็มจอเมื่อคลิก
@@ -1098,49 +1098,31 @@ class _ListScreenState extends State<ListScreen> {
                                             ),
                                           );
                                         },
-                                        child: IntrinsicWidth(
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[100],
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: Colors.grey[300]!,
-                                                width: 1,
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '📷',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'คลิกดูรูปภาพ',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400,
+                                                color: Colors.black87,
+                                                fontFamily: 'Kanit',
                                               ),
                                             ),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 4),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    '📷',
-                                                    style:
-                                                        TextStyle(fontSize: 13),
-                                                  ),
-                                                  SizedBox(width: 6),
-                                                  Text(
-                                                    'คลิกดูรูปภาพ',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: Colors.black87,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
+                                          ],
                                         ),
                                       ),
                                     ],
 
                                     // แถวที่ 6: เวลา
                                     if (timestamp != null) ...[
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 5),
                                       Row(
                                         children: [
                                           const Text(
@@ -1155,9 +1137,9 @@ class _ListScreenState extends State<ListScreen> {
                                           const SizedBox(width: 6),
                                           Text(
                                             '${DateTimeFormatters.formatDate(timestamp)} · ${DateTimeFormatters.formatTimestamp(timestamp)}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black,
                                               fontFamily: 'Kanit',
                                               fontWeight:
                                                   FontWeight.w400, // Regular
@@ -1168,7 +1150,7 @@ class _ListScreenState extends State<ListScreen> {
                                     ],
 
                                     // แถวที่ 7: ชื่อคนโพส
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 5),
                                     Row(
                                       children: [
                                         const Icon(
@@ -1179,9 +1161,9 @@ class _ListScreenState extends State<ListScreen> {
                                         const SizedBox(width: 6),
                                         Text(
                                           _getMaskedPosterName(data),
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             fontSize: 13,
-                                            color: Colors.grey[600],
+                                            color: Colors.black,
                                             fontFamily: 'Kanit',
                                             fontWeight:
                                                 FontWeight.w400, // Regular
@@ -1206,50 +1188,60 @@ class _ListScreenState extends State<ListScreen> {
                                   if (snapshot.hasData) {
                                     commentCount = snapshot.data!.docs.length;
                                   }
-                                  return InkWell(
-                                    onTap: () => _showCommentSheet(
-                                        reportId, title, category),
-                                    borderRadius: const BorderRadius.only(
-                                      bottomLeft: Radius.circular(12),
-                                      bottomRight: Radius.circular(12),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 9),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          const Icon(
-                                            Icons.chat_bubble_outline,
-                                            size: 16,
-                                            color: Color(0xFFFF9800),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Text(
-                                            'ความคิดเห็น',
-                                            style: TextStyle(
-                                              color: Color(0xFFFF9800),
-                                              fontWeight: FontWeight.w200,
-                                              fontSize: 14,
-                                              fontFamily: 'Sarabun',
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 9),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        // ส่วนที่ไม่สามารถกดได้
+                                        const Spacer(),
+                                        // ส่วนที่กดได้ (เฉพาะไอคอนและข้อความ)
+                                        InkWell(
+                                          onTap: () => _showCommentSheet(
+                                              reportId, title, category),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.chat_bubble_outline,
+                                                  size: 16,
+                                                  color: Color(0xFFFF9800),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                const Text(
+                                                  'ความคิดเห็น',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFFF9800),
+                                                    fontWeight: FontWeight.w200,
+                                                    fontSize: 14,
+                                                    fontFamily: 'Sarabun',
+                                                  ),
+                                                ),
+                                                if (commentCount > 0) ...[
+                                                  const SizedBox(width: 0),
+                                                  Text(
+                                                    ' ($commentCount)',
+                                                    style: const TextStyle(
+                                                      color: Color(0xFFFF9800),
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ),
-                                          if (commentCount > 0) ...[
-                                            const SizedBox(width: 0),
-                                            Text(
-                                              ' ($commentCount)',
-                                              style: const TextStyle(
-                                                color: Color(0xFFFF9800),
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                          const SizedBox(
-                                              width: 16), // เพิ่ม margin ขวา
-                                        ],
-                                      ),
+                                        ),
+                                        const SizedBox(
+                                            width: 16), // เพิ่ม margin ขวา
+                                      ],
                                     ),
                                   );
                                 },

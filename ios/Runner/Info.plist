@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Need location access for speed camera detection and navigation</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Need location access for speed camera detection and navigation</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Need motion access for compass direction</string>
 </dict>
 </plist>

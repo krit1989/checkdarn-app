@@ -14,7 +14,7 @@ class DateTimeFormatters {
     if (difference.inDays > 0) {
       return '${difference.inDays} วันที่แล้ว';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชั่วโมงที่แล้ว';
+      return '${difference.inHours} ชม.';
     } else if (difference.inMinutes > 0) {
       return '${difference.inMinutes} นาทีที่แล้ว';
     } else {
@@ -96,7 +96,7 @@ class DateTimeFormatters {
     if (difference.inDays > 0) {
       return '${difference.inDays} วันที่แล้ว';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชั่วโมงที่แล้ว';
+      return '${difference.inHours} ชม.';
     } else if (difference.inMinutes > 0) {
       return '${difference.inMinutes} นาทีที่แล้ว';
     } else {

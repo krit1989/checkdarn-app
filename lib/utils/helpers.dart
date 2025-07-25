@@ -16,7 +16,7 @@ class Helpers {
     if (difference.inDays > 0) {
       return '${difference.inDays} วันที่แล้ว';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชั่วโมงที่แล้ว';
+      return '${difference.inHours} ชม.';
     } else if (difference.inMinutes > 0) {
       return '${difference.inMinutes} นาทีที่แล้ว';
     } else {
@@ -35,8 +35,7 @@ class Helpers {
     final double dLat = _toRadians(lat2 - lat1);
     final double dLon = _toRadians(lon2 - lon1);
 
-    final double a =
-        math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_toRadians(lat1)) *
             math.cos(_toRadians(lat2)) *
             math.sin(dLon / 2) *
