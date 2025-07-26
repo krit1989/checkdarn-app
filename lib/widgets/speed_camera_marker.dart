@@ -51,7 +51,7 @@ class SpeedCameraMarker extends StatelessWidget {
             ),
             child: Center(
               child: SvgPicture.asset(
-                'assets/icons/bottom_bar/speed_camera.svg',
+                'assets/icons/speed_camera_screen/speed_camera.svg',
                 width: 24,
                 height: 24,
                 colorFilter: const ColorFilter.mode(

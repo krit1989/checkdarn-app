@@ -45,6 +45,8 @@ dependencies:
   url_launcher: ^6.1.12
   flutter_svg: ^2.0.7
   flutter_compass: ^0.8.0
+  audioplayers: ^6.5.0
+  flutter_tts: ^4.2.3
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +64,8 @@ flutter:
     - assets/icons/
     - assets/icons/bottom_bar/
     - assets/icons/report_screen/
+    - assets/icons/speed_camera_screen/
+    - assets/sounds/
 
   fonts:
     - family: Kanit

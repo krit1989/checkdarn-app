@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 import 'dart:math';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
+import '../services/sound_manager.dart';
+import '../screens/sound_settings_screen.dart';
 import '../widgets/speed_camera_marker.dart';
 
 class SpeedCameraScreen extends StatefulWidget {
@@ -25,7 +28,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   double currentSpeed = 0.0;
   SpeedCamera? nearestCamera;
   double distanceToNearestCamera = 0.0;
-  double _travelHeading = 0.0; // ทิศทางการเดินทางจาก GPS
   bool _isFollowingUser = true; // Auto-follow mode
 
   StreamSubscription<Position>? _positionSubscription;
@@ -39,7 +41,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   // ระบบสถิติและ Analytics
   DateTime? _lastAlertTime;
-  int _totalCamerasPassed = 0;
+
+  // ระบบเสียงแจ้งเตือน
+  final SoundManager _soundManager = SoundManager();
 
   @override
   void initState() {
@@ -48,12 +52,18 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _getCurrentLocation();
     _loadSpeedCameras();
     _startSpeedTracking();
+    _initializeSoundManager();
+  }
+
+  Future<void> _initializeSoundManager() async {
+    await _soundManager.initialize();
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
     _speedUpdateTimer?.cancel();
+    _soundManager.dispose();
     mapController.dispose();
     super.dispose();
   }
@@ -140,7 +150,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
           // อัปเดตทิศทางการเดินทางจาก GPS (เฉพาะเมื่อเคลื่อนที่)
           if (currentSpeed > 5.0 && position.heading.isFinite) {
-            _travelHeading = position.heading;
             _smoothTravelHeading =
                 _interpolateHeading(_smoothTravelHeading, position.heading);
           }
@@ -244,6 +253,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _lastAlertTime = now;
     final nearestPredicted = _predictedCameras.first;
 
+    // เล่นเสียงแจ้งเตือน
+    _soundManager.playPredictiveAlert(
+      message:
+          "คาดการณ์: จะพบกล้องจับความเร็วใน 10 วินาที บน ${nearestPredicted.roadName}",
+      roadName: nearestPredicted.roadName,
+      speedLimit: nearestPredicted.speedLimit,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -252,7 +269,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           style: const TextStyle(fontFamily: 'Kanit', color: Colors.white),
         ),
         backgroundColor: const Color(0xFF1158F2),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 5),
       ),
     );
   }
@@ -342,12 +359,10 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   // บันทึกสถิติการผ่านกล้อง
   void _logCameraPassing(SpeedCamera camera) {
-    _totalCamerasPassed++;
     final wasOverSpeed = currentSpeed > camera.speedLimit;
 
     print('Camera passed: ${camera.roadName}, Speed: ${currentSpeed.toInt()}, '
-        'Limit: ${camera.speedLimit}, Over: $wasOverSpeed, '
-        'Total: $_totalCamerasPassed');
+        'Limit: ${camera.speedLimit}, Over: $wasOverSpeed');
 
     // อาจจะส่งข้อมูลไป Analytics ในอนาคต
   }
@@ -380,6 +395,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   void _showAdvancedSpeedAlert(
       SpeedCamera camera, double distance, bool isAhead) {
     final excessSpeed = currentSpeed - camera.speedLimit;
+
+    // เล่นเสียงแจ้งเตือนเมื่อเร็วเกิน
+    _soundManager.playSpeedAlert(
+      message: "เร็วเกิน ${excessSpeed.toInt()} km/h",
+      currentSpeed: currentSpeed.toInt(),
+      speedLimit: camera.speedLimit,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -388,12 +411,19 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           style: const TextStyle(fontFamily: 'Kanit', color: Colors.white),
         ),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 5),
       ),
     );
   }
 
   void _showProximityAlert(SpeedCamera camera, double distance) {
+    // เล่นเสียงแจ้งเตือนเมื่อใกล้กล้อง
+    _soundManager.playProximityAlert(
+      message:
+          "กล้องจับความเร็วข้างหน้า ${distance.toInt()} เมตร จำกัด ${camera.speedLimit} km/h",
+      distance: distance,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -402,7 +432,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           style: const TextStyle(fontFamily: 'Kanit', color: Colors.white),
         ),
         backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 5),
       ),
     );
   }
@@ -412,6 +442,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       SnackBar(
         content: Text(message, style: const TextStyle(fontFamily: 'Kanit')),
         backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
       ),
     );
   }
@@ -421,6 +452,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       SnackBar(
         content: Text(message, style: const TextStyle(fontFamily: 'Kanit')),
         backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 5),
       ),
     );
   }
@@ -428,8 +460,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   Widget _buildTravelDirectionMarker() {
     // ใช้ทิศทางการเดินทางจาก GPS
     final angle = _smoothTravelHeading * (3.14159 / 180); // องศาเป็น Radian
-    final isMoving = currentSpeed > 5.0; // แสดงลูกศรเฉพาะเมื่อเคลื่อนที่
-    final markerColor = const Color(0xFF1158F2); // สีใหม่แทนสีน้ำเงิน
+    final markerColor = const Color(0xFF1158F2); // สีน้ำเงินหลักของแอป
 
     return Container(
       decoration: BoxDecoration(
@@ -441,7 +472,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
             blurRadius: 6,
             offset: Offset(0, 2),
           ),
-          // แสดง Glow สีใหม่ตลอดเวลา
+          // เอฟเฟกต์ Glow รอบๆ
           BoxShadow(
             color: markerColor.withValues(alpha: 0.5),
             blurRadius: 15,
@@ -462,21 +493,20 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
             ),
           ),
 
-          // แสดงลูกศรเฉพาะเมื่อเคลื่อนที่ > 5 km/h
-          if (isMoving)
-            Transform.rotate(
-              angle: angle,
-              child: const Icon(
-                Icons.navigation,
-                color: Colors.white,
-                size: 24,
-              ),
+          // ลูกศรนำทางแสดงตลอดเวลา
+          Transform.rotate(
+            angle: angle,
+            child: const Icon(
+              Icons.navigation,
+              color: Colors.white,
+              size: 24,
             ),
+          ),
 
-          // จุดกลางเล็กๆ เพื่อแสดงตำแหน่งที่แน่นอน
+          // จุดขาวเล็กตรงกลาง
           Container(
-            width: isMoving ? 6 : 12,
-            height: isMoving ? 6 : 12,
+            width: 6,
+            height: 6,
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -608,99 +638,56 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
             ],
           ),
 
-          // Floating back button (ปรับตำแหน่งให้เหมาะกับ status bar ใส)
+          // Title badge (ย้ายไปด้านซ้าย)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8, // ลดระยะจาก 16 เป็น 8
-            left: 16,
+            left: 16, // เปลี่ยนจาก right เป็น left
             child: Container(
-              width: 40,
-              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
-                shape: BoxShape.circle,
+                color: const Color(0xFFFFC107), // สีเหลือง
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-                padding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-
-          // Title badge (ปรับตำแหน่งให้เหมาะกับ status bar ใส)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8, // ลดระยะจาก 16 เป็น 8
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.navigation,
-                    color: Colors.white,
-                    size: 16,
+                  SvgPicture.asset(
+                    'assets/icons/speed_camera_screen/speed_camera.svg',
+                    width: 16,
+                    height: 16,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.black,
+                      BlendMode.srcIn,
+                    ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   const Text(
                     'กล้องจับความเร็ว',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontFamily: 'Kanit',
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  // แสดงจำนวนกล้องที่ผ่าน
-                  if (_totalCamerasPassed > 0) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1158F2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$_totalCamerasPassed',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Kanit',
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
 
-          // Follow mode toggle button (ปรับตำแหน่งให้เหมาะกับ status bar ใส)
+          // ปุ่มตั้งค่าเสียง (แถวเดียวกับ badge)
           Positioned(
-            top:
-                MediaQuery.of(context).padding.top + 62, // ลดระยะจาก 70 เป็น 62
+            top: MediaQuery.of(context).padding.top + 8, // แถวเดียวกับ badge
             right: 16,
             child: Tooltip(
-              message: _isFollowingUser
-                  ? 'กำลังติดตามตำแหน่งอัตโนมัติ\nแตะเพื่อปิด'
-                  : 'แตะเพื่อติดตามตำแหน่งอัตโนมัติ',
+              message: 'ตั้งค่าเสียงแจ้งเตือน',
               textStyle: const TextStyle(
                 fontFamily: 'Kanit',
                 fontSize: 12,
@@ -714,56 +701,119 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _isFollowingUser
-                      ? const Color(0xFF4CAF50)
-                          .withValues(alpha: 0.9) // เขียว = กำลังติดตาม
-                      : Colors.black.withValues(alpha: 0.7), // เทา = ไม่ติดตาม
-                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.9), // สีขาว
+                  borderRadius:
+                      BorderRadius.circular(8), // สี่เหลี่ยมโค้งเล็กน้อย
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: IconButton(
-                  icon: Icon(
-                    _isFollowingUser
-                        ? Icons.my_location
-                        : Icons.location_searching,
-                    color: Colors.white,
-                    size: 16,
+                  icon: SvgPicture.asset(
+                    'assets/icons/speed_camera_screen/settings.svg',
+                    width: 22, // เพิ่มขนาดจาก 20 เป็น 22
+                    height: 22, // เพิ่มขนาดจาก 20 เป็น 22
+                    colorFilter: ColorFilter.mode(
+                      _soundManager.isSoundEnabled
+                          ? Colors.black // เปลี่ยนจากสีฟ้าเป็นดำ
+                          : Colors.grey.shade600, // สีเทาเมื่อปิด
+                      BlendMode.srcIn,
+                    ),
                   ),
                   onPressed: () {
-                    setState(() {
-                      _isFollowingUser = !_isFollowingUser;
-                    });
-
-                    // ถ้าเปิด follow mode ให้ย้ายไปตำแหน่งปัจจุบันทันที
-                    if (_isFollowingUser) {
-                      _smoothMoveCamera(currentPosition);
-                    }
-
-                    // แสดง SnackBar ชั่วคราวเพื่อยืนยันการเปลี่ยนแปลง
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _isFollowingUser
-                              ? '🎯 เปิดการติดตามตำแหน่งอัตโนมัติ'
-                              : '🔓 ปิดการติดตามตำแหน่งอัตโนมัติ',
-                          style: const TextStyle(fontFamily: 'Kanit'),
-                        ),
-                        duration: const Duration(milliseconds: 1500),
-                        backgroundColor: _isFollowingUser
-                            ? const Color(0xFF4CAF50)
-                            : Colors.grey.shade600,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SoundSettingsScreen(),
                       ),
                     );
                   },
-                  padding: EdgeInsets.zero,
                 ),
               ),
+            ),
+          ),
+
+          // Follow mode toggle button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 62,
+            right: 16,
+            child: Column(
+              children: [
+                // ปุ่ม Follow mode
+                Tooltip(
+                  message: _isFollowingUser
+                      ? 'กำลังติดตามตำแหน่งอัตโนมัติ\nแตะเพื่อปิด'
+                      : 'แตะเพื่อติดตามตำแหน่งอัตโนมัติ',
+                  textStyle: const TextStyle(
+                    fontFamily: 'Kanit',
+                    fontSize: 12,
+                    color: Colors.white,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _isFollowingUser
+                          ? const Color(0xFF4CAF50)
+                              .withValues(alpha: 0.9) // เขียว = กำลังติดตาม
+                          : Colors.black
+                              .withValues(alpha: 0.7), // เทา = ไม่ติดตาม
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        _isFollowingUser
+                            ? Icons.my_location
+                            : Icons.location_searching,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isFollowingUser = !_isFollowingUser;
+                        });
+
+                        // ถ้าเปิด follow mode ให้ย้ายไปตำแหน่งปัจจุบันทันที
+                        if (_isFollowingUser) {
+                          _smoothMoveCamera(currentPosition);
+                        }
+
+                        // แสดง SnackBar ชั่วคราวเพื่อยืนยันการเปลี่ยนแปลง
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _isFollowingUser
+                                  ? '🎯 เปิดการติดตามตำแหน่งอัตโนมัติ'
+                                  : '🔓 ปิดการติดตามตำแหน่งอัตโนมัติ',
+                              style: const TextStyle(fontFamily: 'Kanit'),
+                            ),
+                            duration: const Duration(seconds: 5),
+                            backgroundColor: _isFollowingUser
+                                ? const Color(0xFF4CAF50)
+                                : Colors.grey.shade600,
+                          ),
+                        );
+                      },
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
