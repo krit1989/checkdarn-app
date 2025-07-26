@@ -618,18 +618,16 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                     // Markers กล้องจับความเร็ว
                     ...speedCameras.map((camera) => Marker(
                           point: camera.location,
-                          width: 50,
-                          height: 50,
+                          width: 40, // ลดจาก 50 เป็น 40
+                          height: 40, // ลดจาก 50 เป็น 40
                           child: AnimatedScale(
                             scale: nearestCamera?.id == camera.id &&
                                     distanceToNearestCamera <= 500
-                                ? 1.3
+                                ? 1.5 // เพิ่มจาก 1.2 เป็น 1.5 เพื่อให้เห็นชัดขึ้น
                                 : 1.0,
                             duration: const Duration(milliseconds: 300),
                             child: SpeedCameraMarker(
                               camera: camera,
-                              isNearby: nearestCamera?.id == camera.id &&
-                                  distanceToNearestCamera <= 500,
                             ),
                           ),
                         )),
@@ -659,7 +657,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SvgPicture.asset(
-                    'assets/icons/speed_camera_screen/speed_camera.svg',
+                    'assets/icons/speed_camera_screen/speed camera2.svg',
                     width: 16,
                     height: 16,
                     colorFilter: const ColorFilter.mode(

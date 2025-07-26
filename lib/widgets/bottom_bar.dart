@@ -246,7 +246,7 @@ class BottomBar extends StatelessWidget {
                             width: 22, // ปรับให้พอดีกับ 5 ปุ่ม
                             height: 22, // ปรับให้พอดีกับ 5 ปุ่ม
                             child: SvgPicture.asset(
-                              'assets/icons/bottom_bar/speed_camera.svg',
+                              'assets/icons/speed_camera_screen/speed camera2.svg',
                               colorFilter: const ColorFilter.mode(
                                 Colors.red,
                                 BlendMode.srcIn,
