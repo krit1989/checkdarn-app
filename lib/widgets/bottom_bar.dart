@@ -4,7 +4,7 @@ import '../models/event_model.dart';
 import '../screens/report_screen.dart';
 import '../screens/list_screen.dart';
 import '../screens/emergency_contacts.dart';
-import '../screens/speed_camera_screen.dart';
+import '../modules/speed_camera/speed_camera_module.dart';
 
 class BottomBar extends StatelessWidget {
   final List<EventCategory> selectedCategories;
@@ -25,12 +25,10 @@ class BottomBar extends StatelessWidget {
         top: 8,
         bottom: 1, // ลด padding ด้านล่างให้ชิดขอบมากที่สุด
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(6), // ลดความโค้งจาก 12 เป็น 6
-          topRight: Radius.circular(6), // ลดความโค้งจาก 12 เป็น 6
-        ),
+        // ลบ borderRadius ออกให้หมด
+        // ลบ shadow/border ที่อาจทำให้เกิดเส้นขีดเทา
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,

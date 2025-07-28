@@ -19,7 +19,7 @@ dependencies:
   cloud_firestore: ^4.13.6
   firebase_storage: ^11.6.0
   firebase_auth: ^4.15.3
-  google_sign_in: ^6.1.5
+  google_sign_in: ^6.2.0
   
   # Maps & Location
   location: ^5.0.3
@@ -34,7 +34,7 @@ dependencies:
   intl: ^0.18.1
   image_picker: ^1.0.4
   flutter_image_compress: ^2.1.0
-  path_provider: ^2.1.1
+  path_provider: ^2.1.5
   cached_network_image: ^3.3.1  # เพิ่มสำหรับ cache รูปภาพ
   dotted_border: ^2.1.0
   popover: ^0.2.6  # เพิ่ม popover package
@@ -47,6 +47,9 @@ dependencies:
   flutter_compass: ^0.8.0
   audioplayers: ^6.5.0
   flutter_tts: ^4.2.3
+  connectivity_plus: ^6.1.4
+  crypto: ^3.0.6
+  geocoding: ^4.0.0
 
 dev_dependencies:
   flutter_test:

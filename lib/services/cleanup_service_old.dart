@@ -48,7 +48,8 @@ class CleanupService {
         return;
       }
 
-      print('🧹 Found ${oldPostsQuery.docs.length} old posts to delete (batch)');
+      print(
+          '🧹 Found ${oldPostsQuery.docs.length} old posts to delete (batch)');
 
       // ใช้ Batch Write สำหรับประสิทธิภาพดีกว่า
       final batch = _firestore.batch();
@@ -69,7 +70,6 @@ class CleanupService {
 
           // ลบ comments แบบ batch ด้วย (แต่จำกัดจำนวน)
           await _addCommentDeletionsToBatch(batch, doc.id);
-
         } catch (e) {
           print('❌ Error adding post ${doc.id} to batch: $e');
         }
@@ -80,14 +80,14 @@ class CleanupService {
         await batch.commit();
         print('🧹 Batch cleanup completed - Deleted $deletedCount posts');
       }
-
     } catch (e) {
       print('❌ Error during cleanup: $e');
     }
   }
 
   /// เพิ่มการลบ comments เข้า batch (จำกัดจำนวนเพื่อประหยัด quota)
-  static Future<void> _addCommentDeletionsToBatch(WriteBatch batch, String postId) async {
+  static Future<void> _addCommentDeletionsToBatch(
+      WriteBatch batch, String postId) async {
     try {
       // จำกัดการ read comments เพื่อประหยัด Firebase quota
       final commentsQuery = await _firestore
@@ -105,10 +105,6 @@ class CleanupService {
           batch.delete(commentDoc.reference);
         }
       }
-    } catch (e) {
-      print('❌ Error adding comments to batch for post $postId: $e');
-    }
-  }
     } catch (e) {
       print('❌ Error deleting comments for post $postId: $e');
     }

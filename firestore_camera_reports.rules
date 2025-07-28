@@ -1,0 +1,98 @@
+# Firebase Security Rules สำหรับระบบรายงานกล้องจับความเร็ว
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========== Camera Reports Collection ==========
+    match /camera_reports/{reportId} {
+      // อ่านได้ทุกคน (เพื่อดู pending reports)
+      allow read: if true;
+      
+      // สร้างได้เฉพาะผู้ใช้ที่ login แล้ว
+      allow create: if request.auth != null
+                    && request.auth.uid == resource.data.reportedBy
+                    && isValidCameraReport(request.resource.data);
+      
+      // แก้ไขได้เฉพาะเจ้าของรายงาน (ในกรณีที่ยังเป็น pending)
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.reportedBy
+                    && resource.data.status == 'pending'
+                    && isValidCameraReportUpdate(request.resource.data);
+      
+      // ลบได้เฉพาะเจ้าของรายงาน (ในกรณีที่ยังเป็น pending)
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.reportedBy
+                    && resource.data.status == 'pending';
+    }
+    
+    // ========== Camera Votes Collection ==========
+    match /camera_votes/{voteId} {
+      // อ่านได้เฉพาะเจ้าของ vote
+      allow read: if request.auth != null
+                  && request.auth.uid == resource.data.userId;
+      
+      // สร้างได้เฉพาะผู้ใช้ที่ login แล้ว
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId
+                    && isValidVote(request.resource.data);
+      
+      // ไม่อนุญาตให้แก้ไขหรือลบ vote
+      allow update, delete: if false;
+    }
+    
+    // ========== User Report Stats Collection ==========
+    match /user_report_stats/{userId} {
+      // อ่านได้เฉพาะเจ้าของข้อมูล
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+      
+      // อัปเดตโดยระบบเท่านั้น (ผ่าน Cloud Functions)
+      allow write: if false;
+    }
+    
+    // ========== Speed Cameras Collection (Main Database) ==========
+    match /speed_cameras/{cameraId} {
+      // อ่านได้ทุกคน
+      allow read: if true;
+      
+      // แก้ไขได้เฉพาะ admin หรือระบบ
+      allow write: if false; // จะถูกจัดการโดย Cloud Functions
+    }
+    
+    // ========== Helper Functions ==========
+    
+    // ตรวจสอบความถูกต้องของ Camera Report
+    function isValidCameraReport(data) {
+      return data.keys().hasAll(['id', 'latitude', 'longitude', 'roadName', 
+                                'speedLimit', 'reportedBy', 'reportedAt', 'type'])
+             && data.latitude is number
+             && data.longitude is number
+             && data.latitude >= -90 && data.latitude <= 90
+             && data.longitude >= -180 && data.longitude <= 180
+             && data.roadName is string
+             && data.roadName.size() > 0
+             && data.speedLimit is number
+             && data.speedLimit > 0 && data.speedLimit <= 200
+             && data.reportedBy is string
+             && data.reportedAt is timestamp
+             && data.type in ['newCamera', 'removedCamera', 'movedCamera', 'speedChanged', 'verification'];
+    }
+    
+    // ตรวจสอบการอัปเดต Camera Report
+    function isValidCameraReportUpdate(data) {
+      return isValidCameraReport(data)
+             && data.reportedBy == resource.data.reportedBy
+             && data.reportedAt == resource.data.reportedAt;
+    }
+    
+    // ตรวจสอบความถูกต้องของ Vote
+    function isValidVote(data) {
+      return data.keys().hasAll(['id', 'reportId', 'userId', 'voteType', 'votedAt'])
+             && data.reportId is string
+             && data.userId is string
+             && data.voteType in ['upvote', 'downvote']
+             && data.votedAt is timestamp;
+    }
+  }
+}

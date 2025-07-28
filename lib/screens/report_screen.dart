@@ -13,11 +13,18 @@ import '../models/event_model.dart';
 import '../services/geocoding_service.dart';
 import '../services/firebase_service.dart';
 import '../services/auth_service.dart';
-import 'location_picker_screen.dart';
+import '../widgets/location_picker_screen.dart';
 import 'list_screen.dart';
 
 class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key});
+  final LatLng? initialLocation;
+  final LocationInfo? initialLocationInfo;
+
+  const ReportScreen({
+    super.key,
+    this.initialLocation,
+    this.initialLocationInfo,
+  });
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -38,6 +45,13 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   void initState() {
     super.initState();
+
+    // ใช้ข้อมูลเริ่มต้นที่ส่งมาจากการ Long Press บนแผนที่
+    if (widget.initialLocation != null) {
+      selectedLocation = widget.initialLocation;
+      selectedLocationInfo = widget.initialLocationInfo;
+      hasUserSelectedLocation = true; // ตั้งค่า flag เมื่อมีตำแหน่งเริ่มต้น
+    }
     // ไม่โหลดตำแหน่งปัจจุบันอัตโนมัติ ให้ผู้ใช้เลือกเอง
   }
 
@@ -179,11 +193,34 @@ class _ReportScreenState extends State<ReportScreen> {
     // ซ่อนคีย์บอร์ดก่อนไปหน้าเลือกพิกัด
     FocusScope.of(context).unfocus();
 
+    // ถ้ายังไม่มีตำแหน่งที่เลือก ให้หาตำแหน่งปัจจุบันก่อน
+    LatLng? initialLocation = selectedLocation;
+
+    if (initialLocation == null) {
+      setState(() {
+        isLoadingLocation = true;
+      });
+
+      try {
+        initialLocation = await _getCurrentLocation();
+        if (initialLocation != null) {
+          print('✅ Found current location for picker: $initialLocation');
+        }
+      } catch (e) {
+        print('Error getting location for picker: $e');
+      } finally {
+        setState(() {
+          isLoadingLocation = false;
+        });
+      }
+    }
+
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (context) => LocationPickerScreen(
-          initialLocation: selectedLocation,
+          initialLocation:
+              initialLocation, // ส่งตำแหน่งปัจจุบันหรือตำแหน่งที่เลือกไว้แล้ว
         ),
       ),
     );
@@ -542,7 +579,8 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
           ),
           centerTitle: true, // ให้ข้อความอยู่กลาง
-          backgroundColor: const Color(0xFFFDC621),
+          backgroundColor:
+              const Color(0xFFFFC107), // เปลี่ยนเป็นสีเหลืองแบบหน้าอื่นๆ
           elevation: 0,
           leading: IconButton(
             icon: const Icon(
@@ -759,8 +797,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
-                                              _getDisplayAddress(
-                                                  selectedLocationInfo!),
+                                              selectedLocationInfo != null
+                                                  ? _getDisplayAddress(
+                                                      selectedLocationInfo!)
+                                                  : 'กำลังโหลดข้อมูลที่อยู่...',
                                               style: const TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
@@ -867,7 +907,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'เลือกจุดที่เกิดเหตุ *',
+                                          'จะพาไปที่ตำแหน่งปัจจุบันของคุณ *',
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Colors.grey.shade600,

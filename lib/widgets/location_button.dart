@@ -7,6 +7,8 @@ class LocationButton extends StatelessWidget {
   final double size;
   final Color backgroundColor;
   final Color iconColor;
+  final IconData icon;
+  final String? tooltip;
 
   const LocationButton({
     super.key,
@@ -15,11 +17,13 @@ class LocationButton extends StatelessWidget {
     this.size = 45,
     this.backgroundColor = Colors.white,
     this.iconColor = const Color(0xFF4673E5),
+    this.icon = Icons.my_location,
+    this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final button = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -45,11 +49,20 @@ class LocationButton extends StatelessWidget {
                 ),
               )
             : Icon(
-                Icons.my_location,
+                icon,
                 color: iconColor,
                 size: size * 0.5,
               ),
       ),
     );
+
+    if (tooltip != null) {
+      return Tooltip(
+        message: tooltip!,
+        child: button,
+      );
+    }
+
+    return button;
   }
 }

@@ -4,7 +4,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:ui' as ui;
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,8 +12,7 @@ import '../models/event_model.dart';
 import '../services/geocoding_service.dart';
 import '../services/firebase_service.dart';
 import '../services/auth_service.dart';
-import '../services/marker_clustering_service.dart';
-import '../services/background_fetch_service.dart';
+import '../services/security_service.dart';
 import '../utils/formatters.dart';
 import '../widgets/bottom_bar.dart';
 import '../widgets/category_selector_dialog.dart';
@@ -23,6 +21,14 @@ import '../widgets/event_marker.dart';
 import '../widgets/location_button.dart';
 import '../widgets/comment_bottom_sheet.dart';
 import 'settings_screen.dart';
+import 'report_screen.dart';
+
+// Enum สำหรับประเภท Navigation Bar
+enum NavigationBarType {
+  hasNavigationBar, // มี Navigation Bar แบบดั้งเดิม (Samsung, OnePlus)
+  gestureOnly, // ใช้ Gesture เท่านั้น (iPhone X+, Android gesture)
+  fallback, // โหมดสำรองสำหรับอุปกรณ์ที่ไม่แน่ใจ
+}
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -32,370 +38,459 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  LatLng currentPosition = const LatLng(13.7563, 100.5018); // ตำแหน่งปัจจุบัน
+  LatLng? currentPosition; // เปลี่ยนกลับเป็น nullable เพื่อรอหาตำแหน่งจริงก่อน
   late MapController mapController;
-  double searchRadius = 10.0; // รัศมีการค้นหาในหน่วยกิโลเมตร (10-100 km)
+  double searchRadius = 50.0; // เปลี่ยนเป็น 50 km เป็นค่าเริ่มต้น (10-100 km)
   LocationInfo? currentLocationInfo; // ข้อมูลที่อยู่ปัจจุบัน
-  bool isLoadingLocation = false; // สถานะการโหลดข้อมูลที่อยู่
+  bool isLoadingLocation = true; // เปลี่ยนเป็น true เพื่อหาตำแหน่งจริงก่อน
+  bool isLoadingMyLocation = false; // Loading state แยกสำหรับปุ่ม My Location
+  double loadingProgress = 0.0; // Progress bar สำหรับหน้าโหลด
+  Timer? _progressTimer; // Timer สำหรับ progress bar
   Timer? _realtimeTimer; // Timer สำหรับปรับปรุงหมุดแบบเรียลไทม์
   bool _isUserLoggedIn = false; // สถานะการล็อกอิน
   late AnimationController
       _mapAnimationController; // Animation controller สำหรับแผนที่
   double _currentZoom = 15.0; // เก็บ zoom level ปัจจุบัน
 
-  // Background fetch service
-  late BackgroundFetchService _backgroundFetchService;
-  StreamSubscription? _backgroundDataSubscription;
+  // ตำแหน่งเริ่มต้นสำรอง (กรุงเทพฯ) ใช้เมื่อหาตำแหน่งจริงไม่ได้
+  static const LatLng _defaultPosition = LatLng(13.7563, 100.5018);
 
-  // Preloading cache
-  final Set<String> _preloadedImageUrls = <String>{};
-  Timer? _preloadTimer;
+  // Performance Optimization Variables
+  Timer? _debounceTimer; // สำหรับ debounce การ update
+  Timer? _mapMoveTimer; // สำหรับ debounce map movement
+  DateTime? _lastFirebaseUpdate; // เก็บเวลา Firebase update ล่าสุด
+  List<DocumentSnapshot> _cachedDocuments = []; // Cache documents
+  List<Marker> _cachedMarkers = []; // Cache markers ที่สร้างแล้ว
+  Map<String, Marker> _markerCache = {}; // Cache markers แยกตาม docId
+  double _lastCachedZoom = 0.0; // Zoom level สุดท้ายที่ cache
+  LatLng? _lastCachedPosition; // ตำแหน่งสุดท้ายที่ cache
+  bool _isUpdatingMarkers = false; // Flag ป้องกัน concurrent updates
 
-  // Offline mode
-  bool _isOfflineMode = false;
-  Timer? _connectivityTimer;
+  // Clustering Variables
+  List<Marker> _clusteredMarkers = []; // Cache clustered markers
+  Map<String, List<DocumentSnapshot>> _clusterGroups =
+      {}; // กลุ่ม documents ใน cluster
 
-  // Real-time updates
-  StreamSubscription? _realtimeSubscription;
-  final List<String> _realtimeNotifications = [];
-
-  // Analytics
-  final Map<String, int> _analyticsCounters = {
-    'marker_taps': 0,
-    'category_changes': 0,
-    'location_updates': 0,
-    'image_preloads': 0,
-    'offline_events': 0,
-  };
-  Timer? _analyticsTimer;
-  DateTime? _sessionStartTime;
+  // Advanced performance constants
+  static const Duration _cacheValidDuration =
+      Duration(minutes: 2); // เพิ่มเป็น 2 นาที
+  static const double _clusterZoomThreshold =
+      12.0; // Zoom level ที่เริ่มทำ clustering
+  static const double _clusterDistanceKm =
+      0.5; // ระยะทางขั้นต่ำสำหรับ clustering (500m)
 
   List<EventCategory> selectedCategories = EventCategory.values.toList();
 
   @override
   void initState() {
     super.initState();
+
+    // ตั้งค่า System UI ทันทีเมื่อ init เพื่อป้องกัน Status Bar สีดำ
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setLoadingScreenNavigationBar();
+    });
+
+    // เพิ่มการตั้งค่าสำรองด้วย Future.delayed
+    Future.delayed(Duration.zero, () {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    });
+
+    // ตรวจสอบและจัดการ Navigation Bar อัจฉริยะ
+    _initializeSmartNavigationBarControl();
+
+    // เริ่มต้น MapController และ Animation อย่างเดียวก่อน
     mapController = MapController();
     _mapAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 300), // ลดเวลา animation
       vsync: this,
     );
-    selectedCategories =
-        EventCategory.values.toList(); // เลือกทั้งหมดโดย default
-    _loadSavedSettings(); // โหลดการตั้งค่าที่บันทึกไว้
-    _getCurrentLocation(); // หาตำแหน่งจริง
-    _startRealtimeUpdates(); // เริ่มการปรับปรุงหมุดแบบเรียลไทม์
-    _checkLoginStatus(); // ตรวจสอบสถานะล็อกอิน
 
-    // Initialize background fetch service
-    _initializeBackgroundFetch();
+    selectedCategories = EventCategory.values.toList();
 
-    // Start image preloading
-    _startImagePreloading();
+    // เริ่ม progress timer สำหรับหน้าโหลด
+    _startProgressTimer();
 
-    // Start connectivity monitoring
-    _startConnectivityMonitoring();
+    // หาตำแหน่งจริงทันทีก่อน - สำคัญที่สุด
+    _getCurrentLocationImmediately();
 
-    // Setup real-time notifications
-    _setupRealtimeNotifications();
+    // เลื่อนส่วนอื่นๆ ไปทำหลัง location เจอแล้ว
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeOtherServices();
+    });
 
-    // Start analytics tracking
-    startAnalytics();
-
-    // Listen for map zoom changes
+    // Listen for map events ด้วย debounce
     mapController.mapEventStream.listen((event) {
       if (event is MapEventMoveEnd) {
-        if (mounted) {
-          setState(() {
-            _currentZoom = mapController.camera.zoom;
-          });
+        _debouncedMapUpdate();
+        // เมื่อการเคลื่อนไหวจบแล้ว ให้ reset flag
+        _isPanning = false;
+
+        if (mounted) setState(() {});
+      } else if (event is MapEventMove) {
+        // MapEventMove จะถูกจัดการใน onPositionChanged แทน
+        // ไม่ต้องทำอะไรที่นี่
+      }
+    });
+  }
+
+  // ระบบตรวจสอบและจัดการ Navigation Bar อัจฉริยะ
+  void _initializeSmartNavigationBarControl() {
+    // ตรวจสอบประเภทของอุปกรณ์และ Navigation Bar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _detectAndSetupNavigationBar();
+    });
+  }
+
+  // ตรวจสอบและตั้งค่า Navigation Bar ตามอุปกรณ์
+  void _detectAndSetupNavigationBar() {
+    try {
+      // ตรวจสอบขนาดหน้าจอและ padding
+      final MediaQueryData mediaQuery = MediaQuery.of(context);
+      final double bottomPadding = mediaQuery.viewPadding.bottom;
+      final double screenHeight = mediaQuery.size.height;
+      final double screenWidth = mediaQuery.size.width;
+
+      if (kDebugMode) {
+        debugPrint('🔍 Device Analysis:');
+        debugPrint('   Screen: ${screenWidth}x${screenHeight}');
+        debugPrint('   Bottom Padding: $bottomPadding');
+        debugPrint('   Has Navigation Bar: ${bottomPadding > 0}');
+      }
+
+      // กำหนดโหมดตามประเภทอุปกรณ์
+      if (bottomPadding > 0) {
+        // อุปกรณ์ที่มี Navigation Bar (เช่น Samsung, OnePlus)
+        _setNavigationBarMode(NavigationBarType.hasNavigationBar);
+      } else {
+        // อุปกรณ์ที่ไม่มี Navigation Bar (เช่น iPhone X+, Gesture-only Android)
+        _setNavigationBarMode(NavigationBarType.gestureOnly);
+      }
+
+      // ตั้งค่าเพิ่มเติมสำหรับอุปกรณ์พิเศษ
+      _applyDeviceSpecificSettings(screenWidth, screenHeight, bottomPadding);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Error detecting navigation bar: $e');
+      }
+      // ใช้การตั้งค่าเริ่มต้นที่ปลอดภัย
+      _setNavigationBarMode(NavigationBarType.fallback);
+    }
+  }
+
+  // กำหนดโหมด Navigation Bar
+  void _setNavigationBarMode(NavigationBarType type) {
+    switch (type) {
+      case NavigationBarType.hasNavigationBar:
+        // อุปกรณ์ที่มี Navigation Bar แบบดั้งเดิม
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.edgeToEdge,
+          overlays: [],
+        );
+        SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ));
+        if (kDebugMode) debugPrint('✅ Mode: Has Navigation Bar');
+        break;
+
+      case NavigationBarType.gestureOnly:
+        // อุปกรณ์ที่ใช้ Gesture navigation เท่านั้น
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.edgeToEdge,
+          overlays: [],
+        );
+        SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ));
+        if (kDebugMode) debugPrint('✅ Mode: Gesture Only');
+        break;
+
+      case NavigationBarType.fallback:
+        // โหมดสำรองสำหรับอุปกรณ์ที่ไม่แน่ใจ
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.immersiveSticky,
+        );
+        SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ));
+        if (kDebugMode) debugPrint('✅ Mode: Fallback (Immersive)');
+        break;
+    }
+  }
+
+  // ตั้งค่าเพิ่มเติมสำหรับอุปกรณ์เฉพาะ
+  void _applyDeviceSpecificSettings(
+      double width, double height, double bottomPadding) {
+    // ตรวจสอบอัตราส่วนหน้าจอ
+    final double aspectRatio = height / width;
+
+    if (kDebugMode) {
+      debugPrint('📱 Device Specific Settings:');
+      debugPrint('   Aspect Ratio: ${aspectRatio.toStringAsFixed(2)}');
+    }
+
+    // Samsung Galaxy series (มักมี Navigation Bar)
+    if (bottomPadding > 20 && aspectRatio > 2.0) {
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+      ));
+      if (kDebugMode) debugPrint('🔧 Applied Samsung-specific settings');
+    }
+
+    // OnePlus/Oppo series (Navigation Bar แบบ customizable)
+    else if (bottomPadding > 15 && bottomPadding < 25) {
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+      ));
+      if (kDebugMode) debugPrint('🔧 Applied OnePlus/Oppo-specific settings');
+    }
+
+    // Xiaomi series (MIUI customizations)
+    else if (bottomPadding > 10 && width > 400) {
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ));
+      if (kDebugMode) debugPrint('🔧 Applied Xiaomi-specific settings');
+    }
+
+    // iPhone-like devices (Gesture only)
+    else if (bottomPadding == 0 && aspectRatio > 2.0) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      if (kDebugMode) debugPrint('🔧 Applied iPhone-like settings');
+    }
+  }
+
+  // ตั้งค่า Navigation Bar สำหรับหน้า Loading
+  void _setLoadingScreenNavigationBar() {
+    try {
+      // ใช้ edgeToEdge แทน immersiveSticky เพื่อความเสถียร
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.edgeToEdge,
+        overlays: [],
+      );
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // เปลี่ยนตามพื้นหลังสีเหลือง
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+      ));
+
+      if (kDebugMode) debugPrint('🚀 Loading screen: System UI configured');
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Error setting loading screen: $e');
+    }
+  } // คืนค่า Navigation Bar เมื่อเข้าหน้าแผนที่
+
+  void _restoreMainScreenNavigationBar() {
+    try {
+      final MediaQueryData mediaQuery = MediaQuery.of(context);
+      final double bottomPadding = mediaQuery.viewPadding.bottom;
+
+      if (bottomPadding > 0) {
+        // มี Navigation Bar - ให้แสดงสีขาว
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.edgeToEdge,
+          overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
+        );
+
+        SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.white, // สีขาว
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.grey, // เส้นแบ่งสีเทาอ่อน
+          systemNavigationBarContrastEnforced: true, // เพิ่ม contrast
+        ));
+      } else {
+        // ไม่มี Navigation Bar (gesture navigation) - ใช้ edgeToEdge
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.edgeToEdge,
+          overlays: [SystemUiOverlay.top],
+        );
+
+        SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent, // โปร่งใสสำหรับ gesture
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarContrastEnforced: false,
+        ));
+      }
+
+      if (kDebugMode)
+        debugPrint(
+            '🔄 Main screen: Navigation restored (hasNavBar: ${bottomPadding > 0})');
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Error restoring navigation: $e');
+    }
+  }
+
+  // Advanced map movement handler with debounce - Google Maps style
+  void _handleMapMove() {
+    _mapMoveTimer?.cancel();
+    _mapMoveTimer = Timer(const Duration(milliseconds: 500), () {
+      // เพิ่มเวลาให้มากขึ้น
+      if (mounted) {
+        // ไม่ต้องสร้าง simplified markers - ใช้ cache ที่มีแทน
+        // เพื่อให้ได้ performance เหมือน Google Maps
+        if (!_isPanning) {
+          // เมื่อหยุดลากแล้ว ให้อัปเดตเฉพาะตำแหน่งเท่านั้น
+          _loadDataForVisibleArea();
         }
+      }
+    });
+  }
+
+  // Load data for visible area only
+  void _loadDataForVisibleArea() {
+    final bounds = mapController.camera.visibleBounds;
+    final center = bounds.center;
+    final radius = _calculateVisibleRadius(bounds);
+
+    print(
+        '📍 Loading data for visible area: center=${center}, radius=${radius}km');
+
+    // ไม่อัปเดต currentPosition - ปล่อยให้อยู่ที่เดิม
+    // เพื่อไม่ให้ตำแหน่งหมุดเปลี่ยน
+    setState(() {});
+  }
+
+  // Calculate visible radius from map bounds
+  double _calculateVisibleRadius(LatLngBounds bounds) {
+    final center = bounds.center;
+    final corner = LatLng(bounds.north, bounds.east);
+    final distance = _calculateDistanceInKm(
+      center.latitude,
+      center.longitude,
+      corner.latitude,
+      corner.longitude,
+    );
+    return distance.clamp(1.0, searchRadius); // Min 1km, Max search radius
+  }
+
+  // Calculate distance between two points in kilometers
+  double _calculateDistanceInKm(
+      double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // Earth radius in kilometers
+
+    final double dLat = (lat2 - lat1) * (math.pi / 180);
+    final double dLon = (lon2 - lon1) * (math.pi / 180);
+
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * (math.pi / 180)) *
+            math.cos(lat2 * (math.pi / 180)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  // เริ่มต้น progress timer สำหรับหน้าโหลด
+  void _startProgressTimer() {
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      setState(() {
+        loadingProgress += 0.02; // เพิ่ม 2% ทุก 50ms = 100% ใน 2.5 วินาที
+        if (loadingProgress >= 1.0) {
+          loadingProgress = 1.0;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  // เลื่อนการ initialize services อื่นๆ มาทำหลัง
+  Future<void> _initializeOtherServices() async {
+    _loadSavedSettings();
+    _startRealtimeUpdates();
+    _checkLoginStatus();
+  }
+
+  // Debounced map update เพื่อลดการ rebuild บ่อยๆ - Google Maps style
+  void _debouncedMapUpdate() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 200), () {
+      // เพิ่มเวลา debounce
+      if (mounted) {
+        setState(() {
+          _currentZoom = mapController.camera.zoom;
+        });
       }
     });
   }
 
   @override
   void dispose() {
+    // คืนค่า System UI เป็นปกติสำหรับแอปอื่น
+    try {
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.edgeToEdge,
+        overlays: SystemUiOverlay.values,
+      );
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: true, // คืนค่าเป็น default
+      ));
+
+      if (kDebugMode) debugPrint('🔄 System UI restored for other apps');
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Error restoring system UI: $e');
+    }
+
     _realtimeTimer?.cancel(); // ยกเลิก Timer เมื่อหน้าจอปิด
+    _progressTimer?.cancel(); // ยกเลิก progress timer
+    _debounceTimer?.cancel(); // ยกเลิก debounce timer
+    _mapMoveTimer?.cancel(); // ยกเลิก map move timer
     _mapAnimationController.dispose(); // Dispose animation controller
-    _backgroundDataSubscription?.cancel(); // ยกเลิก background subscription
-    _backgroundFetchService.dispose(); // ปิด background service
-    _preloadTimer?.cancel(); // ยกเลิก preload timer
-    _connectivityTimer?.cancel(); // ยกเลิก connectivity timer
-    _realtimeSubscription?.cancel(); // ยกเลิก real-time subscription
-    _analyticsTimer?.cancel(); // ยกเลิก analytics timer
     mapController.dispose(); // Dispose mapController
+
+    // เคลียร์ performance caches
+    _cachedDocuments.clear();
+    _cachedMarkers.clear();
+    _markerCache.clear();
+    _clusteredMarkers.clear();
+    _clusterGroups.clear();
+
+    // Cleanup security tracking
+    SecurityService.cleanup();
 
     // เคลียร์ image cache เพื่อจัดการ memory
     WidgetsBinding.instance.addPostFrameCallback((_) {
       imageCache.clear();
-      _preloadedImageUrls.clear();
     });
 
     super.dispose();
-  }
-
-  /// Initialize background fetch service
-  Future<void> _initializeBackgroundFetch() async {
-    _backgroundFetchService = BackgroundFetchService.instance;
-    await _backgroundFetchService.initialize();
-
-    // Listen to background data
-    _backgroundDataSubscription =
-        _backgroundFetchService.dataStream.listen((backgroundData) {
-      if (mounted && backgroundData.isNotEmpty) {
-        if (kDebugMode) {
-          debugPrint(
-              'Background fetch: Received ${backgroundData.length} documents');
-        }
-        // อาจจะใช้ข้อมูลนี้เพื่อ cache หรือ pre-load markers
-        // สำหรับตอนนี้แค่ log ไว้
-      }
-    });
-  }
-
-  /// Start background fetching for current location and settings
-  void _startBackgroundFetch() {
-    // แปลง EventCategory เป็น BackgroundEventCategory
-    final backgroundCategories = selectedCategories.map((cat) {
-      switch (cat) {
-        case EventCategory.checkpoint:
-          return BackgroundEventCategory.police;
-        case EventCategory.accident:
-          return BackgroundEventCategory.accident;
-        case EventCategory.fire:
-          return BackgroundEventCategory.other;
-        case EventCategory.floodRain:
-          return BackgroundEventCategory.weather;
-        case EventCategory.tsunami:
-          return BackgroundEventCategory.weather;
-        case EventCategory.earthquake:
-          return BackgroundEventCategory.other;
-        case EventCategory.animalLost:
-          return BackgroundEventCategory.other;
-        case EventCategory.question:
-          return BackgroundEventCategory.other;
-      }
-    }).toList();
-
-    _backgroundFetchService.startFetching(
-      lat: currentPosition.latitude,
-      lng: currentPosition.longitude,
-      searchRadius: searchRadius,
-      categories: backgroundCategories,
-      interval: const Duration(minutes: 3), // fetch ทุก 3 นาที
-    );
-
-    if (kDebugMode) {
-      debugPrint(
-          'Background fetch: Started with ${backgroundCategories.length} categories');
-    }
-  }
-
-  /// Preload images that are nearby to improve performance
-  void _startImagePreloading() {
-    _preloadTimer?.cancel();
-    _preloadTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      _preloadNearbyImages();
-    });
-  }
-
-  /// Preload images for events within the current search radius
-  Future<void> _preloadNearbyImages() async {
-    try {
-      final snapshot = await FirebaseService.getReportsStream().first;
-      final filteredDocs = _filterDocuments(snapshot.docs);
-
-      for (final doc in filteredDocs.take(20)) {
-        // จำกัดที่ 20 รูปแรก
-        final data = doc.data() as Map<String, dynamic>;
-        final imageUrl = data['imageUrl'] as String?;
-
-        if (imageUrl != null &&
-            imageUrl.isNotEmpty &&
-            !_preloadedImageUrls.contains(imageUrl)) {
-          _preloadedImageUrls.add(imageUrl);
-
-          // Preload image ในพื้นหลัง
-          precacheImage(
-            NetworkImage(imageUrl),
-            context,
-          ).catchError((error) {
-            // Remove from cache if preload fails
-            _preloadedImageUrls.remove(imageUrl);
-            if (kDebugMode) {
-              debugPrint('Failed to preload image: $imageUrl');
-            }
-          });
-
-          if (kDebugMode) {
-            debugPrint('Preloading image: $imageUrl');
-          }
-
-          // Track analytics
-          trackAction('image_preloads');
-        }
-      }
-
-      // ทำความสะอาด cache ถ้าเก็บมากเกินไป
-      if (_preloadedImageUrls.length > 50) {
-        final excess = _preloadedImageUrls.length - 50;
-        final toRemove = _preloadedImageUrls.take(excess).toList();
-        _preloadedImageUrls.removeAll(toRemove);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error preloading images: $e');
-      }
-    }
-  }
-
-  /// Check connectivity and manage offline mode
-  void _startConnectivityMonitoring() {
-    _connectivityTimer?.cancel();
-    _connectivityTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      _checkConnectivity();
-    });
-
-    // Check immediately
-    _checkConnectivity();
-  }
-
-  /// Check if device is online or offline
-  Future<void> _checkConnectivity() async {
-    try {
-      // Simple connectivity check by trying to reach Firebase
-      await FirebaseService.getReportsStream()
-          .timeout(const Duration(seconds: 5))
-          .first;
-
-      if (_isOfflineMode) {
-        setState(() {
-          _isOfflineMode = false;
-        });
-        if (kDebugMode) {
-          debugPrint('Back online - switching to online mode');
-        }
-      }
-    } catch (e) {
-      if (!_isOfflineMode) {
-        setState(() {
-          _isOfflineMode = true;
-        });
-
-        // Track analytics
-        trackAction('offline_events');
-
-        if (kDebugMode) {
-          debugPrint('Going offline - switching to offline mode');
-        }
-      }
-    }
-  }
-
-  /// Cache tiles for offline use
-  Future<void> _cacheTilesForOffline() async {
-    if (kDebugMode) {
-      debugPrint('Starting tile caching for offline use...');
-    }
-
-    // Cache tiles around current position
-    final bounds = _calculateTileBounds(currentPosition, searchRadius);
-
-    // This would typically integrate with a tile caching library
-    // For now, we'll just log the bounds that should be cached
-    if (kDebugMode) {
-      debugPrint('Would cache tiles for bounds: $bounds');
-    }
-  }
-
-  /// Calculate tile bounds for caching
-  Map<String, dynamic> _calculateTileBounds(LatLng center, double radiusKm) {
-    const double earthRadius = 6371; // Earth radius in km
-    final double latOffset = (radiusKm / earthRadius) * (180 / math.pi);
-    final double lngOffset =
-        latOffset / math.cos(center.latitude * math.pi / 180);
-
-    return {
-      'north': center.latitude + latOffset,
-      'south': center.latitude - latOffset,
-      'east': center.longitude + lngOffset,
-      'west': center.longitude - lngOffset,
-      'zoom_levels': [10, 11, 12, 13, 14, 15, 16], // Cache multiple zoom levels
-    };
-  }
-
-  /// Setup real-time notifications for new events
-  void _setupRealtimeNotifications() {
-    _realtimeSubscription?.cancel();
-
-    // Listen to new reports in real-time
-    _realtimeSubscription =
-        FirebaseService.getReportsStream().listen((QuerySnapshot snapshot) {
-      if (!mounted) return;
-
-      // Check for new documents
-      for (final change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data() as Map<String, dynamic>?;
-          if (data != null) {
-            _handleNewRealtimeEvent(change.doc.id, data);
-          }
-        }
-      }
-    }, onError: (error) {
-      if (kDebugMode) {
-        debugPrint('Real-time subscription error: $error');
-      }
-    });
-  }
-
-  /// Handle new real-time event
-  void _handleNewRealtimeEvent(String docId, Map<String, dynamic> data) {
-    // Check if event is within current search radius
-    final lat = (data['lat'] ?? 0.0) as double;
-    final lng = (data['lng'] ?? 0.0) as double;
-
-    if (lat == 0.0 && lng == 0.0) return;
-
-    final distance = FirebaseService.calculateDistance(
-      currentPosition.latitude,
-      currentPosition.longitude,
-      lat,
-      lng,
-    );
-
-    if (distance <= searchRadius) {
-      final category = data['category'] as String? ?? 'unknown';
-      final eventCategory = FirebaseService.getCategoryFromName(category);
-
-      // Only show notification if category is selected
-      if (selectedCategories.contains(eventCategory)) {
-        // _showRealtimeNotification(eventCategory, distance); // ปิดการแจ้งเตือน
-
-        // Add to notifications list
-        final notification =
-            '${eventCategory.emoji} ${eventCategory.label} - ${distance.toStringAsFixed(1)} กม.';
-        _realtimeNotifications.insert(0, notification);
-
-        // Keep only last 10 notifications
-        if (_realtimeNotifications.length > 10) {
-          _realtimeNotifications.removeLast();
-        }
-
-        if (kDebugMode) {
-          debugPrint('New real-time event: $notification');
-        }
-      }
-    }
   }
 
   // ฟังก์ชันโหลดการตั้งค่าที่บันทึกไว้
@@ -471,62 +566,96 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ฟังก์ชันหาตำแหน่งปัจจุบัน
-  Future<void> _getCurrentLocation() async {
+  // ฟังก์ชันหาตำแหน่งปัจจุบันทันทีใน initState
+  Future<void> _getCurrentLocationImmediately() async {
     try {
-      setState(() => isLoadingLocation = true);
+      if (kDebugMode) {
+        debugPrint('🔍 Finding actual location before showing map...');
+      }
 
       // ตรวจสอบการเปิดใช้งาน Location Services
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showLocationErrorSnackbar('กรุณาเปิดใช้งานตำแหน่งในอุปกรณ์');
+        if (kDebugMode) {
+          debugPrint('❌ Location services disabled - using default location');
+        }
+        _useDefaultLocationImmediately();
         return;
       }
 
       // ตรวจสอบ Permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (kDebugMode) {
+          debugPrint('⚠️ Location permission denied - requesting...');
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showLocationErrorSnackbar('ไม่อนุญาตให้เข้าถึงตำแหน่ง');
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Location permission denied again - using default location');
+          }
+          _useDefaultLocationImmediately();
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showLocationErrorSnackbar('ตั้งค่าอนุญาตใน Device Settings');
+        if (kDebugMode) {
+          debugPrint(
+              '❌ Location permission denied forever - using default location');
+        }
+        _useDefaultLocationImmediately();
         return;
       }
 
-      // หาตำแหน่งปัจจุบัน
+      if (kDebugMode) {
+        debugPrint('✅ Location permission granted - getting position...');
+      }
+
+      // หาตำแหน่งปัจจุบัน - ใช้เวลานานขึ้นเพื่อความแม่นยำ
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 5), // จำกัดเวลาในการหาตำแหน่ง
+        timeLimit: const Duration(seconds: 10), // เพิ่มเวลาเป็น 10 วินาที
       );
 
-      // อัปเดตตำแหน่งและขยับแผนที่
+      // อัปเดตตำแหน่งและหยุด loading
       final userPosition = LatLng(position.latitude, position.longitude);
-      setState(() => currentPosition = userPosition);
-      mapController.move(userPosition, 15.0);
-      await _getLocationInfo(userPosition);
+      setState(() {
+        currentPosition = userPosition;
+        isLoadingLocation = false;
+      });
+
+      // ดึงข้อมูลที่อยู่ในพื้นหลัง
+      if (mounted) {
+        _getLocationInfo(userPosition);
+      }
 
       // Track analytics
-      trackAction('location_updates');
+      // trackAction('location_updates'); // ปิดการใช้งาน analytics
+
+      if (kDebugMode) {
+        debugPrint('✅ Found actual location before map: $userPosition');
+      }
     } catch (e) {
-      _showLocationErrorSnackbar('ไม่สามารถหาตำแหน่งได้: ${e.toString()}');
-    } finally {
-      setState(() => isLoadingLocation = false);
+      _useDefaultLocationImmediately();
+      if (kDebugMode) {
+        debugPrint('⚠️ Location error: $e - using default location');
+      }
     }
   }
 
-  void _showLocationErrorSnackbar(String message) {
+  // ฟังก์ชันใช้ตำแหน่งเริ่มต้นทันที
+  void _useDefaultLocationImmediately() {
+    setState(() {
+      currentPosition = _defaultPosition;
+      isLoadingLocation = false;
+    });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _getLocationInfo(_defaultPosition);
+    }
+    if (kDebugMode) {
+      debugPrint('📍 Using default location (Bangkok): $_defaultPosition');
     }
   }
 
@@ -544,6 +673,93 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
     }
   }
+
+  // ฟังก์ชันจัดการ Long Press บนแผนที่เพื่อสร้างโพสต์ที่ตำแหน่งนั้น
+  void _onMapLongPress(TapPosition tapPosition, LatLng point) async {
+    // ตรวจสอบการล็อกอิน
+    if (!AuthService.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'กรุณาล็อกอินก่อนสร้างโพสต์',
+            style: TextStyle(fontFamily: 'Kanit'),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // แสดง loading แบบสั้นๆ
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'กำลังดึงข้อมูลตำแหน่ง...',
+              style: TextStyle(fontFamily: 'Kanit'),
+            ),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      // ดึงข้อมูลตำแหน่ง
+      final locationInfo = await GeocodingService.getLocationInfo(point);
+
+      // ซ่อน loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // นำทางไป ReportScreen พร้อมข้อมูลตำแหน่งและชื่อถนน
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReportScreen(
+              initialLocation: point,
+              initialLocationInfo: locationInfo,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // ซ่อน loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // แสดงข้อผิดพลาด
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'ไม่สามารถดึงข้อมูลตำแหน่งได้: ${e.toString()}',
+            style: const TextStyle(fontFamily: 'Kanit'),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ฟังก์ชัน smooth move แผนที่ - ย้ายกล้องไปตรงกลางจอ
+  void _smoothMoveMap(LatLng target, double zoom) {
+    // ใช้ move เพื่อให้ตำแหน่งอยู่ตรงกลางจอ
+    mapController.move(target, zoom);
+  }
+
+  // Variables for advanced drag detection (simplified)
+  Offset? _panStartPosition;
+  DateTime? _panStartTime;
+  bool _isPanning = false;
 
   // ฟังก์ชันแสดง popup เลือกหมวดหมู่
   void _showCategorySelector() {
@@ -565,7 +781,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           });
 
           // Track analytics
-          trackAction('category_changes');
+          // trackAction('category_changes'); // ปิดการใช้งาน analytics
         },
       ),
     );
@@ -1053,40 +1269,100 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ฟังก์ชันกลับไปยังตำแหน่งตัวเองและปรับแนวแมพ (ปรับปรุงประสิทธิภาพ + Animation)
-  void _goToMyLocation() {
+  // ฟังก์ชันกลับไปยังตำแหน่งจริงของผู้ใช้ (ปรับปรุงประสิทธิภาพ)
+  void _goToMyLocation() async {
     try {
-      // เริ่ม animation controller
-      _mapAnimationController.forward(from: 0.0);
+      setState(() => isLoadingMyLocation = true); // ใช้ loading state แยก
 
-      // ใช้ moveAndRotate พร้อมกับ animation ที่สมูท
-      mapController.moveAndRotate(
-        currentPosition,
-        15.0,
-        0.0,
+      // หาตำแหน่งจริงใหม่ด้วย GPS แบบไม่บล็อก UI
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 3), // ลดเวลาจาก 5 เป็น 3 วินาที
       );
+
+      final actualPosition = LatLng(position.latitude, position.longitude);
+
+      // อัปเดตตำแหน่งปัจจุบัน
+      setState(() {
+        currentPosition = actualPosition;
+      });
+
+      // ย้ายกล้องไปยังตำแหน่งใหม่เพียงครั้งเดียว
+      _smoothMoveMap(actualPosition, 15.0);
+
+      // ดึงข้อมูลที่อยู่ใหม่ในพื้นหลัง (ไม่บล็อก UI)
+      _getLocationInfo(actualPosition);
+
+      // Track analytics
+      // trackAction('location_updates'); // ปิดการใช้งาน analytics
+
+      if (kDebugMode) {
+        debugPrint('📍 Updated to actual GPS location: $actualPosition');
+      }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error moving map: $e');
+        debugPrint('Error getting GPS location: $e');
       }
-      // หากเกิดข้อผิดพลาด ลองใช้ move ธรรมดา
-      try {
-        mapController.move(currentPosition, 15.0);
-      } catch (e2) {
-        if (kDebugMode) {
-          debugPrint('Error with fallback move: $e2');
+
+      // ถ้าหาตำแหน่งใหม่ไม่ได้ ให้ใช้ตำแหน่งเดิม
+      if (currentPosition != null) {
+        try {
+          _smoothMoveMap(currentPosition!, 15.0);
+        } catch (e2) {
+          if (kDebugMode) {
+            debugPrint('Error moving to current position: $e2');
+          }
         }
-        setState(() {});
       }
+    } finally {
+      setState(() => isLoadingMyLocation = false); // ปิด loading state แยก
     }
   }
 
-  // ฟังก์ชันกรองเอกสารแยกออกมาเพื่อประสิทธิภาพ
+  // ฟังก์ชันกรองเอกสารแยกออกมาเพื่อประสิทธิภาพ - เพิ่ม caching
   List<DocumentSnapshot> _filterDocuments(List<DocumentSnapshot> docs) {
+    // ตรวจสอบ cache validity ด้วยเวลา
+    final currentTime = DateTime.now();
+    final cacheAge = _lastFirebaseUpdate != null
+        ? currentTime.difference(_lastFirebaseUpdate!)
+        : Duration.zero;
+
+    if (cacheAge > _cacheValidDuration) {
+      _cachedDocuments.clear();
+      _cachedMarkers.clear();
+      if (kDebugMode) {
+        debugPrint(
+            'Debug: 🗑️ Cache expired, cleared after ${cacheAge.inMinutes}m ${cacheAge.inSeconds % 60}s');
+      }
+    }
+
+    // ตรวจสอบว่า currentPosition ไม่เป็น null ก่อน
+    if (currentPosition == null) return [];
+
+    // ถ้าข้อมูลไม่เปลี่ยนและ cache ยังใหม่ (ภายใน cache valid duration)
+    if (_lastFirebaseUpdate != null &&
+        currentTime.difference(_lastFirebaseUpdate!) < _cacheValidDuration &&
+        _cachedDocuments.isNotEmpty &&
+        _lastCachedPosition != null &&
+        _calculateDistanceInKm(
+              _lastCachedPosition!.latitude,
+              _lastCachedPosition!.longitude,
+              currentPosition!.latitude,
+              currentPosition!.longitude,
+            ) <
+            0.5) {
+      // ใช้ cache ถ้าเคลื่อนที่น้อยกว่า 500 เมตร
+      if (kDebugMode) {
+        debugPrint(
+            'Debug: 📦 Using cached data (${_cachedDocuments.length} docs)');
+      }
+      return _cachedDocuments;
+    }
+
     final now = DateTime.now();
     final fortyEightHoursAgo = now.subtract(const Duration(hours: 48));
 
-    return docs.where((doc) {
+    final filteredDocs = docs.where((doc) {
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return false;
 
@@ -1108,139 +1384,406 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
       // ตรวจสอบระยะทาง
       final distance = FirebaseService.calculateDistance(
-        currentPosition.latitude,
-        currentPosition.longitude,
+        currentPosition!.latitude,
+        currentPosition!.longitude,
         lat,
         lng,
       );
       return distance <= searchRadius;
     }).toList();
-  }
 
-  // สร้าง markers สำหรับเหตุการณ์จาก Firebase (เฉพาะในรัศมีและไม่เกิน 24 ชั่วโมง - ทดสอบ)
+    // อัปเดต cache
+    _cachedDocuments = filteredDocs;
+    _lastFirebaseUpdate = currentTime;
+    _lastCachedPosition = currentPosition;
+
+    if (kDebugMode) {
+      debugPrint(
+          'Debug: 🔄 Updated cache with ${filteredDocs.length} documents');
+    }
+
+    return filteredDocs;
+  } // สร้าง markers สำหรับเหตุการณ์จาก Firebase (เฉพาะในรัศมีและไม่เกิน 24 ชั่วโมง - ทดสอบ)
 
   List<Marker> _buildEventMarkersFromFirebase(List<DocumentSnapshot> docs) {
-    if (kDebugMode) {
-      debugPrint('Debug: 🔥 === BUILDING MARKERS WITH CLUSTERING ===');
-      debugPrint('Debug: 🔥 Total docs = ${docs.length}');
-      debugPrint('Debug: 🔥 Current position = $currentPosition');
-      debugPrint('Debug: 🔥 Search radius = $searchRadius km');
-      debugPrint('Debug: 🔥 Current zoom = $_currentZoom');
-      debugPrint(
-          'Debug: 🔥 Selected categories = ${selectedCategories.map((c) => c.toString().split('.').last).toList()}');
-    }
+    // ป้องกัน concurrent updates
+    if (_isUpdatingMarkers) return _cachedMarkers;
+    _isUpdatingMarkers = true;
 
-    final filteredDocs = _filterDocuments(docs);
-
-    if (kDebugMode) {
-      debugPrint('Debug: Filtered docs count = ${filteredDocs.length}');
-      if (filteredDocs.isEmpty) {
-        debugPrint('Debug: ⚠️  No fresh markers found!');
-      } else {
-        debugPrint('Debug: ✅ Found ${filteredDocs.length} fresh events');
-      }
-    }
-
-    // สร้าง ClusterMarkers สำหรับ clustering
-    final clusterMarkers = filteredDocs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final category =
-          data['category'] as String? ?? data['type'] as String? ?? '';
-      final eventCategory = FirebaseService.getCategoryFromName(category);
-      final lat = (data['lat'] ?? 0.0) as double;
-      final lng = (data['lng'] ?? 0.0) as double;
-      final latLng = LatLng(lat, lng);
-
-      // Debug: แสดงข้อมูล timestamp ของ document แรก
-      if (kDebugMode && filteredDocs.indexOf(doc) == 0) {
-        print('🕐 Debug MapScreen - Sample doc data: ${data.keys.toList()}');
-        print(
-            '🕐 Debug MapScreen - Sample timestamp field: ${data['timestamp']}');
-        print(
-            '🕐 Debug MapScreen - Sample timestamp type: ${data['timestamp'].runtimeType}');
+    try {
+      if (kDebugMode) {
+        debugPrint('Debug: 🔥 === BUILDING MARKERS WITH CLUSTERING ===');
+        debugPrint('Debug: 🔥 Total docs = ${docs.length}');
+        debugPrint('Debug: 🔥 Current position = $currentPosition');
+        debugPrint('Debug: 🔥 Search radius = $searchRadius km');
+        debugPrint('Debug: 🔥 Current zoom = $_currentZoom');
       }
 
-      return ClusterMarker(
-        point: latLng,
-        category: eventCategory,
-        docId: doc.id,
-        data: {
-          'doc': doc,
-          'data': data,
-          'category': eventCategory,
-        },
-      );
-    }).toList();
+      final filteredDocs = _filterDocuments(docs);
 
-    // ใช้ clustering เมื่อ zoom level ต่ำ และมี markers เยอะ
-    final shouldCluster = _currentZoom < 14.0 && clusterMarkers.length > 10;
+      // Advanced caching logic - simplified
+      final zoomDiff = (_currentZoom - _lastCachedZoom).abs();
+      final cacheValid = zoomDiff < 0.5 && _cachedMarkers.isNotEmpty;
 
-    if (shouldCluster) {
-      final clusteredMarkers = MarkerClusteringService.clusterMarkers(
-        markers: clusterMarkers,
-        currentZoom: _currentZoom,
-        onMarkerTap: (clusterMarker) {
-          final data = clusterMarker.data['data'] as Map<String, dynamic>;
-          final doc = clusterMarker.data['doc'] as DocumentSnapshot;
-          final eventCategory = clusterMarker.data['category'] as EventCategory;
-
-          final dataWithId = Map<String, dynamic>.from(data);
-          dataWithId['id'] = doc.id;
-          _showEventPopup(context, dataWithId, eventCategory);
-        },
-        onClusterTap: (clusterCenter) {
-          if (mounted) {
-            mapController.move(
-              clusterCenter,
-              (_currentZoom + 2).clamp(1.0, 18.0),
-            );
+      // ใช้ clustering สำหรับ zoom level ต่ำ
+      if (_currentZoom < _clusterZoomThreshold && filteredDocs.length > 10) {
+        if (cacheValid && _clusteredMarkers.isNotEmpty) {
+          if (kDebugMode) {
+            debugPrint(
+                'Debug: 🚀 Using cached clustered markers (${_clusteredMarkers.length})');
           }
-        },
-      );
+          return _clusteredMarkers;
+        }
+
+        final clusteredMarkers = _buildClusteredMarkers(filteredDocs);
+        _clusteredMarkers = clusteredMarkers;
+        _lastCachedZoom = _currentZoom;
+
+        if (kDebugMode) {
+          debugPrint(
+              'Debug: 🎯 Built ${clusteredMarkers.length} clustered markers from ${filteredDocs.length} docs');
+        }
+
+        return clusteredMarkers;
+      }
+
+      // Individual markers for high zoom levels
+      if (cacheValid && filteredDocs.length <= _cachedMarkers.length + 5) {
+        if (kDebugMode) {
+          debugPrint(
+              'Debug: 🚀 Using cached individual markers (${_cachedMarkers.length})');
+        }
+        return _cachedMarkers;
+      }
 
       if (kDebugMode) {
-        debugPrint(
-            'Debug: 🔗 Clustered ${clusterMarkers.length} markers into ${clusteredMarkers.length} clusters');
+        debugPrint('Debug: Filtered docs count = ${filteredDocs.length}');
+        if (filteredDocs.isEmpty) {
+          debugPrint('Debug: ⚠️  No fresh markers found!');
+          _cachedMarkers = [];
+          return [];
+        } else {
+          debugPrint('Debug: ✅ Found ${filteredDocs.length} fresh events');
+        }
       }
 
-      return clusteredMarkers;
+      // สร้าง markers ใหม่หรือใช้จาก cache
+      final markers = <Marker>[];
+      final newMarkerCache = <String, Marker>{};
+
+      for (final doc in filteredDocs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final docId = doc.id;
+
+        // ตรวจสอบว่ามี marker ใน cache แล้วหรือไม่
+        if (_markerCache.containsKey(docId)) {
+          final cachedMarker = _markerCache[docId]!;
+          markers.add(cachedMarker);
+          newMarkerCache[docId] = cachedMarker;
+          continue;
+        }
+
+        // สร้าง marker ใหม่
+        final category =
+            data['category'] as String? ?? data['type'] as String? ?? '';
+        final eventCategory = FirebaseService.getCategoryFromName(category);
+        final lat = (data['lat'] ?? 0.0) as double;
+        final lng = (data['lng'] ?? 0.0) as double;
+        final latLng = LatLng(lat, lng);
+
+        final marker = Marker(
+          point: latLng,
+          width: 55 * 1.16,
+          height: 55 * 1.16,
+          child: EventMarker(
+            category: eventCategory,
+            scale: 1.16,
+            isPost: true,
+            onTap: () {
+              final dataWithId = Map<String, dynamic>.from(data);
+              dataWithId['id'] = doc.id;
+              // trackAction('marker_taps'); // ปิดการใช้งาน analytics
+              _showEventPopup(context, dataWithId, eventCategory);
+            },
+          ),
+        );
+
+        markers.add(marker);
+        newMarkerCache[docId] = marker;
+      }
+
+      // อัปเดต cache
+      _cachedMarkers = markers;
+      _markerCache = newMarkerCache;
+      _lastCachedZoom = _currentZoom;
+
+      if (kDebugMode) {
+        debugPrint('Debug: 🔥 Final markers count = ${markers.length}');
+        debugPrint('Debug: 🔥 === MARKERS BUILDING COMPLETE ===');
+      }
+
+      return markers;
+    } finally {
+      _isUpdatingMarkers = false;
+    }
+  }
+
+  // สร้าง clustered markers สำหรับ zoom level ต่ำ
+  List<Marker> _buildClusteredMarkers(List<DocumentSnapshot> docs) {
+    if (docs.isEmpty) return [];
+
+    // แยกกลุ่ม documents ตามระยะทาง
+    final clusters = <List<DocumentSnapshot>>[];
+    final processed = <bool>[];
+
+    for (int i = 0; i < docs.length; i++) {
+      processed.add(false);
     }
 
-    // แปลง ClusterMarkers เป็น Markers สำหรับการแสดงผลปกติ
-    final markers = clusterMarkers.map((clusterMarker) {
-      final data = clusterMarker.data['data'] as Map<String, dynamic>;
-      final doc = clusterMarker.data['doc'] as DocumentSnapshot;
-      final eventCategory = clusterMarker.data['category'] as EventCategory;
+    for (int i = 0; i < docs.length; i++) {
+      if (processed[i]) continue;
 
-      return Marker(
-        point: clusterMarker.point,
-        width: 55 * 1.16, // ลดขนาดลง 15% (1.365 → 1.16)
-        height: 55 * 1.16, // ใช้ขนาดเดียวกันเพราะเป็นวงกลม
-        child: EventMarker(
-          category: eventCategory, // ใช้ EventCategory โดยตรง ไม่ต้องแปลง
-          scale: 1.16, // ลดขนาดลง 15% จาก 1.365
-          isPost: true, // เพิ่ม parameter ใหม่
-          onTap: () {
-            final dataWithId = Map<String, dynamic>.from(data);
-            dataWithId['id'] = doc.id;
+      final cluster = <DocumentSnapshot>[docs[i]];
+      processed[i] = true;
 
-            // Track analytics
-            trackAction('marker_taps');
+      final data1 = docs[i].data() as Map<String, dynamic>;
+      final lat1 = (data1['lat'] ?? 0.0) as double;
+      final lng1 = (data1['lng'] ?? 0.0) as double;
 
-            _showEventPopup(context, dataWithId, eventCategory);
-          },
-        ),
-      );
-    }).toList();
+      // หา documents อื่นที่อยู่ใกล้ๆ
+      for (int j = i + 1; j < docs.length; j++) {
+        if (processed[j]) continue;
 
-    if (kDebugMode) {
-      debugPrint(
-          'Debug: 🔥 Final markers count = ${markers.length} (no clustering)');
-      debugPrint('Debug: 🔥 === MARKERS BUILDING COMPLETE ===');
+        final data2 = docs[j].data() as Map<String, dynamic>;
+        final lat2 = (data2['lat'] ?? 0.0) as double;
+        final lng2 = (data2['lng'] ?? 0.0) as double;
+
+        final distance = _calculateDistanceInKm(lat1, lng1, lat2, lng2);
+
+        if (distance <= _clusterDistanceKm) {
+          cluster.add(docs[j]);
+          processed[j] = true;
+        }
+      }
+
+      clusters.add(cluster);
     }
+
+    // สร้าง markers จาก clusters
+    final markers = <Marker>[];
+
+    for (final cluster in clusters) {
+      if (cluster.length == 1) {
+        // สร้าง marker เดี่ยว
+        final doc = cluster.first;
+        final data = doc.data() as Map<String, dynamic>;
+        final category =
+            data['category'] as String? ?? data['type'] as String? ?? '';
+        final eventCategory = FirebaseService.getCategoryFromName(category);
+        final lat = (data['lat'] ?? 0.0) as double;
+        final lng = (data['lng'] ?? 0.0) as double;
+        final latLng = LatLng(lat, lng);
+
+        final marker = Marker(
+          point: latLng,
+          width: 55 * 1.16,
+          height: 55 * 1.16,
+          child: EventMarker(
+            category: eventCategory,
+            scale: 1.16,
+            isPost: true,
+            onTap: () {
+              final dataWithId = Map<String, dynamic>.from(data);
+              dataWithId['id'] = doc.id;
+              _showEventPopup(context, dataWithId, eventCategory);
+            },
+          ),
+        );
+
+        markers.add(marker);
+      } else {
+        // สร้าง cluster marker
+        final clusterData = cluster.first.data() as Map<String, dynamic>;
+        final lat = (clusterData['lat'] ?? 0.0) as double;
+        final lng = (clusterData['lng'] ?? 0.0) as double;
+        final latLng = LatLng(lat, lng);
+
+        final marker = Marker(
+          point: latLng,
+          width: 60,
+          height: 60,
+          child: _buildClusterMarker(cluster),
+        );
+
+        markers.add(marker);
+      }
+    }
+
+    // เก็บ cluster groups สำหรับการใช้งานในอนาคต
+    _clusterGroups.clear();
+    for (int i = 0; i < clusters.length; i++) {
+      _clusterGroups['cluster_$i'] = clusters[i];
+    }
+
     return markers;
   }
 
+  // สร้าง widget สำหรับ cluster marker
+  Widget _buildClusterMarker(List<DocumentSnapshot> clusterDocs) {
+    final count = clusterDocs.length;
+
+    return GestureDetector(
+      onTap: () {
+        // แสดงรายการเหตุการณ์ใน cluster
+        _showClusterPopup(clusterDocs);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF4673E5),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white,
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            count.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // แสดง popup สำหรับ cluster
+  void _showClusterPopup(List<DocumentSnapshot> clusterDocs) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'เหตุการณ์ในบริเวณนี้ (${clusterDocs.length} รายการ)',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Kanit',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // รายการเหตุการณ์
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: clusterDocs.length,
+                  itemBuilder: (context, index) {
+                    final doc = clusterDocs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final category = data['category'] as String? ??
+                        data['type'] as String? ??
+                        '';
+                    final eventCategory =
+                        FirebaseService.getCategoryFromName(category);
+
+                    final title = data['title'] ??
+                        (data['description']?.toString().isNotEmpty == true
+                            ? data['description'].toString().length > 30
+                                ? '${data['description'].toString().substring(0, 30)}...'
+                                : data['description'].toString()
+                            : 'ไม่มีหัวข้อ');
+
+                    final timestamp = data['timestamp'] as Timestamp?;
+                    final timeAgo = timestamp != null
+                        ? DateTimeFormatters.formatTimeAgo(timestamp.toDate())
+                        : '';
+
+                    return ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        child: EventMarker(
+                          category: eventCategory,
+                          scale: 0.7,
+                          isPost: true,
+                        ),
+                      ),
+                      title: Text(
+                        title,
+                        style: const TextStyle(
+                          fontFamily: 'Kanit',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        timeAgo,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        final dataWithId = Map<String, dynamic>.from(data);
+                        dataWithId['id'] = doc.id;
+                        _showEventPopup(context, dataWithId, eventCategory);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Build clustered markers for low zoom levels
   // ดึงชื่อคนโพสแบบ masked (เหมือน list_screen.dart)
   String _getMaskedPosterName(Map<String, dynamic> data) {
     final userId = data['userId'] as String?;
@@ -1297,6 +1840,132 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // แสดง loading screen จนกว่าจะหาตำแหน่งจริงเจอ
+    if (isLoadingLocation || currentPosition == null) {
+      // ตั้งค่า Navigation Bar สำหรับหน้า Loading
+      _setLoadingScreenNavigationBar();
+
+      return Scaffold(
+        backgroundColor: const Color(0xFFFDC621), // เปลี่ยนกลับเป็นสีเหลืองเดิม
+        extendBodyBehindAppBar: true,
+        extendBody: true,
+        resizeToAvoidBottomInset: false,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(flex: 2),
+
+              // โลโก้แอป
+              Image.asset(
+                'assets/images/app_icon.png',
+                width: 120,
+                height: 120,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.location_on,
+                      size: 60,
+                      color: Colors.black, // เปลี่ยนกลับเป็นสีดำเดิม
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 30),
+
+              // โลโก้ CheckDarn
+              const Text(
+                'CheckDarn',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black, // เปลี่ยนกลับเป็นสีดำเดิม
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Progress Bar
+              Container(
+                width: 200,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.black
+                      .withValues(alpha: 0.2), // เปลี่ยนกลับเป็นสีดำอ่อนเดิม
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: loadingProgress,
+                    backgroundColor: Colors.transparent,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.black), // เปลี่ยนกลับเป็นสีดำเดิม
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // เปอร์เซ็นต์
+              Text(
+                '${(loadingProgress * 100).toInt()}%',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87, // เปลี่ยนกลับเป็นสีดำเดิม
+                ),
+              ),
+
+              const Spacer(flex: 3),
+
+              // คำคมด้านล่าง
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Column(
+                  children: [
+                    const Text(
+                      '"รู้ก่อน รอดก่อน ปลอดภัยก่อน"',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.black87, // เปลี่ยนกลับเป็นสีดำเดิม
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'CheckDarn - ตรวจสอบเหตุการณ์ใกล้ตัว',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black.withValues(
+                            alpha: 0.8), // เปลี่ยนกลับเป็นสีดำอ่อนเดิม
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // คืนค่า Navigation Bar เมื่อเข้าหน้าแผนที่หลัก
+    _restoreMainScreenNavigationBar();
+
     return Scaffold(
       extendBodyBehindAppBar: true, // ให้ body ขยายไปข้างหลัง AppBar
       appBar: PreferredSize(
@@ -1315,13 +1984,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               decoration: BoxDecoration(
                 color: const Color(0xFFFDC621),
                 borderRadius: BorderRadius.circular(25), // โค้งมนทั้งแถบ
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                // ลบ boxShadow ออกเพื่อไม่ให้มีเงาดำๆ
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1336,56 +1999,165 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  // ส่วนโปรไฟล์
-                  GestureDetector(
-                    onTap: AuthService.isLoggedIn
-                        ? _navigateToSettings
-                        : () async {
-                            final success =
-                                await AuthService.showLoginDialog(context);
-                            if (success && mounted) {
-                              setState(() {
-                                _isUserLoggedIn = AuthService.isLoggedIn;
-                              });
-                            }
-                          },
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF4673E5),
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 2,
+                  // ส่วนกลาง - ปุ่ม help และโปรไฟล์
+                  Row(
+                    children: [
+                      // ปุ่ม help สำหรับบอกวิธีใช้ Long Press
+                      GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              title: const Row(
+                                children: [
+                                  Text('💡'),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'วิธีใช้งานแผนที่',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              content: const Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.touch_app,
+                                          size: 20, color: Colors.blue),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'จิ้มที่แผนที่ 1 ครั้ง = ย้ายตำแหน่งการค้นหา',
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.touch_app,
+                                          size: 20, color: Colors.orange),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'กดค้างที่แผนที่ = สร้างโพสต์ใหม่',
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.my_location,
+                                          size: 20, color: Colors.blue),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'ปุ่มตำแหน่ง = กลับมาตำแหน่งจริงของคุณ',
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text(
+                                    'เข้าใจแล้ว',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF4673E5),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: 35,
+                          height: 35,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.help_outline,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
                         ),
                       ),
-                      child: AuthService.isLoggedIn &&
-                              AuthService.currentUser?.photoURL != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(17.5),
-                              child: Image.network(
-                                AuthService.currentUser!.photoURL!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(
-                                    child: Icon(
-                                      Icons.person,
-                                      color: Colors.black,
-                                      size: 21,
-                                    ),
-                                  );
-                                },
-                              ),
-                            )
-                          : const Center(
-                              child: Icon(
-                                Icons.person,
-                                color: Colors.black,
-                                size: 21,
-                              ),
+
+                      // ส่วนโปรไฟล์
+                      GestureDetector(
+                        onTap: AuthService.isLoggedIn
+                            ? _navigateToSettings
+                            : () async {
+                                final success =
+                                    await AuthService.showLoginDialog(context);
+                                if (success && mounted) {
+                                  setState(() {
+                                    _isUserLoggedIn = AuthService.isLoggedIn;
+                                  });
+                                }
+                              },
+                        child: Container(
+                          width: 35,
+                          height: 35,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF4673E5),
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2,
                             ),
-                    ),
+                          ),
+                          child: AuthService.isLoggedIn &&
+                                  AuthService.currentUser?.photoURL != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(17.5),
+                                  child: Image.network(
+                                    AuthService.currentUser!.photoURL!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Center(
+                                        child: Icon(
+                                          Icons.person,
+                                          color: Colors.black,
+                                          size: 21,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                              : const Center(
+                                  child: Icon(
+                                    Icons.person,
+                                    color: Colors.black,
+                                    size: 21,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1395,14 +2167,89 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       ),
       body: Stack(
         children: [
-          // แผนที่ FlutterMap ที่ทำงานได้แน่นอน
+          // แผนที่ FlutterMap ที่ปรับปรุงประสิทธิภาพแล้ว
           FlutterMap(
+            key: ValueKey(
+                currentPosition), // rebuild เมื่อ currentPosition เปลี่ยน
             mapController: mapController,
             options: MapOptions(
-              initialCenter: currentPosition,
+              initialCenter:
+                  currentPosition!, // ใช้ ! เพราะเช็คแล้วใน if ด้านบน
               initialZoom: 15.0,
               minZoom: 5.0,
               maxZoom: 18.0,
+              // Google Maps-like smooth interaction settings
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all &
+                    ~InteractiveFlag.rotate, // ปิด rotate เพื่อประสิทธิภาพ
+                scrollWheelVelocity: 0.002, // ลดความไวของ scroll wheel
+                pinchZoomWinGestures:
+                    MultiFingerGesture.pinchZoom, // เปิด pinch zoom
+                pinchMoveWinGestures:
+                    MultiFingerGesture.pinchMove, // เปิด pinch move
+                enableMultiFingerGestureRace:
+                    true, // เปิด multi-finger gestures
+              ),
+              // ปรับปรุงประสิทธิภาพการโหลดแผนที่
+              cameraConstraint:
+                  CameraConstraint.unconstrained(), // ไม่จำกัดการเคลื่อนไหว
+              keepAlive: true, // เก็บ state ของแผนที่
+              // Enhanced pointer event handlers - แก้ปัญหา tap หลัง drag
+              onPointerDown: (event, point) {
+                _panStartPosition = event.position;
+                _panStartTime = DateTime.now();
+                _isPanning = false; // Reset panning state
+
+                if (kDebugMode) {
+                  debugPrint('🎯 Pointer down at: ${event.position}');
+                }
+              },
+              onPointerUp: (event, point) {
+                if (kDebugMode) {
+                  debugPrint('🎯 Pointer up - _isPanning: $_isPanning');
+                }
+
+                // หน่วงเวลาก่อน reset variables
+                Timer(const Duration(milliseconds: 150), () {
+                  _isPanning = false;
+                  _panStartPosition = null;
+                  _panStartTime = null;
+                });
+              },
+              onPointerCancel: (event, point) {
+                _isPanning = false;
+                _panStartPosition = null;
+                _panStartTime = null;
+
+                if (kDebugMode) {
+                  debugPrint('🚫 Pointer cancelled');
+                }
+              },
+              // Enhanced performance callbacks
+              onPositionChanged: (MapCamera position, bool hasGesture) {
+                if (kDebugMode && hasGesture) {
+                  debugPrint(
+                      '📍 Position changed: hasGesture=$hasGesture, zoom=${position.zoom}');
+                }
+
+                if (hasGesture) {
+                  // ตรวจสอบว่ากำลังลากจริงหรือไม่
+                  if (_panStartPosition != null && _panStartTime != null) {
+                    final now = DateTime.now();
+                    final duration = now.difference(_panStartTime!);
+                    if (duration.inMilliseconds > 100) {
+                      // หลังจากลากไป 100ms
+                      if (!_isPanning) {
+                        _isPanning = true;
+                      }
+                    }
+                  }
+
+                  _currentZoom = position.zoom;
+                  _handleMapMove(); // Use debounced update during gestures
+                }
+              },
+              onLongPress: _onMapLongPress,
             ),
             children: [
               TileLayer(
@@ -1413,24 +2260,29 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 subdomains: const ['a', 'b', 'c'],
                 maxZoom: 18,
                 maxNativeZoom: 18,
+                // Performance optimized tile provider
                 tileProvider: NetworkTileProvider(),
+                // ปรับปรุงประสิทธิภาพการโหลด tiles
+                panBuffer: 3, // เพิ่มจาก 2 เป็น 3 เพื่อโหลดล่วงหน้า
+                keepBuffer: 4, // เพิ่มจาก 2 เป็น 4 เพื่อเก็บ cache นานขึ้น
+                // เพิ่มการตั้งค่าสำหรับ caching
+                tileBounds: null, // ไม่จำกัด bounds
                 additionalOptions: const {
                   'attribution': '© OpenStreetMap contributors',
+                  'crossOrigin': 'anonymous', // ป้องกันปัญหา CORS
                 },
-                tileBuilder: (context, widget, tile) {
-                  return FadeTransition(
-                    opacity: AlwaysStoppedAnimation(
-                      tile.loadStarted == null ? 0.0 : 1.0,
-                    ),
-                    child: widget,
-                  );
+                // เพิ่ม error handling
+                errorTileCallback: (tile, error, stackTrace) {
+                  if (kDebugMode) {
+                    debugPrint('Tile loading error: $error');
+                  }
                 },
               ),
               // วงรัศมีการค้นหา
               CircleLayer(
                 circles: [
                   CircleMarker(
-                    point: currentPosition,
+                    point: currentPosition!, // ใช้ ! เพราะเช็คแล้วใน if ด้านบน
                     radius: searchRadius * 1000, // แปลงเป็นเมตร
                     useRadiusInMeter: true,
                     color: const Color(0xFF4673E5).withValues(alpha: 0.15),
@@ -1439,11 +2291,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              // หมุดตำแหน่งผู้ใช้
+              // หมุดตำแหน่งผู้ใช้ - optimized with key
               MarkerLayer(
+                key: const ValueKey('user_position_marker'),
                 markers: [
                   Marker(
-                    point: currentPosition,
+                    point: currentPosition!, // ใช้ ! เพราะเช็คแล้วใน if ด้านบน
                     width: 38.64, // เพิ่มจาก 36.8 เป็น 38.64 (เพิ่ม 5%)
                     height: 50.4, // เพิ่มจาก 48 เป็น 50.4 (เพิ่ม 5%)
                     child: const LocationMarker(
@@ -1451,61 +2304,52 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              // หมุดเหตุการณ์จาก Firebase
+              // หมุดเหตุการณ์จาก Firebase - Optimized with better caching
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseService.getReportsStream(),
                 builder: (context, snapshot) {
-                  if (kDebugMode) {
-                    debugPrint(
-                        'Debug: StreamBuilder state = ${snapshot.connectionState}');
-                  }
-
+                  // ใช้ cached markers เมื่อไม่มีข้อมูลใหม่
                   if (snapshot.hasError) {
                     if (kDebugMode) {
-                      debugPrint(
-                          'Debug: StreamBuilder error = ${snapshot.error}');
+                      debugPrint('🚨 Firebase Stream Error: ${snapshot.error}');
                     }
-                    return const MarkerLayer(
-                        markers: []); // แสดงแผนที่เปล่าเมื่อเกิดข้อผิดพลาด
+                    return MarkerLayer(
+                      key: const ValueKey('error_cached_markers'),
+                      markers: _cachedMarkers,
+                    );
                   }
 
-                  // แสดงหมุดเปล่าขณะรอข้อมูลครั้งแรก
-                  if (snapshot.connectionState == ConnectionState.waiting &&
-                      !snapshot.hasData) {
-                    if (kDebugMode) {
-                      debugPrint(
-                          'Debug: StreamBuilder waiting for first data...');
-                    }
-                    return const MarkerLayer(
-                        markers: []); // แสดง MarkerLayer เปล่า
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    // แสดง cached markers ระหว่างรอ
+                    return MarkerLayer(
+                      key: const ValueKey('loading_cached_markers'),
+                      markers: _cachedMarkers,
+                    );
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     if (kDebugMode) {
-                      debugPrint('Debug: StreamBuilder no data or empty docs');
+                      debugPrint('📭 No Firebase data available');
                     }
-                    return const MarkerLayer(
-                        markers: []); // แสดงแผนที่เปล่าเมื่อไม่มีข้อมูล
+                    return MarkerLayer(
+                      key: const ValueKey('empty_markers'),
+                      markers: const [],
+                    );
                   }
 
                   final docs = snapshot.data!.docs;
+
+                  // สร้าง markers ใหม่ทุกครั้ง (simplified)
+                  final markers = _buildEventMarkersFromFirebase(docs);
+
                   if (kDebugMode) {
                     debugPrint(
-                        'Debug: ✅ StreamBuilder received ${docs.length} documents from Firebase');
+                        '🔄 Built fresh markers from Firebase: ${markers.length}');
                   }
 
-                  // ใช้ฟังก์ชันกรองที่แยกออกมาแล้วเพื่อประสิทธิภาพ
-                  final filteredDocs = _filterDocuments(docs);
-                  final markers = _buildEventMarkersFromFirebase(filteredDocs);
-                  if (kDebugMode) {
-                    debugPrint(
-                        'Debug: ✅ Created ${markers.length} markers for map - DISPLAYING NOW');
-                  }
-
-                  // แสดงหมุดด้วย Key เพื่อให้ Flutter rebuild ได้ถูกต้อง
                   return MarkerLayer(
                     key: ValueKey(
-                        'markers_${filteredDocs.length}_${selectedCategories.length}_${searchRadius.toInt()}'),
+                        'fresh_markers_${markers.length}_${selectedCategories.length}_${searchRadius.toInt()}'),
                     markers: markers,
                   );
                 },
@@ -1589,15 +2433,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // ปุ่มกลับมาหาตำแหน่งตัวเอง
+          // ปุ่มกลับมาตำแหน่งจริงของผู้ใช้ (รวมหาตำแหน่งใหม่)
           Positioned(
             right: 16,
-            bottom:
-                100, // ย้ายจาก top: 320 มาเป็น bottom: 100 เพื่อให้อยู่ด้านล่าง
+            bottom: 100,
             child: LocationButton(
               onPressed: _goToMyLocation,
-              isLoading: isLoadingLocation,
-              size: 48, // เพิ่มจาก 40 เป็น 48 (เพิ่ม 20%)
+              isLoading: isLoadingMyLocation, // ใช้ loading state แยก
+              size: 48,
+              icon: Icons.my_location,
+              tooltip: 'กลับมาตำแหน่งจริงของฉัน',
+              iconColor: const Color(0xFF4673E5),
             ),
           ),
 
@@ -1606,9 +2452,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             bottom: 0,
             left: 0,
             right: 0,
-            child: BottomBar(
-              selectedCategories: selectedCategories,
-              onCategorySelectorTap: _showCategorySelector,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Bottom Bar
+                BottomBar(
+                  selectedCategories: selectedCategories,
+                  onCategorySelectorTap: _showCategorySelector,
+                ),
+                // Bottom Safety Area - จัดการกรณี Navigation Bar โปร่งใสหรือไม่มี
+                Container(
+                  width: double.infinity,
+                  height: MediaQuery.of(context).viewPadding.bottom > 0
+                      ? MediaQuery.of(context).viewPadding.bottom
+                      : 20, // สำหรับอุปกรณ์ที่ไม่มี Navigation Bar
+                  color: Colors.white, // พื้นหลังสีขาวเพื่อไม่ให้โล่ง
+                ),
+              ],
             ),
           ),
         ],
@@ -1618,153 +2478,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 }
 
 // Custom Painter สำหรับวาดแผนที่พื้นฐาน
-class SimpleMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-
-    // วาดถนนหลัก
-    paint.color = Colors.white.withValues(alpha: 0.8);
-    paint.strokeWidth = 3;
-    paint.style = PaintingStyle.stroke;
-
-    // ถนนแนวนอน (6 เส้น)
-    for (int i = 1; i < 7; i++) {
-      final y = size.height * i / 7;
-      canvas.drawLine(
-        Offset(size.width * 0.1, y),
-        Offset(size.width * 0.9, y),
-        paint,
-      );
-    }
-
-    // ถนนแนวตั้ง (5 เส้น)
-    for (int i = 1; i < 6; i++) {
-      final x = size.width * i / 6;
-      canvas.drawLine(
-        Offset(x, size.height * 0.1),
-        Offset(x, size.height * 0.9),
-        paint,
-      );
-    }
-
-    // วาดแม่น้ำ (เส้นโค้ง)
-    paint.color = const Color(0xFF42A5F5);
-    paint.strokeWidth = 6;
-    paint.style = PaintingStyle.stroke;
-    final riverPath = ui.Path();
-    riverPath.moveTo(size.width * 0.15, size.height * 0.3);
-    riverPath.quadraticBezierTo(size.width * 0.4, size.height * 0.7,
-        size.width * 0.85, size.height * 0.5);
-    canvas.drawPath(riverPath, paint);
-
-    // วาดพื้นที่สีเขียว (สวนสาธารณะ)
-    paint.color = const Color(0xFF66BB6A).withValues(alpha: 0.4);
-    paint.style = PaintingStyle.fill;
-
-    // สวนที่ 1
-    final park1 = Rect.fromLTWH(size.width * 0.15, size.height * 0.15,
-        size.width * 0.25, size.height * 0.2);
-    canvas.drawOval(park1, paint);
-
-    // สวนที่ 2
-    final park2 = Rect.fromLTWH(size.width * 0.6, size.height * 0.6,
-        size.width * 0.3, size.height * 0.25);
-    canvas.drawOval(park2, paint);
-
-    // วาดอาคารสำคัญ
-    paint.color = const Color(0xFF90A4AE);
-    paint.style = PaintingStyle.fill;
-
-    // อาคาร 1
-    final building1 = Rect.fromLTWH(size.width * 0.3, size.height * 0.4,
-        size.width * 0.08, size.height * 0.12);
-    canvas.drawRect(building1, paint);
-
-    // อาคาร 2
-    final building2 = Rect.fromLTWH(size.width * 0.7, size.height * 0.25,
-        size.width * 0.06, size.height * 0.1);
-    canvas.drawRect(building2, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 /// Analytics and Performance Extensions
 extension MapScreenAnalytics on _MapScreenState {
   /// Start analytics tracking
   void startAnalytics() {
-    _sessionStartTime = DateTime.now();
-
-    _analyticsTimer?.cancel();
-    _analyticsTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      logAnalytics();
-    });
-  }
-
-  /// Log analytics data
-  void logAnalytics() {
-    final sessionDuration = _sessionStartTime != null
-        ? DateTime.now().difference(_sessionStartTime!).inMinutes
-        : 0;
-
-    final analyticsData = {
-      'session_duration_minutes': sessionDuration,
-      'current_zoom': _currentZoom,
-      'search_radius': searchRadius,
-      'selected_categories_count': selectedCategories.length,
-      'is_offline_mode': _isOfflineMode,
-      'preloaded_images_count': _preloadedImageUrls.length,
-      'notifications_count': _realtimeNotifications.length,
-      ..._analyticsCounters,
-    };
-
+    // Analytics disabled for now
     if (kDebugMode) {
-      debugPrint('📊 Analytics: $analyticsData');
+      debugPrint('🔕 Analytics tracking disabled');
     }
-
-    // Here you would typically send to Firebase Analytics or your analytics service
-    // Example: FirebaseAnalytics.instance.logEvent(name: 'map_session', parameters: analyticsData);
-  }
-
-  /// Track user action for analytics
-  void trackAction(String action) {
-    if (_analyticsCounters.containsKey(action)) {
-      _analyticsCounters[action] = (_analyticsCounters[action] ?? 0) + 1;
-    }
-  }
-
-  /// Get performance metrics
-  Map<String, dynamic> getPerformanceMetrics() {
-    return {
-      'memory_usage_mb': getMemoryUsage(),
-      'image_cache_size': imageCache.currentSize,
-      'image_cache_count': imageCache.currentSizeBytes,
-      'fps': getCurrentFPS(),
-      'offline_mode': _isOfflineMode,
-    };
-  }
-
-  /// Get approximate memory usage
-  double getMemoryUsage() {
-    // This is a simplified estimation
-    // In a real app, you'd use more sophisticated memory monitoring
-    final imagesCacheSize =
-        imageCache.currentSizeBytes / (1024 * 1024); // Convert to MB
-    final approximateAppMemory = 50.0; // Base app memory estimate
-    return approximateAppMemory + imagesCacheSize;
-  }
-
-  /// Get current FPS (simplified)
-  double getCurrentFPS() {
-    // This is a placeholder - real FPS monitoring would require
-    // integration with Flutter's performance tools
-    return 60.0; // Assume 60 FPS for now
   }
 }
 

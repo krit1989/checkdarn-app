@@ -6,15 +6,15 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 import 'dart:math';
-import '../modules/speed_camera/models/speed_camera_model.dart';
-import '../modules/speed_camera/services/speed_camera_service.dart';
-import '../services/sound_manager.dart';
-import '../services/smart_tile_provider.dart';
-import '../services/connection_manager.dart';
-import '../services/map_cache_manager.dart';
-import '../screens/sound_settings_screen.dart';
-import '../modules/speed_camera/screens/camera_report_screen.dart';
-import '../modules/speed_camera/widgets/speed_camera_marker.dart';
+import '../models/speed_camera_model.dart';
+import '../services/speed_camera_service.dart';
+import '../../../services/sound_manager.dart';
+import '../../../services/smart_tile_provider.dart';
+import '../../../services/connection_manager.dart';
+import '../../../services/map_cache_manager.dart';
+import '../../../screens/sound_settings_screen.dart';
+import 'camera_report_screen.dart';
+import '../widgets/speed_camera_marker.dart';
 
 class SpeedCameraScreen extends StatefulWidget {
   const SpeedCameraScreen({super.key});
@@ -32,10 +32,18 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   double currentSpeed = 0.0;
   SpeedCamera? nearestCamera;
   double distanceToNearestCamera = 0.0;
-  bool _isFollowingUser = true; // Auto-follow mode
+  // Intelligent Auto-Follow System - ระบบติดตามอัจฉริยะ
+  DateTime? _lastUserInteraction; // ติดตามการโต้ตอบของผู้ใช้
+  bool _userIsManuallyControlling = false; // ผู้ใช้กำลังควบคุมแผนที่เอง
+
+  // Badge Alert System - ระบบแจ้งเตือนใน Badge
+  String _badgeText = 'กล้องจับความเร็ว';
+  Color _badgeColor = const Color(0xFFFFC107);
+  Timer? _badgeResetTimer;
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _speedUpdateTimer;
+  Timer? _followModeResetTimer; // Timer สำหรับกลับมา auto-follow
   double _smoothTravelHeading = 0.0; // สำหรับ smooth rotation
 
   // ระบบ Predict Movement
@@ -113,6 +121,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _speedUpdateTimer?.cancel();
     _connectionCheckTimer?.cancel();
     _preloadTimer?.cancel();
+    _followModeResetTimer?.cancel(); // เพิ่ม timer ใหม่
+    _badgeResetTimer?.cancel(); // เพิ่ม badge timer
     _soundManager.dispose();
     mapController.dispose();
     super.dispose();
@@ -223,9 +233,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           }
         });
 
-        // Auto-follow: ย้ายกล้องตามผู้ใช้แบบนุ่มนวล
-        if (_isFollowingUser) {
-          _smoothMoveCamera(newPosition);
+        // Intelligent Auto-Follow: ย้ายกล้องตามผู้ใช้แบบอัจฉริยะ
+        if (!_userIsManuallyControlling) {
+          _intelligentMoveCamera(newPosition);
         }
 
         _updateNearestCamera();
@@ -324,35 +334,85 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _lastAlertTime = now;
     final nearestPredicted = _predictedCameras.first;
 
+    // สร้างข้อความที่ sync กัน
+    const badgeMessage = '🔮 จะพบกล้องใน 10 วินาที';
+    final ttsMessage =
+        'คาดการณ์ จะพบกล้องจับความเร็วใน 10 วินาที บน ${nearestPredicted.roadName} จำกัด ${nearestPredicted.speedLimit} กิโลเมตรต่อชั่วโมง';
+
+    // Debug log
+    print('=== PREDICTIVE ALERT SYNC ===');
+    print('Badge: "$badgeMessage"');
+    print('TTS: "$ttsMessage"');
+
     // เล่นเสียงแจ้งเตือน
     _soundManager.playPredictiveAlert(
-      message:
-          "คาดการณ์: จะพบกล้องจับความเร็วใน 10 วินาที บน ${nearestPredicted.roadName}",
+      message: ttsMessage,
       roadName: nearestPredicted.roadName,
       speedLimit: nearestPredicted.speedLimit,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '🔮 คาดการณ์: จะพบกล้องจับความเร็วใน 10 วินาที\n'
-          '📍 ${nearestPredicted.roadName} (จำกัด ${nearestPredicted.speedLimit} km/h)',
-          style: const TextStyle(fontFamily: 'Kanit', color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF1158F2),
-        duration: const Duration(seconds: 5),
-      ),
+    // แสดงแจ้งเตือนใน Badge
+    _showBadgeAlert(
+      badgeMessage,
+      const Color(0xFF1158F2),
+      6000, // 6 วินาที
     );
   }
 
-  void _smoothMoveCamera(LatLng newPosition) {
-    // เคลื่อนไหวกล้องแบบนุ่มนวล - ไม่หมุนแผนที่ (ตรวจสอบสถานะ MapController)
+  // ระบบเคลื่อนไหวกล้องอัจฉริยะ - ปรับตามความเร็วและพฤติกรรม
+  void _intelligentMoveCamera(LatLng newPosition) {
     try {
-      mapController.move(newPosition, mapController.camera.zoom);
+      // คำนวณความเร็วการเคลื่อนไหวตามความเร็วของยานพาหนะ
+      double targetZoom = mapController.camera.zoom;
+
+      // ปรับ zoom อัตโนมัติตามความเร็ว
+      if (currentSpeed < 30) {
+        targetZoom = 16.0; // ซูมใกล้เมื่อขับช้า
+      } else if (currentSpeed < 60) {
+        targetZoom = 15.0; // ซูมกลางเมื่อขับปกติ
+      } else {
+        targetZoom = 14.0; // ซูมไกลเมื่อขับเร็ว
+      }
+
+      // เคลื่อนไหวแบบนุ่มนวลพร้อมปรับ zoom
+      mapController.move(newPosition, targetZoom);
     } catch (e) {
-      print('MapController error in _smoothMoveCamera: $e');
-      // ถ้า MapController ยังไม่พร้อม ให้ข้ามไป
+      print('MapController error in intelligent camera movement: $e');
     }
+  }
+
+  // ตรวจจับการโต้ตอบของผู้ใช้กับแผนที่
+  void _onMapInteraction() {
+    final now = DateTime.now();
+
+    setState(() {
+      _userIsManuallyControlling = true;
+      _lastUserInteraction = now;
+    });
+
+    // ยกเลิก timer เก่า
+    _followModeResetTimer?.cancel();
+
+    // คำนวณเวลาที่ผ่านไปนับจากการโต้ตอบครั้งล่าสุด
+    final timeSinceLastInteraction = _lastUserInteraction != null
+        ? now.difference(_lastUserInteraction!).inSeconds
+        : 0;
+
+    // ปรับเวลารอตามความถี่ของการโต้ตอบ
+    final waitTime = timeSinceLastInteraction < 5
+        ? const Duration(seconds: 15) // รอนานขึ้นถ้าโต้ตอบบ่อย
+        : const Duration(seconds: 10); // เวลาปกติ
+
+    // ตั้ง timer ใหม่เพื่อกลับมา auto-follow
+    _followModeResetTimer = Timer(waitTime, () {
+      if (mounted) {
+        setState(() {
+          _userIsManuallyControlling = false;
+        });
+
+        // ไม่แจ้งเตือน - ให้ไอคอนเล็กๆ บอกสถานะก็พอ
+      }
+    });
   }
 
   double _interpolateHeading(double currentHeading, double targetHeading) {
@@ -499,47 +559,83 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   void _showAdvancedSpeedAlert(
       SpeedCamera camera, double distance, bool isAhead) {
-    final excessSpeed = currentSpeed - camera.speedLimit;
+    // สร้างตัวแปรสำหรับค่าที่ใช้ทั้งใน UI และเสียง เพื่อให้แน่ใจว่าตรงกัน
+    final uiSpeed = currentSpeed.toInt(); // ใช้ค่าเดียวกับใน UI
+    final excessSpeed = uiSpeed - camera.speedLimit;
+    final badgeMessage = '🚨 เร็วเกิน ${excessSpeed} km/h';
+    final ttsMessage = 'เร็วเกิน ${excessSpeed} กิโลเมตรต่อชั่วโมง';
 
-    // เล่นเสียงแจ้งเตือนเมื่อเร็วเกิน
+    // Debug: ตรวจสอบค่าความเร็ว
+    print('=== SPEED ALERT SYNC DEBUG ===');
+    print('Raw currentSpeed: $currentSpeed');
+    print('UI Speed (toInt): $uiSpeed');
+    print('Speed limit: ${camera.speedLimit}');
+    print('Excess speed: $excessSpeed');
+    print('Badge shows: "$badgeMessage"');
+    print('TTS says: "$ttsMessage"');
+    print('Values should now be identical!');
+
+    // เล่นเสียงแจ้งเตือน - ใช้ค่าเดียวกับ UI
     _soundManager.playSpeedAlert(
-      message: "เร็วเกิน ${excessSpeed.toInt()} km/h",
-      currentSpeed: currentSpeed.toInt(),
+      message: ttsMessage,
+      currentSpeed: uiSpeed,
       speedLimit: camera.speedLimit,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '🚨 ${isAhead ? 'ข้างหน้า' : 'ใกล้เคียง'}: กล้องจับความเร็ว ${distance.toInt()}m\n'
-          '⚠️ เร็วเกิน ${excessSpeed.toInt()} km/h (จำกัด ${camera.speedLimit} km/h)',
-          style: const TextStyle(fontFamily: 'Kanit', color: Colors.white),
-        ),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
-      ),
+    // แสดงแจ้งเตือนใน Badge
+    _showBadgeAlert(
+      badgeMessage,
+      Colors.red,
+      5000, // 5 วินาที
     );
   }
 
   void _showProximityAlert(SpeedCamera camera, double distance) {
+    // สร้างตัวแปรสำหรับค่าที่ใช้ทั้งใน UI และเสียง
+    final distanceInt = distance.toInt();
+    final badgeMessage = '📍 กล้องข้างหน้า ${distanceInt}m';
+    final ttsMessage =
+        'กล้องจับความเร็วข้างหน้า ${distanceInt} เมตร จำกัด ${camera.speedLimit} กิโลเมตรต่อชั่วโมง';
+
+    // Debug log
+    print('=== PROXIMITY ALERT SYNC ===');
+    print('Distance: ${distanceInt}m');
+    print('Badge: "$badgeMessage"');
+    print('TTS: "$ttsMessage"');
+
     // เล่นเสียงแจ้งเตือนเมื่อใกล้กล้อง
     _soundManager.playProximityAlert(
-      message:
-          "กล้องจับความเร็วข้างหน้า ${distance.toInt()} เมตร จำกัด ${camera.speedLimit} km/h",
+      message: ttsMessage,
       distance: distance,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '📍 กล้องจับความเร็วข้างหน้า ${distance.toInt()}m\n'
-          'จำกัดความเร็ว ${camera.speedLimit} km/h',
-          style: const TextStyle(fontFamily: 'Kanit', color: Colors.white),
-        ),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 5),
-      ),
+    // แสดงแจ้งเตือนใน Badge
+    _showBadgeAlert(
+      badgeMessage,
+      Colors.orange,
+      4000, // 4 วินาที
     );
+  }
+
+  // ฟังก์ชันแสดงแจ้งเตือนใน Badge
+  void _showBadgeAlert(String message, Color color, int durationMs) {
+    // ยกเลิก timer เก่า
+    _badgeResetTimer?.cancel();
+
+    setState(() {
+      _badgeText = message;
+      _badgeColor = color;
+    });
+
+    // ตั้ง timer เพื่อกลับไปเป็นข้อความปกติ
+    _badgeResetTimer = Timer(Duration(milliseconds: durationMs), () {
+      if (mounted) {
+        setState(() {
+          _badgeText = 'กล้องจับความเร็ว';
+          _badgeColor = const Color(0xFFFFC107);
+        });
+      }
+    });
   }
 
   void _showLocationError(String message) {
@@ -561,6 +657,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       ),
     );
   }
+
+  // ระบบเคลื่อนไหวกล้องอัจฉริยะ - ปรับตามความเร็วและพฤติกรรม
 
   Widget _buildTravelDirectionMarker() {
     // ใช้ทิศทางการเดินทางจาก GPS
@@ -597,66 +695,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     );
   }
 
-  String _formatDistance(double distanceInMeters) {
-    if (distanceInMeters >= 1000) {
-      // แสดงเป็นกิโลเมตร (1 ทศนิยม)
-      final km = distanceInMeters / 1000;
-      return '${km.toStringAsFixed(1)} กม.';
-    } else {
-      // แสดงเป็นเมตร
-      return '${distanceInMeters.toInt()} เมตร';
-    }
-  }
-
-  // ตรวจสอบทิศทางของกล้องเทียบกับการเดินทาง
-  bool _isCameraInDirection() {
-    if (nearestCamera == null || currentSpeed < 5.0) return false;
-
-    final cameraDirection = Geolocator.bearingBetween(
-      currentPosition.latitude,
-      currentPosition.longitude,
-      nearestCamera!.location.latitude,
-      nearestCamera!.location.longitude,
-    );
-
-    return _isCameraInTravelDirection(cameraDirection);
-  }
-
-  // ไอคอนแสดงทิศทางของกล้อง
-  IconData _getCameraDirectionIcon() {
-    if (!_isCameraInDirection()) {
-      return Icons.turn_slight_right; // กล้องด้านข้าง
-    }
-
-    if (distanceToNearestCamera <= 300) {
-      return Icons.warning; // ใกล้มาก
-    } else if (distanceToNearestCamera <= 500) {
-      return Icons.arrow_upward; // ข้างหน้าใกล้
-    } else {
-      return Icons.arrow_upward_outlined; // ข้างหน้าไกล
-    }
-  }
-
-  // ข้อความแสดงทิศทางของกล้อง
-  String _getCameraDirectionText() {
-    if (!_isCameraInDirection()) {
-      return 'ด้านข้าง';
-    }
-
-    if (distanceToNearestCamera <= 300) {
-      return 'ใกล้มาก!';
-    } else if (distanceToNearestCamera <= 500) {
-      return 'ข้างหน้า';
-    } else {
-      return 'ข้างหน้าไกล';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent, // ทำให้พื้นหลังใส
       extendBodyBehindAppBar: true, // ขยาย body ไปหลัง AppBar
+      extendBody:
+          true, // ขยาย body ไปทั่วทั้งหน้าจอ เพื่อป้องกัน navigation bar
+      resizeToAvoidBottomInset: false, // ป้องกัน navigation bar โผล่ขึ้นมา
       appBar: AppBar(
         backgroundColor: Colors.transparent, // AppBar ใส
         elevation: 0, // ไม่มีเงา
@@ -664,6 +710,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent, // Status bar ใส
           statusBarIconBrightness: Brightness.dark, // ไอคอนสีเข้ม
+          systemNavigationBarColor: Colors.transparent, // Navigation bar ใส
+          systemNavigationBarIconBrightness:
+              Brightness.dark, // ไอคอน navigation bar สีเข้ม
         ),
       ),
       body: Stack(
@@ -676,6 +725,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
               initialZoom: 15.0,
               minZoom: 8.0,
               maxZoom: 18.0,
+              // ตรวจจับการโต้ตอบของผู้ใช้
+              onTap: (tapPosition, point) => _onMapInteraction(),
+              onLongPress: (tapPosition, point) => _onMapInteraction(),
+              onPositionChanged: (position, hasGesture) {
+                if (hasGesture) {
+                  _onMapInteraction();
+                }
+              },
             ),
             children: [
               TileLayer(
@@ -723,58 +780,133 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
             ],
           ),
 
-          // Title badge (ย้ายไปด้านซ้าย)
+          // Title badge แบบยาวพร้อมปุ่มตั้งค่า
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8, // ลดระยะจาก 16 เป็น 8
-            left: 16, // เปลี่ยนจาก right เป็น left
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFC107), // สีเหลือง
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SvgPicture.asset(
-                    'assets/icons/speed_camera_screen/speed camera2.svg',
-                    width: 16,
-                    height: 16,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.black,
-                      BlendMode.srcIn,
+            top: 0, // ใช้เฉพาะ SafeArea และ margin เหมือน map screen
+            left: 0, // ใช้ full width แล้วให้ Container จัดการ margin
+            right: 0, // ใช้ full width แล้วให้ Container จัดการ margin
+            child: SafeArea(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.only(
+                    top: 10, left: 12, right: 12), // เท่ากับ map screen
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6), // เท่ากับ map screen
+                decoration: BoxDecoration(
+                  color: _badgeColor, // ใช้สีจากตัวแปร
+                  borderRadius: BorderRadius.circular(
+                      25), // เปลี่ยนจาก 20 เป็น 25 เหมือน map screen
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'กล้องจับความเร็ว',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontFamily: 'Kanit',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // ส่วนซ้าย - ไอคอนและข้อความ
+                    SvgPicture.asset(
+                      'assets/icons/speed_camera_screen/speed camera2.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.black,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+
+                    // ใช้ AnimatedSwitcher สำหรับเปลี่ยนข้อความแบบ fade
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.3, 0),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOut,
+                              )),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          _badgeText,
+                          key: ValueKey(
+                              _badgeText), // สำคัญสำหรับ AnimatedSwitcher
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontFamily: 'Kanit',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 8), // เพิ่มระยะห่างเล็กน้อย
+
+                    // ส่วนขวา - ปุ่มตั้งค่าเสียง (ไม่มีกรอบพื้นหลัง)
+                    Tooltip(
+                      message: 'ตั้งค่าเสียงแจ้งเตือน',
+                      textStyle: const TextStyle(
+                        fontFamily: 'Kanit',
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SoundSettingsScreen(),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.all(8.0), // เพิ่ม touch area
+                          child: SvgPicture.asset(
+                            'assets/icons/speed_camera_screen/settings.svg',
+                            width: 20, // ปรับขนาดให้พอดีกับ badge
+                            height: 20,
+                            colorFilter: ColorFilter.mode(
+                              _soundManager.isSoundEnabled
+                                  ? Colors.black
+                                  : Colors.grey.shade600, // สีเทาเมื่อปิด
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
 
-          // ปุ่มตั้งค่าเสียง (แถวเดียวกับ badge)
+          // Report camera button - ตอนนี้อยู่ตำแหน่งเดียว
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8, // แถวเดียวกับ badge
-            right: 16,
-            child:
-                // ปุ่มตั้งค่าเสียง
-                Tooltip(
-              message: 'ตั้งค่าเสียงแจ้งเตือน',
+            top: MediaQuery.of(context).padding.top +
+                62, // ปรับตำแหน่งให้ไม่ทับกับ badge ใหม่
+            right: 12, // เปลี่ยนจาก 16 เป็น 12 ให้สอดคล้องกับ badge
+            child: Tooltip(
+              message: 'รายงานกล้องจับความเร็ว',
               textStyle: const TextStyle(
                 fontFamily: 'Kanit',
                 fontSize: 12,
@@ -788,175 +920,37 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9), // สีขาว
-                  borderRadius:
-                      BorderRadius.circular(8), // สี่เหลี่ยมโค้งเล็กน้อย
+                  color: const Color(0xFFFFC107)
+                      .withValues(alpha: 0.9), // สีเหลือง
+                  shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/speed_camera_screen/settings.svg',
-                    width: 22, // เพิ่มขนาดจาก 20 เป็น 22
-                    height: 22, // เพิ่มขนาดจาก 20 เป็น 22
-                    colorFilter: ColorFilter.mode(
-                      _soundManager.isSoundEnabled
-                          ? Colors.black // เปลี่ยนจากสีฟ้าเป็นดำ
-                          : Colors.grey.shade600, // สีเทาเมื่อปิด
-                      BlendMode.srcIn,
-                    ),
+                  icon: const Icon(
+                    Icons.add_location_alt,
+                    color: Colors.black,
+                    size: 18,
                   ),
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const SoundSettingsScreen(),
+                        builder: (context) => CameraReportScreen(
+                          initialLocation: currentPosition,
+                          initialRoadName: nearestCamera?.roadName,
+                        ),
                       ),
                     );
                   },
+                  padding: EdgeInsets.zero,
                 ),
               ),
-            ),
-          ),
-
-          // Follow mode toggle button
-          Positioned(
-            top: MediaQuery.of(context).padding.top +
-                56, // ปรับตำแหน่งให้ไม่ทับกับปุ่มตั้งค่าเสียง
-            right: 16,
-            child: Column(
-              children: [
-                // Follow button
-                Tooltip(
-                  message: _isFollowingUser
-                      ? 'กำลังติดตามตำแหน่งอัตโนมัติ\nแตะเพื่อปิด'
-                      : 'แตะเพื่อติดตามตำแหน่งอัตโนมัติ',
-                  textStyle: const TextStyle(
-                    fontFamily: 'Kanit',
-                    fontSize: 12,
-                    color: Colors.white,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _isFollowingUser
-                          ? const Color(0xFF4CAF50)
-                              .withValues(alpha: 0.9) // เขียว = กำลังติดตาม
-                          : Colors.black
-                              .withValues(alpha: 0.7), // เทา = ไม่ติดตาม
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        _isFollowingUser
-                            ? Icons.my_location
-                            : Icons.location_searching,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isFollowingUser = !_isFollowingUser;
-                        });
-
-                        // ถ้าเปิด follow mode ให้ย้ายไปตำแหน่งปัจจุบันทันที
-                        if (_isFollowingUser) {
-                          try {
-                            _smoothMoveCamera(currentPosition);
-                          } catch (e) {
-                            print('Error moving camera in follow mode: $e');
-                          }
-                        }
-
-                        // แสดง SnackBar ชั่วคราวเพื่อยืนยันการเปลี่ยนแปลง
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _isFollowingUser
-                                  ? '🎯 เปิดการติดตามตำแหน่งอัตโนมัติ'
-                                  : '🔓 ปิดการติดตามตำแหน่งอัตโนมัติ',
-                              style: const TextStyle(fontFamily: 'Kanit'),
-                            ),
-                            duration: const Duration(seconds: 5),
-                            backgroundColor: _isFollowingUser
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey.shade600,
-                          ),
-                        );
-                      },
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Report camera button
-                Tooltip(
-                  message: 'รายงานกล้องจับความเร็ว',
-                  textStyle: const TextStyle(
-                    fontFamily: 'Kanit',
-                    fontSize: 12,
-                    color: Colors.white,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFC107)
-                          .withValues(alpha: 0.9), // สีเหลือง
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.add_location_alt,
-                        color: Colors.black,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CameraReportScreen(
-                              initialLocation: currentPosition,
-                              initialRoadName: nearestCamera?.roadName,
-                            ),
-                          ),
-                        );
-                      },
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
 
@@ -983,167 +977,125 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
               ),
             ),
 
-          // Bottom speed panel - DraggableScrollableSheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.25, // ขนาดเริ่มต้น 25% ของหน้าจอ
-            minChildSize: 0.08, // ขนาดต่ำสุด 8% (เหลือแค่ดูตัวแถบ)
-            maxChildSize: 0.35, // ขนาดสูงสุด 35% ของหน้าจอ (ลดจาก 50%)
-            snap: true, // snap ไปยังตำแหน่งที่กำหนด
-            snapSizes: const [
-              0.08,
-              0.25,
-              0.35
-            ], // จุด snap (ปรับจาก 0.5 เป็น 0.35)
-            builder: (context, scrollController) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+          // Bottom speed panel - DraggableScrollableSheet with smart bottom margin
+          // แสดงการ์ดเฉพาะเมื่อโหลดข้อมูลเสร็จแล้ว
+          if (!isLoadingLocation && !isLoadingCameras)
+            DraggableScrollableSheet(
+              initialChildSize: 0.30, // เริ่มต้นที่ 30% - แสดงข้อมูลเต็ม
+              minChildSize: 0.08, // ต่ำสุด 8% - ซ่อนเกือบหมดแต่ยังมองเห็น
+              maxChildSize: 0.30, // สูงสุด 30% - พอดีกับที่ต้องการ
+              snap: true, // snap ไปยังตำแหน่งที่กำหนด
+              snapSizes: const [
+                0.08, // ซ่อนเกือบหมด - เหลือไว้นิดนึงเพื่อให้ดึงขึ้นได้
+                0.30, // แสดงข้อมูลเต็ม - ตรงกับ initial และ max
+              ], // 2 ระดับที่สอดคล้องกัน
+              builder: (context, scrollController) {
+                // ระบบตรวจสอบ Navigation Bar อัจฉริยะ
+                final mediaQuery = MediaQuery.of(context);
+                final bottomPadding = mediaQuery.viewPadding.bottom;
+                final bottomInset = mediaQuery.viewInsets.bottom;
+                final screenHeight = mediaQuery.size.height;
+
+                // ตรวจสอบว่ามี navigation bar หรือไม่
+                final hasNavigationBar = bottomPadding > 0;
+                final hasKeyboard = bottomInset > 0;
+
+                // คำนวณขนาดการ์ดปัจจุบัน
+                final currentSheetHeight = scrollController.hasClients
+                    ? scrollController.offset
+                    : 0.30 * screenHeight; // ค่าเริ่มต้น 30%
+
+                // กำหนด smart margin ตามสถานการณ์
+                double smartBottomMargin = 0;
+                if (hasNavigationBar && !hasKeyboard) {
+                  // มี navigation bar แต่ไม่มีคีย์บอร์ด
+                  if (currentSheetHeight < 0.08 * screenHeight) {
+                    // การ์ดซ่อนเกือบหมด - ให้ margin น้อยหน่อย
+                    smartBottomMargin = bottomPadding * 0.3;
+                  } else {
+                    // การ์ดแสดงปกติ - ใช้ margin เต็ม
+                    smartBottomMargin = bottomPadding;
+                  }
+                } else if (hasKeyboard) {
+                  // มีคีย์บอร์ดเปิด - ไม่ต้อง margin เพิ่ม
+                  smartBottomMargin = 0;
+                }
+
+                return Container(
+                  // ใช้ Smart Bottom Margin ที่คำนวณแล้ว
+                  margin: EdgeInsets.only(
+                    bottom: smartBottomMargin,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
                     ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Column(
-                    children: [
-                      // Drag handle bar
-                      Container(
-                        margin: const EdgeInsets.only(top: 8, bottom: 8),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-
-                      // Content
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // แสดงความเร็วปัจจุบัน
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildSpeedCard(
-                                  'ความเร็วปัจจุบัน',
-                                  '${currentSpeed.toInt()}',
-                                  'km/h',
-                                  currentSpeed >
-                                          (nearestCamera?.speedLimit ?? 120)
-                                      ? Colors.red
-                                      : const Color(0xFF1158F2),
-                                ),
-                                if (nearestCamera != null)
-                                  _buildSpeedCard(
-                                    'จำกัดความเร็ว',
-                                    '${nearestCamera!.speedLimit}',
-                                    'km/h',
-                                    Colors.orange,
-                                  ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // แสดงข้อมูลกล้องใกล้สุด
-                            if (nearestCamera != null)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: distanceToNearestCamera <= 500
-                                      ? Colors.red.withValues(alpha: 0.1)
-                                      : Colors.grey.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.speed,
-                                      color: distanceToNearestCamera <= 500
-                                          ? Colors.red
-                                          : Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'กล้องใกล้สุด: ${_formatDistance(distanceToNearestCamera)}',
-                                            style: const TextStyle(
-                                              fontFamily: 'Kanit',
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          Text(
-                                            nearestCamera!.roadName,
-                                            style: TextStyle(
-                                              fontFamily: 'Kanit',
-                                              fontSize: 12,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                          // แสดงทิศทางของกล้อง
-                                          if (currentSpeed > 5.0)
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  _getCameraDirectionIcon(),
-                                                  size: 16,
-                                                  color: _isCameraInDirection()
-                                                      ? const Color(0xFF1158F2)
-                                                      : Colors.grey,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  _getCameraDirectionText(),
-                                                  style: TextStyle(
-                                                    fontFamily: 'Kanit',
-                                                    fontSize: 11,
-                                                    color:
-                                                        _isCameraInDirection()
-                                                            ? const Color(
-                                                                0xFF1158F2)
-                                                            : Colors
-                                                                .grey.shade600,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            // เพิ่มพื้นที่ว่างท้าย
-                            const SizedBox(height: 8),
-
-                            const SizedBox(height: 12),
-                          ],
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
                       ),
                     ],
                   ),
-                ),
-              );
-            },
-          ),
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Column(
+                      children: [
+                        // Drag handle bar
+                        Container(
+                          margin: const EdgeInsets.only(top: 8, bottom: 8),
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+
+                        // Content - ปรับการแสดงผลตามขนาดการ์ด
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // แสดงความเร็วปัจจุบัน - แสดงเสมอ
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _buildSpeedCard(
+                                    'ความเร็วปัจจุบัน',
+                                    '${currentSpeed.toInt()}',
+                                    'km/h',
+                                    currentSpeed >
+                                            (nearestCamera?.speedLimit ?? 120)
+                                        ? Colors.red
+                                        : const Color(0xFF1158F2),
+                                  ),
+                                  if (nearestCamera != null)
+                                    _buildSpeedCard(
+                                      'จำกัดความเร็ว',
+                                      '${nearestCamera!.speedLimit}',
+                                      'km/h',
+                                      Colors.orange,
+                                    ),
+                                ],
+                              ),
+
+                              // เพิ่มพื้นที่ว่างท้าย
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ), // ปิด DraggableScrollableSheet
         ],
       ),
     );
