@@ -43,7 +43,7 @@ class CameraReportCardWidget extends StatelessWidget {
                   child: Text(
                     _getTypeDisplayName(report.type),
                     style: TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: _getTypeColor(report.type),
@@ -68,7 +68,7 @@ class CameraReportCardWidget extends StatelessWidget {
                 Text(
                   _formatDateTime(report.reportedAt),
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 12,
                     color: Colors.grey.shade600,
                   ),
@@ -82,7 +82,7 @@ class CameraReportCardWidget extends StatelessWidget {
             Text(
               report.roadName,
               style: const TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -92,7 +92,7 @@ class CameraReportCardWidget extends StatelessWidget {
               'ละติจูด: ${report.latitude.toStringAsFixed(6)}, '
               'ลองจิจูด: ${report.longitude.toStringAsFixed(6)}',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 12,
                 color: Colors.grey.shade600,
               ),
@@ -113,7 +113,7 @@ class CameraReportCardWidget extends StatelessWidget {
                   Text(
                     'จำกัดความเร็ว: ${report.speedLimit} km/h',
                     style: const TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -135,7 +135,7 @@ class CameraReportCardWidget extends StatelessWidget {
                 child: Text(
                   report.description!,
                   style: const TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.black87,
                   ),
@@ -157,7 +157,7 @@ class CameraReportCardWidget extends StatelessWidget {
                 Text(
                   '${report.upvotes}',
                   style: const TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontWeight: FontWeight.w500,
                     color: Colors.green,
                   ),
@@ -172,7 +172,7 @@ class CameraReportCardWidget extends StatelessWidget {
                 Text(
                   '${report.downvotes}',
                   style: const TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontWeight: FontWeight.w500,
                     color: Colors.red,
                   ),
@@ -190,7 +190,7 @@ class CameraReportCardWidget extends StatelessWidget {
                   child: Text(
                     'ความมั่นใจ: ${(report.confidenceScore * 100).toInt()}%',
                     style: TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: _getConfidenceColor(report.confidenceScore),
@@ -212,7 +212,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       icon: const Icon(Icons.thumb_up, size: 18),
                       label: const Text(
                         'มีจริง',
-                        style: TextStyle(fontFamily: 'Kanit'),
+                        style: TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
@@ -231,7 +231,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       icon: const Icon(Icons.thumb_down, size: 18),
                       label: const Text(
                         'ไม่มี',
-                        style: TextStyle(fontFamily: 'Kanit'),
+                        style: TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -263,7 +263,7 @@ class CameraReportCardWidget extends StatelessWidget {
                     const Text(
                       'คุณได้โหวตแล้ว',
                       style: TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
                         color: Colors.blue,
                       ),
@@ -289,7 +289,7 @@ class CameraReportCardWidget extends StatelessWidget {
                     Text(
                       _getStatusDisplayName(report.status),
                       style: TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
                         color: _getStatusColor(report.status),
                       ),
@@ -323,18 +323,18 @@ class CameraReportCardWidget extends StatelessWidget {
           ),
           title: const Text(
             'ยืนยันการลบ',
-            style: TextStyle(fontFamily: 'Kanit', fontWeight: FontWeight.w600),
+            style: TextStyle(fontFamily: 'NotoSansThai', fontWeight: FontWeight.w600),
           ),
           content: const Text(
             'คุณต้องการลบรายงานนี้ใช่หรือไม่?\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้',
-            style: TextStyle(fontFamily: 'Kanit'),
+            style: TextStyle(fontFamily: 'NotoSansThai'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text(
                 'ยกเลิก',
-                style: TextStyle(fontFamily: 'Kanit'),
+                style: TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ),
             ElevatedButton(
@@ -348,7 +348,7 @@ class CameraReportCardWidget extends StatelessWidget {
               ),
               child: const Text(
                 'ลบ',
-                style: TextStyle(fontFamily: 'Kanit'),
+                style: TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ),
           ],
@@ -379,7 +379,7 @@ class CameraReportCardWidget extends StatelessWidget {
               SizedBox(width: 12),
               Text(
                 'กำลังลบรายงาน...',
-                style: TextStyle(fontFamily: 'Kanit'),
+                style: TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ],
           ),
@@ -400,7 +400,7 @@ class CameraReportCardWidget extends StatelessWidget {
           const SnackBar(
             content: Text(
               'ลบรายงานเรียบร้อยแล้ว 🎉 กำลังอัปเดตหน้าจอ...',
-              style: TextStyle(fontFamily: 'Kanit'),
+              style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 1),
@@ -438,7 +438,7 @@ class CameraReportCardWidget extends StatelessWidget {
           SnackBar(
             content: Text(
               errorMessage,
-              style: const TextStyle(fontFamily: 'Kanit'),
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),

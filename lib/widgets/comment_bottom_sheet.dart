@@ -77,14 +77,14 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
               constraints: BoxConstraints(maxWidth: dialogWidth),
               child: const Text(
                 'รายงานความคิดเห็น',
-                style: TextStyle(fontSize: 18),
+                style: TextStyle(fontSize: 18, fontFamily: 'NotoSansThai'),
               ),
             ),
             content: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: dialogWidth),
               child: const Text(
                 'คุณต้องการรายงานความคิดเห็นนี้ว่าไม่เหมาะสมหรือไม่?',
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14, fontFamily: 'NotoSansThai'),
               ),
             ),
             actions: [
@@ -94,12 +94,14 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: const Text('ยกเลิก'),
+                    child: const Text('ยกเลิก',
+                        style: TextStyle(fontFamily: 'NotoSansThai')),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(context, true),
                     child: const Text('รายงาน',
-                        style: TextStyle(color: Colors.red)),
+                        style: TextStyle(
+                            color: Colors.red, fontFamily: 'NotoSansThai')),
                   ),
                 ],
               ),
@@ -120,7 +122,8 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('รายงานความคิดเห็นเรียบร้อยแล้ว'),
+              content: Text('รายงานความคิดเห็นเรียบร้อยแล้ว',
+                  style: TextStyle(fontFamily: 'NotoSansThai')),
               backgroundColor: Colors.orange,
             ),
           );
@@ -128,7 +131,9 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+            SnackBar(
+                content: Text('เกิดข้อผิดพลาด: $e',
+                    style: TextStyle(fontFamily: 'NotoSansThai'))),
           );
         }
       }
@@ -172,6 +177,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      fontFamily: 'NotoSansThai',
                     ),
                   ),
                   const Spacer(),
@@ -208,12 +214,18 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                           SizedBox(height: 16),
                           Text(
                             'ยังไม่มีความคิดเห็น',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                                fontFamily: 'NotoSansThai'),
                           ),
                           SizedBox(height: 8),
                           Text(
                             'เป็นคนแรกที่แสดงความคิดเห็น!',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                fontFamily: 'NotoSansThai'),
                           ),
                         ],
                       ),
@@ -242,7 +254,8 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                             // Comment text
                             Text(
                               data['comment'] ?? 'ไม่มีข้อความ',
-                              style: const TextStyle(fontSize: 15),
+                              style: const TextStyle(
+                                  fontSize: 15, fontFamily: 'NotoSansThai'),
                             ),
                             const SizedBox(height: 8),
 
@@ -262,12 +275,15 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                                       fontSize: 12,
                                       color: Colors.grey.shade600,
                                       fontWeight: FontWeight.w500,
+                                      fontFamily: 'NotoSansThai',
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const Text(' • ',
-                                    style: TextStyle(color: Colors.grey)),
+                                    style: TextStyle(
+                                        color: Colors.grey,
+                                        fontFamily: 'NotoSansThai')),
                                 Flexible(
                                   child: Text(
                                     CommentService.formatCommentTime(
@@ -275,6 +291,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey.shade600,
+                                      fontFamily: 'NotoSansThai',
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -298,7 +315,8 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                                           'รายงาน',
                                           style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.red.shade400),
+                                              color: Colors.red.shade400,
+                                              fontFamily: 'NotoSansThai'),
                                         ),
                                       ],
                                     ),
@@ -344,6 +362,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.grey.shade600,
+                              fontFamily: 'NotoSansThai',
                             ),
                           ),
                         ),
@@ -428,7 +447,9 @@ class _CommentInputModalState extends State<CommentInputModal> {
     final comment = _commentController.text.trim();
     if (comment.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาพิมพ์ความคิดเห็น')),
+        const SnackBar(
+            content: Text('กรุณาพิมพ์ความคิดเห็น',
+                style: TextStyle(fontFamily: 'NotoSansThai'))),
       );
       return;
     }
@@ -466,7 +487,8 @@ class _CommentInputModalState extends State<CommentInputModal> {
         Navigator.pop(context); // ปิด modal หลังส่งสำเร็จ
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('ส่งความคิดเห็นสำเร็จ'),
+            content: Text('ส่งความคิดเห็นสำเร็จ',
+                style: TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.green,
           ),
         );
@@ -475,7 +497,8 @@ class _CommentInputModalState extends State<CommentInputModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
+            content: Text('เกิดข้อผิดพลาด: $e',
+                style: TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.red,
           ),
         );
@@ -547,8 +570,10 @@ class _CommentInputModalState extends State<CommentInputModal> {
                           contentPadding: EdgeInsets.zero,
                           counterText: '', // ซ่อน counter default
                           isDense: true, // ลดความสูงภายใน
+                          hintStyle: TextStyle(fontFamily: 'NotoSansThai'),
                         ),
-                        style: const TextStyle(fontSize: 15),
+                        style: const TextStyle(
+                            fontSize: 15, fontFamily: 'NotoSansThai'),
                       ),
                     ),
                     GestureDetector(

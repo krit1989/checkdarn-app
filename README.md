@@ -5,7 +5,9 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-Latest-orange.svg)](https://firebase.google.com/)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-green.svg)]()
-[![Version](https://img.shields.io/badge/Version-1.2.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.3.0-blue.svg)]()
+[![APK](https://img.shields.io/badge/APK-28.1MB-green.svg)]()
+[![Build](https://img.shields.io/badge/Build-Success-brightgreen.svg)]()
 
 ## 🌟 ฟีเจอร์หลัก
 
@@ -16,14 +18,24 @@
 - 📌 หมุดแบ่งตามหมวดหมู่ด้วย **EventMarker component** พร้อม marker clustering
 - 🔍 ปรับขนาดรัศมีการค้นหา (10-100 กม.)
 - ⏰ แสดงเฉพาะเหตุการณ์ล่าสุด (48 ชั่วโมง พร้อม Auto-cleanup)
+- ✨ **เงาหมุด** - เพิ่มเงาให้หมุดเพื่อดูเหมือนปักอยู่บนแผนที่
+- 🎨 **UI Enhancement** - ปรับปรุงตำแหน่งปุ่มและสีสันใหม่
 
-### 📝 รายงานเหตุการณ์
+### 📝 รายงานเหตุการณ์ทั่วไป
 - 📸 รายงานเหตุการณ์ใหม่พร้อมรูปภาพ (WebP compression)
 - 🏷️ เลือกประเภทเหตุการณ์ 8 ประเภท
 - 🎯 **Location Picker** สำหรับเลือกตำแหน่งแม่นยำ
 - 📍 บันทึกตำแหน่ง GPS อัตโนมัติ
 - 🔐 ระบบ **Authentication ด้วย Google Sign-In**
 - ⚡ **TURBO Transaction mode** - บันทึกข้อมูลแบบ atomic
+
+### 📷 โหมดกล้องจับความเร็ว (Speed Camera Mode)
+- 🎯 **หน้าจอเฉพาะ** สำหรับรายงานกล้องตรวจจับความเร็วแบบด่วน
+- 🔊 **เสียงเตือน** เมื่อรายงานสำเร็จ (Audio Feedback)
+- 📍 **ตรวจจับตำแหน่งอัตโนมัติ** สำหรับขณะขับขี่
+- ⚡ **รายงานแบบเร็ว** ไม่ต้องเลือกหมวดหมู่หรือถ่ายรูป
+- 🎨 **UI ที่เหมาะสำหรับการขับขี่** ปุ่มใหญ่ ใช้งานง่าย
+- 🌐 **Geocoding Service** แปลงพิกัดเป็นชื่อถนนอัตโนมัติ
 
 ### 📋 รายการเหตุการณ์
 - 🔄 แสดงรายการเหตุการณ์ทั้งหมดแบบ **Real-time**
@@ -54,13 +66,62 @@
 | อีโมจิ | ประเภท       | สี                | HEX Code  | ใช้งาน                                   |
 |--------|--------------|-------------------|-----------|------------------------------------------|
 | 🚓     | ด่านตรวจ     | Navy Blue         | `#1A237E` | จุดตรวจทางหลวง, ด่านตำรวจ                |
-| 🚑     | อุบัติเหตุ   | Strong Red        | `#D32F2F` | เหตุการณ์อุบัติเหตุทางรถยนต์              |
+| �     | กล้องจับความเร็ว | Speed Camera Blue | `#1976D2` | กล้องตรวจจับความเร็ว, จุดวัดความเร็ว      |
+| �🚑     | อุบัติเหตุ   | Strong Red        | `#D32F2F` | เหตุการณ์อุบัติเหตุทางรถยนต์              |
 | 🔥     | ไฟไหม้       | Deep Orange       | `#F4511E` | เหตุเพลิงไหม้                            |
 | 🌧     | ฝนตก/น้ำท่วม | Slate Blue        | `#3F51B5` | พื้นที่น้ำท่วม, ฝนตกหนัก                 |
 | 🌊     | สึนามิ       | Teal              | `#0097A7` | เตือนภัยสึนามิ                           |
 | 🌍     | แผ่นดินไหว   | Earth Brown       | `#5D4037` | เหตุการณ์แผ่นดินไหว                      |
 | 🐶     | สัตว์หาย     | Lime Green        | `#689F38` | สัตว์เลี้ยงหาย                          |
 | ❓      | คำถามทั่วไป  | Soft Purple       | `#7B1FA2` | คำถามและข้อมูลทั่วไป                     |
+
+## 🚗 โหมดการใช้งานหลัก
+
+แอป CheckDarn มี **2 โหมดหลัก** สำหรับการใช้งาน:
+
+### 1. 📝 โหมดรายงานเหตุการณ์ทั่วไป (General Event Reporting)
+- 🎯 **การใช้งาน**: รายงานเหตุการณ์ต่าง ๆ ที่เกิดขึ้นทั่วไป
+- 📋 **ประเภทเหตุการณ์**: 8 หมวดหมู่ (ด่านตรวจ, อุบัติเหตุ, ไฟไหม้, น้ำท่วม, แผ่นดินไหว, สึนามิ, สัตว์หาย, คำถามทั่วไป)
+- 📸 **ฟีเจอร์**: อัปโหลดรูปภาพ, เลือกตำแหน่ง, เขียนรายละเอียด
+- ⏱️ **เวลาใช้งาน**: เหมาะสำหรับการรายงานที่มีเวลาพอ
+
+### 2. 📷 โหมดกล้องจับความเร็ว (Speed Camera Mode)
+- 🎯 **การใช้งาน**: รายงานตำแหน่งกล้องตรวจจับความเร็วแบบด่วน
+- 🚗 **สถานการณ์**: เหมาะสำหรับการใช้งานขณะขับขี่
+- ⚡ **ความเร็ว**: รายงานได้ภายใน 3-5 วินาที
+- 🔊 **Audio Feedback**: เสียงเตือนยืนยันการรายงาน
+- 📍 **ตำแหน่ง**: ตรวจจับ GPS อัตโนมัติทันที
+
+### 🔧 เทคโนโลยีที่ใช้ใน Speed Camera Mode
+
+#### 📍 Location & GPS Technology
+- **Geolocator Plugin** - ตรวจจับตำแหน่ง GPS แม่นยำ
+- **Geocoding Service** - แปลงพิกัดเป็นชื่อถนน/ที่อยู่
+- **LocationAccuracy.high** - ความแม่นยำสูงสำหรับการรายงาน
+- **Auto Location Detection** - ตรวจจับตำแหน่งอัตโนมัติเมื่อเปิดแอป
+
+#### 🔊 Audio System
+- **AudioPlayers Plugin** - เล่นเสียงเตือนเมื่อรายงานสำเร็จ
+- **System Sound** - เสียงแจ้งเตือนของระบบ
+- **Audio Feedback** - ยืนยันการดำเนินการด้วยเสียง
+
+#### ⚡ Performance & Speed
+- **Quick Report API** - API เฉพาะสำหรับรายงานด่วน
+- **Background Location** - ตรวจจับตำแหน่งในพื้นหลัง
+- **Simplified UI** - หน้าจอที่เหมาะสำหรับการใช้งานขณะขับขี่
+- **Fast Firebase Write** - บันทึกข้อมูลแบบเร็ว
+
+#### 🎨 UI/UX for Driving
+- **Large Touch Targets** - ปุ่มขนาดใหญ่สำหรับการสัมผัส
+- **High Contrast Colors** - สีที่เห็นชัดขณะขับขี่
+- **Minimal Steps** - ลดขั้นตอนการใช้งาน
+- **Voice Feedback** - เสียงตอบรับการทำงาน
+
+#### 🔒 Safety Features
+- **Hands-free Operation** - ใช้งานโดยไม่ต้องจับโทรศัพท์นาน
+- **Quick Access** - เข้าถึงได้ง่ายจากหน้าแผนที่
+- **Auto Submit** - ส่งข้อมูลอัตโนมัติหลังกดปุ่ม
+- **Location Validation** - ตรวจสอบความถูกต้องของตำแหน่ง
 
 ## 🏗️ โครงสร้างโปรเจกต์
 
@@ -70,12 +131,13 @@ lib/
 ├── firebase_options.dart             # 🔧 Firebase configuration
 ├── screens/
 │   ├── map_screen.dart               # 🗺️ แผนที่เรียลไทม์ + Vertical Slider
-│   ├── report_screen.dart            # 📝 รายงานเหตุการณ์ใหม่
+│   ├── report_screen.dart            # 📝 รายงานเหตุการณ์ทั่วไป (8 ประเภท)
+│   ├── speed_camera_screen.dart      # 📷 Speed Camera Mode เฉพาะ
 │   ├── list_screen.dart              # 📋 รายการเหตุการณ์ทั้งหมด
 │   └── location_picker_screen.dart   # 📍 เลือกตำแหน่งบนแผนที่
 ├── widgets/
 │   ├── location_marker.dart          # 📍 Custom location marker (Scale 1.68)
-│   ├── event_marker.dart             # 📌 Custom event marker (Scale 1.16, 15% smaller)
+│   ├── event_marker.dart             # 📌 Event marker with shadow effects (Scale 1.16)
 │   ├── event_popup.dart              # 💬 Event detail popup with enhanced image display
 │   ├── location_button.dart          # 🔘 Location button (48px)
 │   ├── bottom_bar.dart               # 📱 Bottom navigation bar
@@ -105,6 +167,8 @@ functions/                            # ☁️ Firebase Cloud Functions
 - **Dart** - Programming language
 - **flutter_map** - OpenStreetMap integration
 - **Material Design 3** - UI/UX framework
+- **Geolocator** - GPS location services
+- **AudioPlayers** - Sound feedback system
 
 ### ☁️ Backend & Services
 - **Firebase Authentication** - Google Sign-In
@@ -115,10 +179,13 @@ functions/                            # ☁️ Firebase Cloud Functions
 
 ### 🎨 Custom Components
 - **LocationMarker** - Custom location pin with triangle tip
-- **EventMarker** - Category-based event markers (optimized size: scale 1.16)
+- **EventMarker** - Category-based event markers with realistic shadows (scale 1.16)
 - **EventPopup** - Enhanced popup with cinema-style image display and GPS coordinates
 - **LocationButton** - Reusable location button with loading states
 - **Marker Clustering** - Intelligent grouping for better performance
+- **Shadow System** - Canvas-based shadow rendering for realistic pinned effect
+- **SpeedCameraScreen** - Dedicated UI for quick speed camera reporting
+- **AudioFeedback** - Sound confirmation system for driving safety
 
 ## 🚀 การติดตั้งและใช้งาน
 
@@ -232,6 +299,25 @@ service cloud.firestore {
 
 ## 🆕 ฟีเจอร์ใหม่ล่าสุด
 
+### ✨ Shadow Effects System (NEW!)
+- 🎨 **Realistic Marker Shadows** - เงาที่ปลายหมุดเท่านั้น ไม่ใช่ทั้งหมุด
+- 🖌️ **Canvas-based Rendering** - ใช้ CustomPainter สำหรับเงาที่แม่นยำ
+- 💨 **MaskFilter Blur** - เบลอเงาธรรมชาติด้วย blur effects
+- 📍 **Pinned Effect** - ดูเหมือนหมุดถูกปักอยู่บนแผนที่จริงๆ
+- ⚡ **Performance Optimized** - ไม่กระทบความเร็วของแอป
+
+### 🎨 UI Enhancement Updates (NEW!)
+- 🔄 **Button Position Swap** - สลับตำแหน่งปุ่มตั้งค่าและเพิ่มกล้อง
+- 🌟 **Badge Color Restoration** - เปลี่ยนสีบาดจ์กลับเป็นสีเหลืองเดิม
+- 🗃️ **Clean Card Design** - เอาการ์ดสีขาวด้านหลังปุ่มกล้องออก
+- 🎯 **Better UX Flow** - ปรับปรุงการไหลของ UI ให้ใช้งานง่ายขึ้น
+
+### 📦 APK Build Information (NEW!)
+- 📱 **Latest APK Size**: 28.1 MB (optimized)
+- ⚡ **Build Time**: ~113.8 seconds
+- 🎯 **Font Optimization**: MaterialIcons ลดขนาด 99.6% (1.6MB → 6.9KB)
+- ✅ **Production Ready** - พร้อมใช้งานจริง
+
 ### �️ Enhanced Image Display System (NEW!)
 - 🎬 **Cinema-style Display** - พื้นหลังสีดำเพื่อความสวยงาม
 - 📐 **Smart Aspect Ratio** - รักษาสัดส่วน 16:9 โดยอัตโนมัติ
@@ -280,16 +366,19 @@ flood: Color(0xFF3F51B5)            // Slate Blue
 ### 📐 Component Sizes
 - **Radius Slider**: 36x180px ตำแหน่ง right:22
 - **Profile Button**: 35px 
-- **Event Markers**: Scale 1.16 (ลดขนาดลง 15% เพื่อประสิทธิภาพ)
+- **Event Markers**: Scale 1.16 with realistic shadows
 - **Location Marker**: Scale 1.68 (ขยายขนาด 68%)
 - **Location Button**: 48px
 - **Image Display**: 16:9 aspect ratio with black background container
+- **Shadow Effects**: 3px blur radius with 2px offset
 
 ### 🎭 Animations & Interactions
 - ✨ Smooth map transitions
 - 🔄 Pull-to-refresh animations
 - 💫 Loading states
 - 🎯 Marker clustering (optional)
+- 🌫️ Shadow rendering effects
+- 🎨 UI enhancement animations
 
 ## 📊 ฟีเจอร์การวิเคราะห์
 
@@ -331,6 +420,7 @@ exports.cleanupOldReports = functions.pubsub
 - Firebase Composite Index warning (ปกติสำหรับโปรเจคใหม่)
 - พิกัด GPS แสดงเฉพาะโพสใหม่เท่านั้น
 - Marker clustering ใช้งานได้เมื่อซูมน้อยกว่า 14x และมี markers มากกว่า 10 อัน
+- Shadow effects แสดงเฉพาะที่ปลายหมุดเท่านั้น (ตามการออกแบบ)
 
 ## 📄 การมีส่วนร่วม
 
@@ -348,7 +438,15 @@ exports.cleanupOldReports = functions.pubsub
 
 ## 📝 เวอร์ชันและการอัปเดต
 
-### 🏷️ Version 1.2.1 (ปัจจุบัน)
+### 🏷️ Version 1.3.0 (ปัจจุบัน)
+- ✅ Speed Camera Mode - โหมดเฉพาะสำหรับรายงานกล้องจับความเร็วแบบด่วน
+- ✅ Dual Mode System - แยกโหมดรายงานทั่วไปและกล้องความเร็ว
+- ✅ Audio Feedback System - เสียงเตือนสำหรับการใช้งานขณะขับขี่
+- ✅ Enhanced Location Services - GPS แม่นยำและ Geocoding อัตโนมัติ
+- ✅ Shadow Effects System - เงาหมุดสมจริงที่ปลายเท่านั้น
+- ✅ UI Enhancement Updates - ปรับปรุงตำแหน่งปุ่มและสีใหม่
+- ✅ Canvas-based Shadow Rendering - เงาแม่นยำด้วย CustomPainter
+- ✅ APK Build Optimization - ขนาด 28.1MB พร้อม Font Tree-shaking
 - ✅ Enhanced Image Display System - Cinema-style with aspect ratio control
 - ✅ Performance Optimizations - Smaller markers, 48h filter, clustering
 - ✅ GPS Coordinates Display
@@ -362,6 +460,7 @@ exports.cleanupOldReports = functions.pubsub
 ### 📅 Version History
 | Version | Date | Features |
 |---------|------|----------|
+| 1.3.0 | กรกฎาคม 2025 | Speed Camera Mode, Dual Mode System, Audio Feedback, Enhanced Location Services |
 | 1.2.1 | กรกฎาคม 2025 | Enhanced Image Display, Performance Optimizations, Marker Clustering |
 | 1.2.0 | กรกฎาคม 2025 | GPS Coordinates, Auto Cleanup, Enhanced Security |
 | 1.1.0 | มิถุนายน 2025 | Real-time Updates, Custom Markers |

@@ -29,7 +29,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
         title: const Text(
           'ตั้งค่าเสียงแจ้งเตือน',
           style: TextStyle(
-            fontFamily: 'Kanit',
+            fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
             color: Colors.black, // เปลี่ยนเป็นสีดำ
           ),
@@ -58,11 +58,11 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                 title: const Text(
                   'เปิดใช้งานเสียงแจ้งเตือน',
                   style: TextStyle(
-                      fontFamily: 'Kanit', fontWeight: FontWeight.bold),
+                      fontFamily: 'NotoSansThai', fontWeight: FontWeight.bold),
                 ),
                 subtitle: const Text(
                   'เปิด/ปิดเสียงแจ้งเตือนทั้งหมด',
-                  style: TextStyle(fontFamily: 'Kanit'),
+                  style: TextStyle(fontFamily: 'NotoSansThai'),
                 ),
                 value: _isSoundEnabled,
                 onChanged: (value) async {
@@ -84,7 +84,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
             const Text(
               '🔊 เลือกประเภทเสียงแจ้งเตือน',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87, // เปลี่ยนจากสีขาวเป็นสีเข้ม
@@ -106,13 +106,13 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                   title: Text(
                     soundType.displayName,
                     style: const TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   subtitle: Text(
                     _getSoundDescription(soundType),
-                    style: const TextStyle(fontFamily: 'Kanit'),
+                    style: const TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -159,7 +159,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                     const Text(
                       '💡 คำแนะนำ',
                       style: TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -169,7 +169,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                       '• เสียงพูด: เหมาะสำหรับการขับขี่ยาว ให้ข้อมูลละเอียด\n'
                       '• เสียงบี๊บ/ระฆัง: เหมาะสำหรับการขับขี่ในเมือง สั้นกระชับ\n'
                       '• เสียงเตือนภัย: เหมาะสำหรับเส้นทางเสี่ยง แจ้งเตือนชัดเจน',
-                      style: TextStyle(fontFamily: 'Kanit'),
+                      style: TextStyle(fontFamily: 'NotoSansThai'),
                     ),
                   ],
                 ),
@@ -216,7 +216,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
           SnackBar(
             content: Text(
               'ทดสอบเสียง: ${soundType.displayName}',
-              style: const TextStyle(fontFamily: 'Kanit'),
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             duration: const Duration(seconds: 2),
             backgroundColor: const Color(0xFF4CAF50),
@@ -229,7 +229,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
           SnackBar(
             content: Text(
               'ไม่สามารถเล่นเสียงได้: $e',
-              style: const TextStyle(fontFamily: 'Kanit'),
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             duration: const Duration(seconds: 3),
             backgroundColor: Colors.red,

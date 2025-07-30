@@ -752,7 +752,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         const SnackBar(
           content: Text(
             'กรุณาล็อกอินก่อนสร้างโพสต์',
-            style: TextStyle(fontFamily: 'Kanit'),
+            style: TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.orange,
         ),
@@ -776,7 +776,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             SizedBox(width: 12),
             Text(
               'กำลังดึงข้อมูลตำแหน่ง...',
-              style: TextStyle(fontFamily: 'Kanit'),
+              style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
           ],
         ),
@@ -812,7 +812,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         SnackBar(
           content: Text(
             'ไม่สามารถดึงข้อมูลตำแหน่งได้: ${e.toString()}',
-            style: const TextStyle(fontFamily: 'Kanit'),
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.red,
         ),
@@ -946,6 +946,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black87,
+                                fontFamily: 'NotoSansThai',
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -977,6 +978,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               fontSize: 16,
                               color: Colors.black,
                               height: 1.4,
+                              fontFamily: 'NotoSansThai',
                             ),
                           ),
                         ),
@@ -1000,6 +1002,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   fontSize: 14,
                                   color: Colors.grey[600],
                                   fontWeight: FontWeight.w400,
+                                  fontFamily: 'NotoSansThai',
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -1057,7 +1060,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                                   SizedBox(height: 8),
                                                   Text('ไม่สามารถโหลดรูปภาพได้',
                                                       style: TextStyle(
-                                                          color: Colors.white)),
+                                                          color: Colors.white,
+                                                          fontFamily:
+                                                              'NotoSansThai')),
                                                 ],
                                               ),
                                             );
@@ -1136,7 +1141,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                               Text('ไม่สามารถโหลดรูปภาพได้',
                                                   style: TextStyle(
                                                       fontSize: 12,
-                                                      color: Colors.grey)),
+                                                      color: Colors.grey,
+                                                      fontFamily:
+                                                          'NotoSansThai')),
                                             ],
                                           ),
                                         ),
@@ -1166,6 +1173,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 fontSize: 12,
                                 color: Colors.grey[600],
                                 fontWeight: FontWeight.w400,
+                                fontFamily: 'NotoSansThai',
                               ),
                             ),
                           ],
@@ -1188,6 +1196,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               fontSize: 13,
                               color: Colors.grey[600],
                               fontWeight: FontWeight.w400,
+                              fontFamily: 'NotoSansThai',
                             ),
                           ),
                         ],
@@ -1248,6 +1257,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
+                              fontFamily: 'NotoSansThai',
                             ),
                           ),
                         );
@@ -1287,26 +1297,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
+                                fontFamily: 'NotoSansThai',
                               ),
                             ),
                             if (commentCount > 0) ...[
                               const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '$commentCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              Text(
+                                '$commentCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'NotoSansThai',
                                 ),
                               ),
                             ],
@@ -1778,7 +1780,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                   ],
@@ -1824,7 +1826,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       title: Text(
                         title,
                         style: const TextStyle(
-                          fontFamily: 'Kanit',
+                          fontFamily: 'NotoSansThai',
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -2671,7 +2673,8 @@ class _CopyCoordinatesWidgetState extends State<_CopyCoordinatesWidget> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('คัดลอกพิกัดแล้ว'),
+                      content: Text('คัดลอกพิกัดแล้ว',
+                          style: TextStyle(fontFamily: 'NotoSansThai')),
                       duration: Duration(seconds: 2),
                     ),
                   );
@@ -2689,7 +2692,8 @@ class _CopyCoordinatesWidgetState extends State<_CopyCoordinatesWidget> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('ไม่มีข้อมูลพิกัด'),
+                      content: Text('ไม่มีข้อมูลพิกัด',
+                          style: TextStyle(fontFamily: 'NotoSansThai')),
                       duration: Duration(seconds: 2),
                     ),
                   );
@@ -2721,7 +2725,7 @@ class _CopyCoordinatesWidgetState extends State<_CopyCoordinatesWidget> {
                       style: TextStyle(
                         fontSize: 12,
                         color: isCopied ? Colors.green[700] : Colors.grey[700],
-                        fontFamily: 'monospace',
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                   ),

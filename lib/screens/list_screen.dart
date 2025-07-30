@@ -107,7 +107,8 @@ class _ListScreenState extends State<ListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ไม่สามารถโหลดข้อมูลได้: $e'),
+            content: Text('ไม่สามารถโหลดข้อมูลได้: $e',
+                style: TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.red,
             action: SnackBarAction(
               label: 'ลองใหม่',
@@ -314,27 +315,35 @@ class _ListScreenState extends State<ListScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('📊 สถิติโพสต์'),
+          title: const Text('📊 สถิติโพสต์',
+              style: TextStyle(fontFamily: 'NotoSansThai')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('📄 โพสต์ทั้งหมด: ${stats['total']} รายการ'),
+              Text('📄 โพสต์ทั้งหมด: ${stats['total']} รายการ',
+                  style: TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 8),
-              Text('✨ โพสต์สดใหม่ (48 ชม.): ${stats['fresh']} รายการ'),
+              Text('✨ โพสต์สดใหม่ (48 ชม.): ${stats['fresh']} รายการ',
+                  style: TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 8),
-              Text('🗑️ โพสต์เก่า: ${stats['old']} รายการ'),
+              Text('🗑️ โพสต์เก่า: ${stats['old']} รายการ',
+                  style: TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 16),
               const Text(
                 '💡 โพสต์จะถูกลบอัตโนมัติหลัง 48 ชั่วโมง\nเพื่อรักษาความสดใหม่ของข้อมูล',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontFamily: 'NotoSansThai'),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ปิด'),
+              child: const Text('ปิด',
+                  style: TextStyle(fontFamily: 'NotoSansThai')),
             ),
             if (stats['old']! > 0)
               TextButton(
@@ -342,14 +351,17 @@ class _ListScreenState extends State<ListScreen> {
                   Navigator.of(context).pop();
                   _performManualCleanup();
                 },
-                child: const Text('🧹 ลบโพสต์เก่าตอนนี้'),
+                child: const Text('🧹 ลบโพสต์เก่าตอนนี้',
+                    style: TextStyle(fontFamily: 'NotoSansThai')),
               ),
           ],
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+        SnackBar(
+            content: Text('เกิดข้อผิดพลาด: $e',
+                style: TextStyle(fontFamily: 'NotoSansThai'))),
       );
     }
   }
@@ -358,7 +370,9 @@ class _ListScreenState extends State<ListScreen> {
   Future<void> _performManualCleanup() async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🧹 กำลังลบโพสต์เก่า...')),
+        const SnackBar(
+            content: Text('🧹 กำลังลบโพสต์เก่า...',
+                style: TextStyle(fontFamily: 'NotoSansThai'))),
       );
 
       final freshCount = await CleanupService.manualCleanup();
@@ -367,13 +381,16 @@ class _ListScreenState extends State<ListScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ ลบเสร็จแล้ว! เหลือโพสต์สดใหม่ $freshCount รายการ'),
+          content: Text('✅ ลบเสร็จแล้ว! เหลือโพสต์สดใหม่ $freshCount รายการ',
+              style: TextStyle(fontFamily: 'NotoSansThai')),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาดในการลบ: $e')),
+        SnackBar(
+            content: Text('เกิดข้อผิดพลาดในการลบ: $e',
+                style: TextStyle(fontFamily: 'NotoSansThai'))),
       );
     }
   }
@@ -476,6 +493,7 @@ class _ListScreenState extends State<ListScreen> {
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      fontFamily: 'NotoSansThai',
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -614,6 +632,7 @@ class _ListScreenState extends State<ListScreen> {
                   fontSize: 16,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected ? Colors.black : Colors.grey[700],
+                  fontFamily: 'NotoSansThai',
                 ),
               ),
             ),
@@ -635,6 +654,7 @@ class _ListScreenState extends State<ListScreen> {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.black,
+            fontFamily: 'NotoSansThai',
           ),
         ),
         centerTitle: true, // ให้ข้อความอยู่กลาง
@@ -738,6 +758,7 @@ class _ListScreenState extends State<ListScreen> {
                               fontSize: 18,
                               color: Colors.grey,
                               fontWeight: FontWeight.w500,
+                              fontFamily: 'NotoSansThai',
                             ),
                           ),
                           SizedBox(height: 8),
@@ -746,6 +767,7 @@ class _ListScreenState extends State<ListScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey,
+                              fontFamily: 'NotoSansThai',
                             ),
                           ),
                         ],
@@ -839,7 +861,7 @@ class _ListScreenState extends State<ListScreen> {
                                           _getCategoryEmoji(category),
                                           style: const TextStyle(
                                             fontSize: 20,
-                                            fontFamily: 'Kanit',
+                                            fontFamily: 'NotoSansThai',
                                             fontWeight:
                                                 FontWeight.w500, // Medium
                                           ),
@@ -853,7 +875,7 @@ class _ListScreenState extends State<ListScreen> {
                                               fontWeight:
                                                   FontWeight.w500, // Medium
                                               color: Colors.black87,
-                                              fontFamily: 'Kanit',
+                                              fontFamily: 'NotoSansThai',
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -888,7 +910,7 @@ class _ListScreenState extends State<ListScreen> {
                                             fontSize: 17,
                                             color: Colors.black,
                                             height: 1.3,
-                                            fontFamily: 'Sarabun',
+                                            fontFamily: 'NotoSansThai',
                                             fontWeight: FontWeight.w400,
                                           ),
                                           maxLines: 2,
@@ -909,7 +931,7 @@ class _ListScreenState extends State<ListScreen> {
                                             '📍',
                                             style: TextStyle(
                                               fontSize: 13,
-                                              fontFamily: 'Kanit',
+                                              fontFamily: 'NotoSansThai',
                                               fontWeight:
                                                   FontWeight.w400, // Regular
                                             ),
@@ -923,7 +945,7 @@ class _ListScreenState extends State<ListScreen> {
                                                 color: Colors.black,
                                                 fontWeight:
                                                     FontWeight.w400, // Regular
-                                                fontFamily: 'Kanit',
+                                                fontFamily: 'NotoSansThai',
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
@@ -956,7 +978,7 @@ class _ListScreenState extends State<ListScreen> {
                                                   '🗺️',
                                                   style: TextStyle(
                                                     fontSize: 13,
-                                                    fontFamily: 'Kanit',
+                                                    fontFamily: 'NotoSansThai',
                                                     fontWeight: FontWeight
                                                         .w400, // Regular
                                                   ),
@@ -969,7 +991,7 @@ class _ListScreenState extends State<ListScreen> {
                                                     color: Colors.blue[800],
                                                     fontWeight: FontWeight
                                                         .w400, // Regular
-                                                    fontFamily: 'Kanit',
+                                                    fontFamily: 'NotoSansThai',
                                                   ),
                                                 ),
                                               ],
@@ -994,7 +1016,7 @@ class _ListScreenState extends State<ListScreen> {
                                                   '🗺️',
                                                   style: TextStyle(
                                                     fontSize: 13,
-                                                    fontFamily: 'Kanit',
+                                                    fontFamily: 'NotoSansThai',
                                                     fontWeight: FontWeight
                                                         .w400, // Regular
                                                   ),
@@ -1007,7 +1029,7 @@ class _ListScreenState extends State<ListScreen> {
                                                     color: Colors.blue[800],
                                                     fontWeight: FontWeight
                                                         .w400, // Regular
-                                                    fontFamily: 'Kanit',
+                                                    fontFamily: 'NotoSansThai',
                                                   ),
                                                 ),
                                               ],
@@ -1073,7 +1095,9 @@ class _ListScreenState extends State<ListScreen> {
                                                                   'ไม่สามารถโหลดรูปภาพได้',
                                                                   style: TextStyle(
                                                                       color: Colors
-                                                                          .white)),
+                                                                          .white,
+                                                                      fontFamily:
+                                                                          'NotoSansThai')),
                                                             ],
                                                           ),
                                                         );
@@ -1112,7 +1136,7 @@ class _ListScreenState extends State<ListScreen> {
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w400,
                                                 color: Colors.black87,
-                                                fontFamily: 'Kanit',
+                                                fontFamily: 'NotoSansThai',
                                               ),
                                             ),
                                           ],
@@ -1129,7 +1153,7 @@ class _ListScreenState extends State<ListScreen> {
                                             '🕐',
                                             style: TextStyle(
                                               fontSize: 13,
-                                              fontFamily: 'Kanit',
+                                              fontFamily: 'NotoSansThai',
                                               fontWeight:
                                                   FontWeight.w400, // Regular
                                             ),
@@ -1140,7 +1164,7 @@ class _ListScreenState extends State<ListScreen> {
                                             style: const TextStyle(
                                               fontSize: 13,
                                               color: Colors.black,
-                                              fontFamily: 'Kanit',
+                                              fontFamily: 'NotoSansThai',
                                               fontWeight:
                                                   FontWeight.w400, // Regular
                                             ),
@@ -1164,7 +1188,7 @@ class _ListScreenState extends State<ListScreen> {
                                           style: const TextStyle(
                                             fontSize: 13,
                                             color: Colors.black,
-                                            fontFamily: 'Kanit',
+                                            fontFamily: 'NotoSansThai',
                                             fontWeight:
                                                 FontWeight.w400, // Regular
                                           ),
@@ -1220,7 +1244,7 @@ class _ListScreenState extends State<ListScreen> {
                                                     color: Color(0xFFFF9800),
                                                     fontWeight: FontWeight.w200,
                                                     fontSize: 14,
-                                                    fontFamily: 'Sarabun',
+                                                    fontFamily: 'NotoSansThai',
                                                   ),
                                                 ),
                                                 if (commentCount > 0) ...[

@@ -204,7 +204,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         title: const Text(
           'รายงานกล้องจับความเร็ว',
           style: TextStyle(
-            fontFamily: 'Kanit',
+            fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -217,7 +217,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(
-            fontFamily: 'Kanit',
+            fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
           ),
           tabs: const [
@@ -270,7 +270,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     const Text(
                       'วิธีการรายงาน',
                       style: TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1158F2),
                       ),
@@ -284,7 +284,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   '• รายงานการเปลี่ยนจำกัดความเร็ว\n'
                   '• ข้อมูลจะถูกตรวจสอบโดยชุมชน',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.black87,
                   ),
@@ -305,7 +305,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                 const SnackBar(
                   content: Text(
                     'ส่งรายงานเรียบร้อยแล้ว! รอการตรวจสอบจากชุมชน',
-                    style: TextStyle(fontFamily: 'Kanit'),
+                    style: TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                   backgroundColor: Colors.green,
                 ),
@@ -333,7 +333,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'จำเป็นต้องล็อกอินเพื่อโหวต',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 18,
                 color: Colors.grey.shade600,
               ),
@@ -342,7 +342,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'กรุณาล็อกอินผ่านโปรไฟล์ในหน้าแผนที่',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 14,
                 color: Colors.grey.shade500,
               ),
@@ -351,7 +351,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'แตะที่ปุ่มโปรไฟล์มุมขวาบนของแผนที่',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 12,
                 color: Colors.grey.shade400,
               ),
@@ -370,7 +370,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             SizedBox(height: 16),
             Text(
               'กำลังโหลดข้อมูล...',
-              style: TextStyle(fontFamily: 'Kanit'),
+              style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
           ],
         ),
@@ -391,7 +391,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'ไม่มีรายงานที่รอการโหวต',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 18,
                 color: Colors.grey.shade600,
               ),
@@ -400,7 +400,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'ขอบคุณที่ช่วยตรวจสอบข้อมูล!',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 14,
                 color: Colors.grey.shade500,
               ),
@@ -434,7 +434,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('กรุณาล็อกอินผ่านหน้าแผนที่ก่อนโหวต',
-                            style: TextStyle(fontFamily: 'Kanit')),
+                            style: TextStyle(fontFamily: 'NotoSansThai')),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -456,7 +456,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                         voteType == VoteType.upvote
                             ? 'โหวต "มีจริง" เรียบร้อยแล้ว'
                             : 'โหวต "ไม่มี" เรียบร้อยแล้ว',
-                        style: const TextStyle(fontFamily: 'Kanit'),
+                        style: const TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       backgroundColor: Colors.green,
                     ),
@@ -505,7 +505,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'จำเป็นต้องล็อกอินเพื่อดูสถิติ',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 18,
                 color: Colors.grey.shade600,
               ),
@@ -514,7 +514,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'กรุณาล็อกอินผ่านโปรไฟล์ในหน้าแผนที่',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 14,
                 color: Colors.grey.shade500,
               ),
@@ -523,7 +523,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             Text(
               'แตะที่ปุ่มโปรไฟล์มุมขวาบนของแผนที่',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 12,
                 color: Colors.grey.shade400,
               ),
@@ -571,7 +571,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                 const Text(
                   'คะแนนการมีส่วนร่วม',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -581,7 +581,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                 Text(
                   '${_userStats['total_contributions'] ?? 0}',
                   style: const TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -590,7 +590,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                 const Text(
                   'การมีส่วนร่วมทั้งหมด',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.white70,
                   ),
@@ -654,7 +654,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     const Text(
                       'ผลกระทบต่อชุมชน',
                       style: TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),
@@ -668,7 +668,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   '• ชุมชนมีข้อมูลที่ทันสมัย\n'
                   '• การขับขี่ปลอดภัยยิ่งขึ้น',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.black87,
                     height: 1.5,
@@ -705,7 +705,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                       Text(
                         'กำลังจะมาเร็วๆ นี้',
                         style: TextStyle(
-                          fontFamily: 'Kanit',
+                          fontFamily: 'NotoSansThai',
                           fontWeight: FontWeight.w600,
                           color: Colors.amber.shade700,
                         ),
@@ -713,7 +713,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                       const Text(
                         'อันดับผู้มีส่วนร่วม และรางวัลพิเศษ',
                         style: TextStyle(
-                          fontFamily: 'Kanit',
+                          fontFamily: 'NotoSansThai',
                           fontSize: 12,
                           color: Colors.black87,
                         ),
@@ -759,7 +759,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           Text(
             value,
             style: TextStyle(
-              fontFamily: 'Kanit',
+              fontFamily: 'NotoSansThai',
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color,
@@ -768,7 +768,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           Text(
             title,
             style: const TextStyle(
-              fontFamily: 'Kanit',
+              fontFamily: 'NotoSansThai',
               fontSize: 12,
               color: Colors.black54,
             ),

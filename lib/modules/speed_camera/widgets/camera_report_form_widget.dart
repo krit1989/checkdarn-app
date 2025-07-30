@@ -81,7 +81,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                 const Text(
                   'รายงานกล้องจับความเร็ว',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -92,7 +92,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                 const Text(
                   'ประเภทการรายงาน',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -111,7 +111,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       child: Text(
                         _getReportTypeDisplayName(type),
                         style:
-                            const TextStyle(fontFamily: 'Kanit', fontSize: 14),
+                            const TextStyle(fontFamily: 'NotoSansThai', fontSize: 14),
                         overflow: TextOverflow.ellipsis,
                       ),
                     );
@@ -129,7 +129,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                 const Text(
                   'ตำแหน่ง',
                   style: TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -180,7 +180,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                     ? 'ตำแหน่งที่เลือก'
                                     : 'แตะเพื่อเลือกตำแหน่งบนแผนที่',
                                 style: TextStyle(
-                                  fontFamily: 'Kanit',
+                                  fontFamily: 'NotoSansThai',
                                   fontSize: 14,
                                   color: _selectedLocation != null
                                       ? Colors.black87
@@ -195,7 +195,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                 Text(
                                   'ละติจูด: ${_selectedLocation!.latitude.toStringAsFixed(6)}',
                                   style: TextStyle(
-                                    fontFamily: 'Kanit',
+                                    fontFamily: 'NotoSansThai',
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
                                   ),
@@ -203,7 +203,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                 Text(
                                   'ลองจิจูด: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
                                   style: TextStyle(
-                                    fontFamily: 'Kanit',
+                                    fontFamily: 'NotoSansThai',
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
                                   ),
@@ -229,7 +229,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                     child: Text(
                       'กรุณาเลือกตำแหน่งบนแผนที่',
                       style: TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontSize: 12,
                         color: Colors.red.shade700,
                       ),
@@ -243,7 +243,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   controller: _roadNameController,
                   decoration: const InputDecoration(
                     labelText: 'ชื่อถนน',
-                    labelStyle: TextStyle(fontFamily: 'Kanit'),
+                    labelStyle: TextStyle(fontFamily: 'NotoSansThai'),
                     border: OutlineInputBorder(),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -264,7 +264,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   const Text(
                     'จำกัดความเร็ว (km/h)',
                     style: TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -281,7 +281,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         value: speed,
                         child: Text(
                           '$speed km/h',
-                          style: const TextStyle(fontFamily: 'Kanit'),
+                          style: const TextStyle(fontFamily: 'NotoSansThai'),
                         ),
                       );
                     }).toList(),
@@ -299,7 +299,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   controller: _descriptionController,
                   decoration: const InputDecoration(
                     labelText: 'รายละเอียดเพิ่มเติม (ไม่บังคับ)',
-                    labelStyle: TextStyle(fontFamily: 'Kanit'),
+                    labelStyle: TextStyle(fontFamily: 'NotoSansThai'),
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.all(12),
                   ),
@@ -334,7 +334,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         : Text(
                             _getSubmitButtonText(),
                             style: const TextStyle(
-                              fontFamily: 'Kanit',
+                              fontFamily: 'NotoSansThai',
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -390,7 +390,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('กรุณาล็อกอินก่อนรายงานกล้อง',
-                style: TextStyle(fontFamily: 'Kanit')),
+                style: TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -438,7 +438,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         SnackBar(
           content: Text(
             'เกิดข้อผิดพลาด: $e',
-            style: const TextStyle(fontFamily: 'Kanit'),
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.red,
         ),

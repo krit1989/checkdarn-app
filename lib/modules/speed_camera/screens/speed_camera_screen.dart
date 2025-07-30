@@ -41,7 +41,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   // Badge Alert System - ระบบแจ้งเตือนใน Badge
   String _badgeText = 'กล้องจับความเร็ว';
-  Color _badgeColor = const Color(0xFFFFC107);
+  Color _badgeColor = const Color(0xFFFFC107); // กลับไปใช้สีเหลืองเดิม
   Timer? _badgeResetTimer;
 
   StreamSubscription<Position>? _positionSubscription;
@@ -257,7 +257,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
@@ -270,7 +270,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 Text(
                   message,
                   style: const TextStyle(
-                    fontFamily: 'Kanit',
+                    fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.black54,
                     height: 1.5,
@@ -293,7 +293,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                         child: const Text(
                           'ไว้ทีหลัง',
                           style: TextStyle(
-                            fontFamily: 'Kanit',
+                            fontFamily: 'NotoSansThai',
                             fontSize: 16,
                             color: Colors.grey,
                           ),
@@ -315,7 +315,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                                 const SnackBar(
                                   content: Text(
                                     'ล็อกอินสำเร็จ! ยินดีต้อนรับครับ',
-                                    style: TextStyle(fontFamily: 'Kanit'),
+                                    style:
+                                        TextStyle(fontFamily: 'NotoSansThai'),
                                   ),
                                   backgroundColor: Colors.green,
                                 ),
@@ -334,7 +335,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                         child: const Text(
                           'ล็อกอิน',
                           style: TextStyle(
-                            fontFamily: 'Kanit',
+                            fontFamily: 'NotoSansThai',
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1545,7 +1546,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       if (mounted) {
         setState(() {
           _badgeText = 'กล้องจับความเร็ว';
-          _badgeColor = const Color(0xFFFFC107);
+          _badgeColor = const Color(0xFFFFC107); // กลับเป็นสีเหลืองเดิม
         });
       }
     });
@@ -1554,7 +1555,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   void _showLocationError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Kanit')),
+        content:
+            Text(message, style: const TextStyle(fontFamily: 'NotoSansThai')),
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 5),
       ),
@@ -1564,7 +1566,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Kanit')),
+        content:
+            Text(message, style: const TextStyle(fontFamily: 'NotoSansThai')),
         backgroundColor: Colors.orange,
         duration: const Duration(seconds: 5),
       ),
@@ -1717,7 +1720,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 6), // เท่ากับ map screen
                 decoration: BoxDecoration(
-                  color: _badgeColor, // ใช้สีจากตัวแปร
+                  color: _badgeColor, // ใช้สีจากตัวแปร (สีขาวเป็นค่าเริ่มต้น)
                   borderRadius: BorderRadius.circular(
                       25), // เปลี่ยนจาก 20 เป็น 25 เหมือน map screen
                   boxShadow: [
@@ -1730,61 +1733,11 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                 ),
                 child: Row(
                   children: [
-                    // ส่วนซ้าย - ไอคอนและข้อความ
-                    SvgPicture.asset(
-                      'assets/icons/speed_camera_screen/speed camera2.svg',
-                      width: 20,
-                      height: 20,
-                      colorFilter: const ColorFilter.mode(
-                        Colors.black,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-
-                    // ใช้ AnimatedSwitcher สำหรับเปลี่ยนข้อความแบบ fade
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 400),
-                        transitionBuilder:
-                            (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0.3, 0),
-                                end: Offset.zero,
-                              ).animate(CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOut,
-                              )),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Text(
-                          _badgeText,
-                          key: ValueKey(
-                              _badgeText), // สำคัญสำหรับ AnimatedSwitcher
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontFamily: 'Kanit',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 8), // เพิ่มระยะห่างเล็กน้อย
-
-                    // ส่วนขวา - ปุ่มตั้งค่าเสียง
+                    // ส่วนซ้าย - ปุ่มตั้งค่าเสียง
                     Tooltip(
                       message: 'ตั้งค่าเสียงแจ้งเตือน',
                       textStyle: const TextStyle(
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontSize: 12,
                         color: Colors.white,
                       ),
@@ -1819,62 +1772,74 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+                    const SizedBox(width: 8),
 
-          // Report camera button - ตอนนี้อยู่ตำแหน่งเดียว
-          Positioned(
-            top: MediaQuery.of(context).padding.top +
-                62, // ปรับตำแหน่งให้ไม่ทับกับ badge ใหม่
-            right: 12, // เปลี่ยนจาก 16 เป็น 12 ให้สอดคล้องกับ badge
-            child: Tooltip(
-              message: 'รายงานกล้องจับความเร็ว',
-              textStyle: const TextStyle(
-                fontFamily: 'Kanit',
-                fontSize: 12,
-                color: Colors.white,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFC107)
-                      .withValues(alpha: 0.9), // สีเหลือง
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.add_location_alt,
-                    color: Colors.black,
-                    size: 18,
-                  ),
-                  onPressed: () {
-                    _recordAppInteraction(); // บันทึกการโต้ตอบ
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CameraReportScreen(
-                          initialLocation: currentPosition,
-                          initialRoadName: nearestCamera?.roadName,
+                    // ใช้ AnimatedSwitcher สำหรับเปลี่ยนข้อความแบบ fade
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.3, 0),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOut,
+                              )),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          _badgeText,
+                          key: ValueKey(
+                              _badgeText), // สำคัญสำหรับ AnimatedSwitcher
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontFamily: 'NotoSansThai',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
-                    );
-                  },
-                  padding: EdgeInsets.zero,
+                    ),
+
+                    const SizedBox(width: 8), // เพิ่มระยะห่างเล็กน้อย
+
+                    // ส่วนขวา - ปุ่มเพิ่มกล้อง (แทนไอคอนกล้อง)
+                    GestureDetector(
+                      onTap: () {
+                        _recordAppInteraction(); // บันทึกการโต้ตอบ
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CameraReportScreen(
+                              initialLocation: currentPosition,
+                              initialRoadName: nearestCamera?.roadName,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: SvgPicture.asset(
+                          'assets/icons/speed_camera_screen/add speed camera.svg',
+                          width: 20,
+                          height: 20,
+                          colorFilter: const ColorFilter.mode(
+                            Colors.black,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1894,7 +1859,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                       'กำลังโหลดข้อมูล...',
                       style: TextStyle(
                         color: Colors.white,
-                        fontFamily: 'Kanit',
+                        fontFamily: 'NotoSansThai',
                         fontSize: 16,
                       ),
                     ),
@@ -2116,7 +2081,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           Text(
             label,
             style: TextStyle(
-              fontFamily: 'Kanit',
+              fontFamily: 'NotoSansThai',
               fontSize: 14, // เพิ่มขนาดจาก 12
               color: color,
               fontWeight: FontWeight.w600,
@@ -2130,7 +2095,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
               Text(
                 value,
                 style: TextStyle(
-                  fontFamily: 'Kanit',
+                  fontFamily: 'NotoSansThai',
                   fontSize: 32, // เพิ่มขนาดจาก 24
                   fontWeight: FontWeight.bold,
                   color: color,
@@ -2140,7 +2105,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
               Text(
                 unit,
                 style: TextStyle(
-                  fontFamily: 'Kanit',
+                  fontFamily: 'NotoSansThai',
                   fontSize: 18, // เพิ่มขนาดจาก 14
                   color: color,
                 ),
@@ -2168,7 +2133,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                   ? 'เร็วเกิน ${((speedRatio - 1.0) * 100).toInt()}%'
                   : 'ปลอดภัย',
               style: TextStyle(
-                fontFamily: 'Kanit',
+                fontFamily: 'NotoSansThai',
                 fontSize: 10,
                 color: speedRatio > 1.0 ? Colors.red : Colors.green,
                 fontWeight: FontWeight.w500,

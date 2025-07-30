@@ -30,6 +30,24 @@ class EventMarkerPainter extends CustomPainter {
       if (isPost) {
         // สำหรับหมุดโพส: สามเหลี่ยมชี้ลงเป็นขาหมุด (หมุน 0 องศา = ชี้ลง)
         // ไม่ต้องหมุนเพิ่ม เพราะ moveTo ด้านล่างคือจุดแหลม
+
+        // เพิ่มเงาสำหรับปลายหมุด (จุดแหลม)
+        final shadowPaint = Paint()
+          ..color = Colors.black.withValues(alpha: 0.2) // เงาอ่อนๆ
+          ..maskFilter =
+              const MaskFilter.blur(BlurStyle.normal, 3.0); // เบลอเงา
+
+        final shadowPath = Path();
+        // เงาเล็กๆ ที่ปลายหมุด - เลื่อนลงและขวาเล็กน้อย
+        shadowPath.moveTo(2, radius * 2.8 + 2); // จุดแหลมชี้ลง + offset
+        shadowPath.lineTo(
+            -radius * 0.6 + 2, radius * 1.3 + 2); // จุดซ้าย + offset
+        shadowPath.lineTo(
+            radius * 0.6 + 2, radius * 1.3 + 2); // จุดขวา + offset
+        shadowPath.close();
+
+        // วาดเงาก่อน
+        canvas.drawPath(shadowPath, shadowPaint);
       } else {
         // สำหรับหมุดตำแหน่งตัวเอง: ลูกศรชี้ทิศทาง (หมุนตาม rotation)
         canvas.rotate(rotation * math.pi / 180);

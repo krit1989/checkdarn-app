@@ -83,6 +83,7 @@ class CategoryFilter extends StatelessWidget {
                 color: isSelected ? Colors.white : Colors.grey[700],
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontFamily: 'NotoSansThai',
               ),
             ),
           ],
