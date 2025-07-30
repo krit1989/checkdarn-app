@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // สำหรับ kIsWeb
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
@@ -15,14 +16,20 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🚀 เปิด Local Persistence เพื่อเพิ่มความเร็ว
+  // 🚀 เปิด Local Persistence เพื่อเพิ่มความเร็ว (Platform-specific)
   try {
-    await FirebaseFirestore.instance.enablePersistence(
-      const PersistenceSettings(synchronizeTabs: true),
-    );
-    print('✅ Firebase persistence enabled - faster offline access!');
+    // สำหรับ Web ใช้ enablePersistence, สำหรับ Mobile ใช้ Settings
+    if (kIsWeb) {
+      await FirebaseFirestore.instance.enablePersistence(
+        const PersistenceSettings(synchronizeTabs: true),
+      );
+      print('✅ Firebase persistence enabled for Web!');
+    } else {
+      // สำหรับ Mobile จะตั้งค่าใน Settings ด้านล่าง
+      print('✅ Firebase persistence will be set via Settings for Mobile');
+    }
   } catch (e) {
-    print('⚠️ Firebase persistence already enabled or failed: $e');
+    print('⚠️ Firebase persistence setup note: $e');
   }
 
   // ตั้งค่า Firestore settings สำหรับประสิทธิภาพที่ดีขึ้น

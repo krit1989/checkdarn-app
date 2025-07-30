@@ -4,14 +4,17 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'dart:async';
 import 'dart:math';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
+import '../services/speed_camera_security_service.dart';
 import '../../../services/sound_manager.dart';
 import '../../../services/smart_tile_provider.dart';
 import '../../../services/connection_manager.dart';
 import '../../../services/map_cache_manager.dart';
+import '../../../services/auth_service.dart';
 import '../../../screens/sound_settings_screen.dart';
 import 'camera_report_screen.dart';
 import '../widgets/speed_camera_marker.dart';
@@ -57,10 +60,64 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   // ระบบเสียงแจ้งเตือน
   final SoundManager _soundManager = SoundManager();
 
+  // Progressive Beep Alert System - ระบบเสียงบี๊บแบบค่อยเป็นค่อยไป
+  Timer? _progressiveBeepTimer;
+  SpeedCamera? _currentBeepCamera;
+  double _lastBeepDistance = 0.0;
+  bool _isProgressiveBeepActive = false;
+
+  // Smart Progressive Beep - ป้องกันการเตือนซ้ำ
+  Set<String> _alertedCameras = {};
+  Timer? _cameraCleanupTimer;
+
+  // Security & Anti-Abuse System - ระบบป้องกันการใช้งานในทางที่ผิด
+  DateTime? _lastLocationUpdateTime;
+  double? _lastValidSpeed;
+  List<Position> _speedHistory = [];
+  int _suspiciousActivityCount = 0;
+  DateTime _sessionStartTime = DateTime.now();
+  Timer? _securityCheckTimer;
+  bool _isSecurityModeActive = false;
+  final int _maxSuspiciousActivity =
+      20; // เพิ่มจาก 5 เป็น 20 เพื่อลดการ false positive
+  final Duration _securityCooldown = const Duration(minutes: 10);
+
+  // Performance & Resource Protection - ป้องกันการใช้ทรัพยากรมากเกินไป
+  int _mapMovementCount = 0;
+  DateTime? _lastMapMovement;
+  final int _maxMapMovements =
+      500; // เพิ่มจาก 50 เป็น 500 (อนุญาตให้ใช้งานได้มากขึ้น)
+  Timer? _resourceMonitorTimer;
+
+  // Data Validation & Integrity - ตรวจสอบความถูกต้องของข้อมูล
+  double? _previousLatitude;
+  double? _previousLongitude;
+  final double _maxReasonableSpeed =
+      200.0; // กม./ชม. (ความเร็วสูงสุดที่เป็นไปได้)
+  final double _maxLocationJump =
+      1000.0; // เมตร (การกระโดดตำแหน่งสูงสุดที่ยอมรับได้)
+
   // Smart map system
   SmartTileProvider? _smartTileProvider; // เปลี่ยนเป็น nullable
   Timer? _connectionCheckTimer;
   Timer? _preloadTimer;
+
+  // Smart Login Detection System - ระบบตรวจจับการใช้งานจริงเพื่อเด้งล็อกอิน
+  bool _hasShownLoginPrompt = false; // ป้องกันการเด้งหลายครั้ง
+  int _movementCount = 0; // นับจำนวนการเคลื่อนไหว
+  DateTime? _firstMovementTime; // เวลาที่เริ่มเคลื่อนไหวครั้งแรก
+  double _totalDistanceTraveled = 0.0; // ระยะทางรวมที่เดินทาง
+  LatLng? _lastMovementPosition; // ตำแหน่งล่าสุดสำหรับคำนวณระยะทาง
+  Timer? _loginPromptTimer; // Timer สำหรับเด้งล็อกอินหลังจากเวลาที่กำหนด
+  int _appInteractionCount = 0; // จำนวนการโต้ตอบกับแอป (แตะกล้อง, ดูข้อมูล)
+
+  // Login Detection Thresholds - เงื่อนไขสำหรับเด้งล็อกอิน
+  static const int _minMovementCount = 3; // ต้องเคลื่อนไหวอย่างน้อย 3 ครั้ง
+  static const double _minTravelDistance =
+      100.0; // ต้องเดินทางอย่างน้อย 100 เมตร
+  static const Duration _maxTimeBeforePrompt =
+      Duration(seconds: 45); // เด้งล็อกอินหลัง 45 วินาที
+  static const int _minInteractionCount = 2; // ต้องมีการโต้ตอบอย่างน้อย 2 ครั้ง
 
   @override
   void initState() {
@@ -71,11 +128,504 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _startSpeedTracking();
     _initializeSoundManager();
     _startConnectionMonitoring();
+    _enableWakelock(); // เปิด wakelock เพื่อไม่ให้หน้าจอดับ
+    _startCameraCleanupTimer(); // เริ่มระบบล้างข้อมูลกล้องที่เตือนแล้ว
+    _initializeSecuritySystem(); // เริ่มระบบความปลอดภัย
+    _startResourceMonitoring(); // เริ่มตรวจสอบการใช้ทรัพยากร
+    _initializeSmartLoginDetection(); // เริ่มระบบตรวจจับการใช้งานเพื่อเด้งล็อกอิน
 
     // Initialize smart map system หลังจาก widget build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeSmartMapSystem();
     });
+  }
+
+  // ==================== SMART LOGIN DETECTION SYSTEM ====================
+
+  /// เริ่มระบบตรวจจับพฤติกรรมการใช้งานเพื่อเด้งล็อกอิน
+  void _initializeSmartLoginDetection() {
+    // ถ้าผู้ใช้ล็อกอินอยู่แล้ว ไม่ต้องทำอะไร
+    if (AuthService.isLoggedIn) return;
+
+    print('🔍 Initializing smart login detection...');
+
+    // เริ่ม timer สำหรับเด้งล็อกอินหลังจากเวลาที่กำหนด (fallback)
+    _loginPromptTimer = Timer(_maxTimeBeforePrompt, () {
+      if (!_hasShownLoginPrompt && !AuthService.isLoggedIn) {
+        _showSmartLoginPrompt('time_based');
+      }
+    });
+  }
+
+  /// ตรวจสอบเงื่อนไขการเด้งล็อกอิน
+  void _checkLoginPromptConditions() {
+    // ถ้าเด้งแล้วหรือล็อกอินอยู่แล้ว ไม่ต้องทำอะไร
+    if (_hasShownLoginPrompt || AuthService.isLoggedIn) return;
+
+    bool shouldPrompt = false;
+    String reason = '';
+
+    // เงื่อนไขที่ 1: เคลื่อนไหวและเดินทางระยะทางพอสมควร
+    if (_movementCount >= _minMovementCount &&
+        _totalDistanceTraveled >= _minTravelDistance) {
+      shouldPrompt = true;
+      reason = 'movement_based';
+    }
+
+    // เงื่อนไขที่ 2: มีการโต้ตอบกับแอปพอสมควร
+    if (_appInteractionCount >= _minInteractionCount) {
+      shouldPrompt = true;
+      reason =
+          reason.isEmpty ? 'interaction_based' : '${reason}_and_interaction';
+    }
+
+    // เงื่อนไขที่ 3: ใช้งานมาระยะหนึ่งแล้ว (มีการเคลื่อนไหวและโต้ตอบ)
+    if (_firstMovementTime != null &&
+        DateTime.now().difference(_firstMovementTime!).inSeconds >= 30 &&
+        _movementCount >= 2 &&
+        _appInteractionCount >= 1) {
+      shouldPrompt = true;
+      reason = reason.isEmpty ? 'usage_pattern' : '${reason}_and_usage';
+    }
+
+    if (shouldPrompt) {
+      _showSmartLoginPrompt(reason);
+    }
+  }
+
+  /// แสดงหน้าล็อกอินแบบ Smart พร้อมข้อความที่เหมาะสม
+  void _showSmartLoginPrompt(String reason) {
+    if (_hasShownLoginPrompt) return;
+    _hasShownLoginPrompt = true;
+
+    print('📱 Showing smart login prompt: $reason');
+
+    // ยกเลิก timer หากมี
+    _loginPromptTimer?.cancel();
+
+    String title = 'เพื่อประสบการณ์ที่ดีขึ้น';
+    String message = '';
+
+    switch (reason) {
+      case 'movement_based':
+        message =
+            'เราเห็นว่าคุณกำลังใช้งานแอปจริงๆ\nล็อกอินเพื่อบันทึกสถิติการเดินทางและมีส่วนร่วมกับชุมชนครับ';
+        break;
+      case 'interaction_based':
+        message =
+            'ดูเหมือนคุณสนใจข้อมูลกล้องความเร็ว\nล็อกอินเพื่อรายงานกล้องใหม่และโหวตข้อมูลได้ครับ';
+        break;
+      case 'time_based':
+        message =
+            'คุณใช้แอปมาสักพักแล้ว\nล็อกอินเพื่อปลดล็อกฟีเจอร์เพิ่มเติมไหมครับ';
+        break;
+      default:
+        message =
+            'ล็อกอินเพื่อใช้งานฟีเจอร์เต็มรูปแบบ\nรายงานกล้อง โหวต และบันทึกสถิติการเดินทาง';
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ไอคอน
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1158F2).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.account_circle,
+                    size: 40,
+                    color: Color(0xFF1158F2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // หัวข้อ
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Kanit',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // ข้อความ
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontFamily: 'Kanit',
+                    fontSize: 14,
+                    color: Colors.black54,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // ปุ่ม
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text(
+                          'ไว้ทีหลัง',
+                          style: TextStyle(
+                            fontFamily: 'Kanit',
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+
+                          final success =
+                              await AuthService.showLoginDialog(context);
+                          if (success) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'ล็อกอินสำเร็จ! ยินดีต้อนรับครับ',
+                                    style: TextStyle(fontFamily: 'Kanit'),
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1158F2),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'ล็อกอิน',
+                          style: TextStyle(
+                            fontFamily: 'Kanit',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// บันทึกการเคลื่อนไหวสำหรับระบบ Smart Login Detection
+  void _recordMovementForLoginDetection(LatLng newPosition) {
+    // เพิ่มจำนวนการเคลื่อนไหว
+    _movementCount++;
+
+    // บันทึกเวลาเคลื่อนไหวครั้งแรก
+    if (_firstMovementTime == null) {
+      _firstMovementTime = DateTime.now();
+    }
+
+    // คำนวณระยะทางที่เดินทาง
+    if (_lastMovementPosition != null) {
+      final distance = Geolocator.distanceBetween(
+        _lastMovementPosition!.latitude,
+        _lastMovementPosition!.longitude,
+        newPosition.latitude,
+        newPosition.longitude,
+      );
+      _totalDistanceTraveled += distance;
+    }
+
+    _lastMovementPosition = newPosition;
+
+    // ตรวจสอบเงื่อนไขการเด้งล็อกอิน
+    _checkLoginPromptConditions();
+  }
+
+  /// บันทึกการโต้ตอบกับแอปสำหรับระบบ Smart Login Detection
+  void _recordAppInteraction() {
+    _appInteractionCount++;
+    _checkLoginPromptConditions();
+  }
+
+  // ==================== SECURITY & ANTI-ABUSE SYSTEM ====================
+
+  /// เริ่มระบบความปลอดภัยและป้องกันการใช้งานในทางที่ผิด
+  void _initializeSecuritySystem() {
+    print('🔒 Initializing security system...');
+
+    // เริ่ม security service
+    SpeedCameraSecurityService.initialize();
+
+    // เริ่ม security monitoring ทุก 30 วินาที
+    _securityCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _performSecurityCheck();
+    });
+
+    // บันทึกเวลาเริ่มต้น session
+    _sessionStartTime = DateTime.now();
+    print('🔒 Security system initialized');
+  }
+
+  /// ตรวจสอบความปลอดภัยและพฤติกรรมผิดปกติ
+  void _performSecurityCheck() {
+    final now = DateTime.now();
+    final sessionDuration = now.difference(_sessionStartTime);
+
+    // ใช้ Security Service ตรวจสอบการใช้งาน
+    final usageCheck = SpeedCameraSecurityService.checkUsagePattern();
+    if (!usageCheck.isValid) {
+      for (final violation in usageCheck.violations) {
+        _trackSuspiciousActivity(violation.type, violation.description);
+      }
+    }
+
+    // ตรวจสอบ: การใช้งานนานเกินไป (บอกเป็นนัยว่าอาจใช้เพื่อหลีกเลี่ยงการจับ)
+    if (sessionDuration.inHours > 8) {
+      _trackSuspiciousActivity('long_session', 'Session longer than 8 hours');
+    }
+
+    // ตรวจสอบ: ความเร็วผิดปกติ
+    if (_speedHistory.length >= 5) {
+      final avgSpeed =
+          _speedHistory.map((p) => p.speed * 3.6).reduce((a, b) => a + b) /
+              _speedHistory.length;
+      if (avgSpeed > _maxReasonableSpeed) {
+        _trackSuspiciousActivity(
+            'unrealistic_speed', 'Average speed: ${avgSpeed.toInt()} km/h');
+      } else {
+        _lastValidSpeed = avgSpeed; // เก็บความเร็วที่ถูกต้อง
+      }
+    }
+
+    // ตรวจสอบ: การเปลี่ยนตำแหน่งแบบกระโดด (GPS spoofing)
+    if (_previousLatitude != null && _previousLongitude != null) {
+      final distance = Geolocator.distanceBetween(
+        _previousLatitude!,
+        _previousLongitude!,
+        currentPosition.latitude,
+        currentPosition.longitude,
+      );
+
+      final timeDiff = _lastLocationUpdateTime != null
+          ? now.difference(_lastLocationUpdateTime!).inSeconds
+          : 1;
+
+      if (distance > _maxLocationJump && timeDiff < 5) {
+        _trackSuspiciousActivity(
+            'location_jump', 'Jumped ${distance.toInt()}m in ${timeDiff}s');
+      }
+    }
+
+    // อัพเดตตำแหน่งก่อนหน้า
+    _previousLatitude = currentPosition.latitude;
+    _previousLongitude = currentPosition.longitude;
+    _lastLocationUpdateTime = now;
+
+    // ตรวจสอบสถานะความปลอดภัย
+    _evaluateSecurityStatus();
+  }
+
+  /// ติดตามกิจกรรมที่น่าสงสัย
+  void _trackSuspiciousActivity(String type, String details) {
+    _suspiciousActivityCount++;
+
+    print('🚨 Suspicious activity detected: $type - $details');
+    print('🚨 Total suspicious activities: $_suspiciousActivityCount');
+
+    // บันทึกลงใน analytics (อนาคตอาจส่งไป server)
+    if (mounted) {
+      // ส่งข้อมูลไป analytics หรือ logging service
+      _logSecurityEvent(type, details);
+    }
+  }
+
+  /// ประเมินสถานะความปลอดภัยและดำเนินการตามนั้น
+  void _evaluateSecurityStatus() {
+    if (_suspiciousActivityCount >= _maxSuspiciousActivity) {
+      if (!_isSecurityModeActive) {
+        _activateSecurityMode();
+      }
+    }
+  }
+
+  /// เปิดใช้โหมดความปลอดภัย
+  void _activateSecurityMode() {
+    _isSecurityModeActive = true;
+
+    print('🔴 SECURITY MODE ACTIVATED');
+    print(
+        '🔴 Limiting app functionality for ${_securityCooldown.inMinutes} minutes');
+
+    // แสดงแจ้งเตือนให้ผู้ใช้
+    if (mounted) {
+      _showBadgeAlert(
+        '🔒 ระบบตรวจพบการใช้งานผิดปกติ',
+        Colors.red,
+        10000, // 10 วินาที
+      );
+    }
+
+    // ลดการทำงานของระบบ
+    _progressiveBeepTimer?.cancel();
+    _badgeResetTimer?.cancel();
+
+    // ตั้งเวลาปิดโหมดความปลอดภัย
+    Timer(_securityCooldown, () {
+      _deactivateSecurityMode();
+    });
+  }
+
+  /// ปิดโหมดความปลอดภัย
+  void _deactivateSecurityMode() {
+    _isSecurityModeActive = false;
+    _suspiciousActivityCount = 0;
+
+    print('🟢 Security mode deactivated');
+
+    if (mounted) {
+      _showBadgeAlert(
+        '✅ ระบบกลับสู่การทำงานปกติ',
+        Colors.green,
+        5000, // 5 วินาที
+      );
+    }
+  }
+
+  /// บันทึกเหตุการณ์ความปลอดภัย
+  void _logSecurityEvent(String eventType, String details) {
+    final event = {
+      'timestamp': DateTime.now().toIso8601String(),
+      'type': eventType,
+      'details': details,
+      'session_duration':
+          DateTime.now().difference(_sessionStartTime).inMinutes,
+      'current_speed': currentSpeed.toInt(),
+      'last_valid_speed':
+          _lastValidSpeed?.toInt() ?? 0, // ใช้ความเร็วที่ถูกต้องล่าสุด
+      'suspicious_count': _suspiciousActivityCount,
+    };
+
+    print('📊 Security Event Logged: $event');
+    // ในอนาคตอาจส่งไป Firebase Analytics หรือ logging service
+  }
+
+  // ==================== RESOURCE PROTECTION SYSTEM ====================
+
+  /// เริ่มตรวจสอบการใช้ทรัพยากร
+  void _startResourceMonitoring() {
+    print('📊 Starting resource monitoring...');
+
+    // ตรวจสอบการใช้ทรัพยากรทุกนาที
+    _resourceMonitorTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      _checkResourceUsage();
+      // รีเซ็ตตัวนับรายนาทีใน Security Service
+      SpeedCameraSecurityService.resetMinuteCounters();
+    });
+  }
+
+  /// ตรวจสอบการใช้ทรัพยากรมากเกินไป
+  void _checkResourceUsage() {
+    final now = DateTime.now();
+
+    // รีเซ็ตตัวนับการเคลื่อนไหวแผนที่ทุกนาที
+    if (_lastMapMovement != null &&
+        now.difference(_lastMapMovement!).inMinutes >= 1) {
+      print('📊 Map movements in last minute: $_mapMovementCount');
+
+      if (_mapMovementCount > _maxMapMovements) {
+        _trackSuspiciousActivity('excessive_map_movement',
+            'Map moved $_mapMovementCount times in 1 minute');
+      }
+
+      _mapMovementCount = 0;
+      _lastMapMovement = now;
+    }
+
+    // ตรวจสอบ memory และ performance metrics
+    _checkPerformanceMetrics();
+  }
+
+  /// ตรวจสอบ performance metrics
+  void _checkPerformanceMetrics() {
+    // ตรวจสอบจำนวน timer ที่ทำงาน
+    final activeTimers = [
+      _progressiveBeepTimer,
+      _badgeResetTimer,
+      _followModeResetTimer,
+      _securityCheckTimer,
+      _resourceMonitorTimer,
+      _connectionCheckTimer,
+      _preloadTimer,
+      _cameraCleanupTimer,
+    ].where((timer) => timer != null).length;
+
+    if (activeTimers > 8) {
+      print('⚠️ Too many active timers: $activeTimers');
+      _trackSuspiciousActivity(
+          'excessive_timers', 'Active timers: $activeTimers');
+    }
+
+    // ตรวจสอบจำนวน speed cameras ที่โหลด
+    if (speedCameras.length > 10000) {
+      print('⚠️ Too many speed cameras loaded: ${speedCameras.length}');
+    }
+
+    print(
+        '📊 Performance check - Timers: $activeTimers, Cameras: ${speedCameras.length}');
+  }
+
+  // ==================== DATA VALIDATION SYSTEM ====================
+
+  /// ตรวจสอบความปลอดภัยก่อนเริ่ม Progressive Beep
+  bool _isSecureToPlayBeep() {
+    if (_isSecurityModeActive) {
+      print('🔒 Progressive beep blocked - Security mode active');
+      return false;
+    }
+
+    if (_suspiciousActivityCount >= _maxSuspiciousActivity / 2) {
+      print('⚠️ Progressive beep limited - Suspicious activity detected');
+      return false;
+    }
+
+    return true;
   }
 
   Future<void> _initializeSmartMapSystem() async {
@@ -115,6 +665,39 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     await _soundManager.initialize();
   }
 
+  // ระบบล้างข้อมูลกล้องที่เตือนแล้ว - ทุก 5 นาที
+  void _startCameraCleanupTimer() {
+    _cameraCleanupTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      final oldSize = _alertedCameras.length;
+      _alertedCameras.clear();
+
+      print('=== CAMERA CLEANUP ===');
+      print('Cleared ${oldSize} alerted cameras');
+      print('Progressive Beep system reset');
+      print('=====================');
+    });
+  }
+
+  // ฟังก์ชันเปิด wakelock เพื่อป้องกันหน้าจอดับ
+  Future<void> _enableWakelock() async {
+    try {
+      await WakelockPlus.enable();
+      print('✅ Wakelock enabled - Screen will stay on');
+    } catch (e) {
+      print('❌ Failed to enable wakelock: $e');
+    }
+  }
+
+  // ฟังก์ชันปิด wakelock เมื่อออกจากหน้า
+  Future<void> _disableWakelock() async {
+    try {
+      await WakelockPlus.disable();
+      print('🔒 Wakelock disabled - Screen can turn off normally');
+    } catch (e) {
+      print('❌ Failed to disable wakelock: $e');
+    }
+  }
+
   @override
   void dispose() {
     _positionSubscription?.cancel();
@@ -123,8 +706,26 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _preloadTimer?.cancel();
     _followModeResetTimer?.cancel(); // เพิ่ม timer ใหม่
     _badgeResetTimer?.cancel(); // เพิ่ม badge timer
+    _progressiveBeepTimer?.cancel(); // เพิ่ม progressive beep timer
+    _cameraCleanupTimer?.cancel(); // เพิ่ม camera cleanup timer
+    _loginPromptTimer?.cancel(); // เพิ่ม login prompt timer
+
+    // ==================== SECURITY CLEANUP ====================
+    _securityCheckTimer?.cancel(); // ยกเลิก security monitoring
+    _resourceMonitorTimer?.cancel(); // ยกเลิก resource monitoring
+
+    // ล้างข้อมูล security
+    SpeedCameraSecurityService.dispose(); // ล้างข้อมูล Security Service
+    _speedHistory.clear();
+    _alertedCameras.clear();
+    _suspiciousActivityCount = 0;
+
+    print('🔒 Security system cleaned up');
+    print('📊 Resource monitoring stopped');
+
     _soundManager.dispose();
     mapController.dispose();
+    _disableWakelock(); // ปิด wakelock เมื่อออกจากหน้า
     super.dispose();
   }
 
@@ -208,13 +809,44 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   void _startSpeedTracking() {
     // ติดตามความเร็วและทิศทางการเดินทางแบบ real-time
     _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
+      locationSettings: LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 5, // อัปเดตทุก 5 เมตร
+        distanceFilter:
+            currentSpeed > 30 ? 8 : 5, // ปรับ distance filter ตามความเร็ว
+        timeLimit: const Duration(seconds: 10), // เพิ่ม timeout
       ),
     ).listen((Position position) {
       if (mounted) {
         final newPosition = LatLng(position.latitude, position.longitude);
+
+        // ==================== SECURITY VALIDATION ====================
+
+        // ตรวจสอบความถูกต้องของข้อมูล GPS ด้วย Security Service
+        final securityCheck =
+            SpeedCameraSecurityService.validateGPSData(position);
+        if (!securityCheck.isValid) {
+          print('🚨 Invalid GPS data detected, skipping update');
+          // แสดงการละเมิดความปลอดภัย
+          for (final violation in securityCheck.violations) {
+            _trackSuspiciousActivity(violation.type, violation.description);
+          }
+          return;
+        }
+
+        // เพิ่มประวัติความเร็วสำหรับการตรวจสอบความปลอดภัย
+        _speedHistory.add(position);
+        if (_speedHistory.length > 20) {
+          _speedHistory.removeAt(0); // เก็บเฉพาะ 20 จุดล่าสุด
+        }
+
+        // ตรวจสอบความเร็วที่สมเหตุสมผล
+        final speedKmh = position.speed * 3.6;
+        if (speedKmh > _maxReasonableSpeed) {
+          _trackSuspiciousActivity('unrealistic_speed',
+              'Speed: ${speedKmh.toInt()} km/h at ${position.latitude}, ${position.longitude}');
+        } else {
+          _lastValidSpeed = speedKmh;
+        }
 
         // เพิ่มประวัติตำแหน่งสำหรับระบบ Predict Movement
         _positionHistory.add(position);
@@ -226,10 +858,22 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           currentPosition = newPosition;
           currentSpeed = position.speed * 3.6; // m/s เป็น km/h
 
+          // บันทึกการเคลื่อนไหวสำหรับระบบ Smart Login Detection
+          _recordMovementForLoginDetection(newPosition);
+
           // อัปเดตทิศทางการเดินทางจาก GPS (เฉพาะเมื่อเคลื่อนที่)
           if (currentSpeed > 5.0 && position.heading.isFinite) {
-            _smoothTravelHeading =
-                _interpolateHeading(_smoothTravelHeading, position.heading);
+            // ตรวจสอบความแตกต่างของมุมก่อนการอัปเดต
+            final headingDiff = (position.heading - _smoothTravelHeading).abs();
+            final normalizedDiff =
+                headingDiff > 180 ? 360 - headingDiff : headingDiff;
+
+            // อัปเดตเฉพาะเมื่อมีการเปลี่ยนแปลงที่มีนัยสำคัญ (> 1.5 องศา)
+            // ลดจาก 2.0 เป็น 1.5 เพื่อความไวในการตอบสนอง
+            if (normalizedDiff > 1.5) {
+              _smoothTravelHeading =
+                  _interpolateHeading(_smoothTravelHeading, position.heading);
+            }
           }
         });
 
@@ -365,17 +1009,23 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       // คำนวณความเร็วการเคลื่อนไหวตามความเร็วของยานพาหนะ
       double targetZoom = mapController.camera.zoom;
 
-      // ปรับ zoom อัตโนมัติตามความเร็ว
+      // ปรับ zoom อัตโนมัติตามความเร็ว - ปรับปรุงให้นุ่มนวลขึ้น
       if (currentSpeed < 30) {
-        targetZoom = 16.0; // ซูมใกล้เมื่อขับช้า
+        targetZoom = 16.5; // ซูมใกล้เมื่อขับช้า
       } else if (currentSpeed < 60) {
-        targetZoom = 15.0; // ซูมกลางเมื่อขับปกติ
+        targetZoom = 15.5; // ซูมกลางเมื่อขับปกติ
+      } else if (currentSpeed < 90) {
+        targetZoom = 14.5; // ซูมไกลเมื่อขับเร็ว
       } else {
-        targetZoom = 14.0; // ซูมไกลเมื่อขับเร็ว
+        targetZoom = 13.5; // ซูมไกลมากเมื่อขับเร็วมาก
       }
 
-      // เคลื่อนไหวแบบนุ่มนวลพร้อมปรับ zoom
-      mapController.move(newPosition, targetZoom);
+      // เคลื่อนไหวแบบนุ่มนวลพร้อมปรับ zoom - ใช้ค่า target zoom ที่คำนวณได้
+      final currentZoom = mapController.camera.zoom;
+      final smoothZoom = currentZoom +
+          ((targetZoom - currentZoom) * 0.1); // Gradual zoom change
+
+      mapController.move(newPosition, smoothZoom);
     } catch (e) {
       print('MapController error in intelligent camera movement: $e');
     }
@@ -384,6 +1034,32 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   // ตรวจจับการโต้ตอบของผู้ใช้กับแผนที่
   void _onMapInteraction() {
     final now = DateTime.now();
+
+    // บันทึกการโต้ตอบสำหรับระบบ Smart Login Detection
+    _recordAppInteraction();
+
+    // ==================== RESOURCE PROTECTION ====================
+
+    // บันทึกการโต้ตอบแผนที่ใน Security Service
+    SpeedCameraSecurityService.recordMapInteraction();
+
+    // นับการเคลื่อนไหวแผนที่
+    _mapMovementCount++;
+    _lastMapMovement ??= now;
+
+    // ตรวจสอบการใช้งานมากเกินไป
+    if (_mapMovementCount > _maxMapMovements) {
+      print(
+          '⚠️ Excessive map interaction detected: $_mapMovementCount movements');
+      _trackSuspiciousActivity(
+          'excessive_map_interaction', 'Map moved $_mapMovementCount times');
+
+      // ลิมิตการทำงานถ้าใช้งานมากเกินไป
+      if (_isSecurityModeActive) {
+        print('🔒 Map interaction blocked - Security mode active');
+        return;
+      }
+    }
 
     setState(() {
       _userIsManuallyControlling = true;
@@ -425,23 +1101,65 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       diff += 360;
     }
 
-    // Smooth interpolation (ปรับค่า 0.3 เพื่อความนุ่มนวล)
-    return currentHeading + (diff * 0.3);
+    // Adaptive smooth interpolation - ปรับตามความเร็วแบบละเอียด
+    double smoothFactor = 0.25; // ค่าเริ่มต้นลดลงเพื่อความนุ่มนวล
+
+    // ปรับตามความเร็วแบบ gradient
+    if (currentSpeed > 80) {
+      smoothFactor = 0.6; // ความเร็วสูงมาก = การเปลี่ยนทิศทางเร็วมาก
+    } else if (currentSpeed > 60) {
+      smoothFactor = 0.5; // ความเร็วสูง = การเปลี่ยนทิศทางเร็วขึ้น
+    } else if (currentSpeed > 40) {
+      smoothFactor = 0.35; // ความเร็วปานกลาง
+    } else if (currentSpeed > 20) {
+      smoothFactor = 0.3; // ความเร็วต่ำ
+    } else if (currentSpeed > 5) {
+      smoothFactor = 0.2; // ความเร็วต่ำมาก = การเปลี่ยนทิศทางช้าลง
+    } else {
+      smoothFactor = 0.1; // เกือบหยุด = การเปลี่ยนทิศทางช้ามาก
+    }
+
+    // เพิ่มการปกป้องจากการกระโดดมุมมาก - ปรับปรุงการคำนวณ
+    if (diff.abs() > 60) {
+      smoothFactor *= 0.3; // ลดมากเมื่อมุมต่างมากกว่า 60 องศา
+    } else if (diff.abs() > 30) {
+      smoothFactor *= 0.5; // ลดปานกลางเมื่อมุมต่างมากกว่า 30 องศา
+    } else if (diff.abs() > 15) {
+      smoothFactor *= 0.7; // ลดเล็กน้อยเมื่อมุมต่างมากกว่า 15 องศา
+    }
+
+    // คำนวณทิศทางใหม่
+    final newHeading = currentHeading + (diff * smoothFactor);
+
+    // ให้แน่ใจว่าผลลัพธ์อยู่ในช่วง 0-360 องศา
+    if (newHeading < 0) {
+      return newHeading + 360;
+    } else if (newHeading >= 360) {
+      return newHeading - 360;
+    }
+
+    return newHeading;
   }
 
-  // Smart tile preloading
+  // Smart tile preloading with performance optimization
   void _schedulePreloadTiles(LatLng position) {
     // Cancel existing timer
     _preloadTimer?.cancel();
 
-    // Schedule preload after 2 seconds to avoid too frequent calls
-    _preloadTimer = Timer(const Duration(seconds: 2), () async {
+    // ปรับเวลา preload ตามความเร็ว
+    final preloadDelay = currentSpeed > 50
+        ? const Duration(milliseconds: 1500) // ความเร็วสูง = preload เร็วขึ้น
+        : const Duration(seconds: 2);
+
+    _preloadTimer = Timer(preloadDelay, () async {
       try {
         // ตรวจสอบว่า SmartTileProvider และ MapController พร้อมใช้งาน
         if (_smartTileProvider != null) {
           final zoom = mapController.camera.zoom.round();
+          // ปรับ radius ตามความเร็ว
+          final radius = currentSpeed > 60 ? 3 : 2;
           await _smartTileProvider!
-              .preloadTilesAround(position, zoom, radius: 2);
+              .preloadTilesAround(position, zoom, radius: radius);
         }
       } catch (e) {
         print('Error preloading tiles: $e');
@@ -491,6 +1209,33 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       distanceToNearestCamera = minDistance;
     });
 
+    // รีเซ็ตกล้องที่เตือนแล้วเมื่อห่างเกิน 100 เมตร
+    if (closest != null && minDistance > 100) {
+      final removedCount = _alertedCameras.length;
+      _alertedCameras.removeWhere((cameraId) {
+        // หาระยะทางของกล้องที่เตือนแล้วทั้งหมด
+        final alertedCamera = speedCameras.firstWhere(
+          (cam) => cam.id == cameraId,
+          orElse: () => speedCameras.first, // fallback ถ้าไม่เจอ
+        );
+        final distanceToAlertedCamera = Geolocator.distanceBetween(
+          currentPosition.latitude,
+          currentPosition.longitude,
+          alertedCamera.location.latitude,
+          alertedCamera.location.longitude,
+        );
+        return distanceToAlertedCamera > 100; // ลบออกถ้าห่างเกิน 100 เมตร
+      });
+
+      if (removedCount != _alertedCameras.length) {
+        print('=== CAMERA RESET BY DISTANCE ===');
+        print(
+            'Removed ${removedCount - _alertedCameras.length} cameras from alerted list');
+        print('Remaining alerted cameras: ${_alertedCameras.length}');
+        print('=================================');
+      }
+    }
+
     // แจ้งเตือนอัจฉริยะตามความเร็วและทิศทาง
     if (closest != null) {
       _checkAdvancedWarning(closest, minDistance, cameraDirection);
@@ -516,32 +1261,200 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
       }
     }
 
-    // นับกล้องที่ผ่าน
+    // Progressive Beep Alert - เมื่ออยู่ในระยะ 50 เมตร และเคลื่อนที่
+    if (distance <= 50 && currentSpeed > 5.0) {
+      final isInTravelDirection = _isCameraInTravelDirection(cameraDirection);
+      if (isInTravelDirection) {
+        _startProgressiveBeep(camera, distance);
+      }
+    } else if (distance > 60 || currentSpeed <= 5.0) {
+      // หยุด Progressive Beep เมื่อห่างจากกล้อง หรือหยุด/ขับช้าเกินไป (ไฟแดง/ติดรถ)
+      _stopProgressiveBeep();
+    }
+
+    // ตรวจสอบเมื่ออยู่ใกล้กล้องมาก (≤ 50m)
     if (distance <= 50 && currentSpeed > 10) {
       _logCameraPassing(camera);
     }
   }
 
-  // บันทึกสถิติการผ่านกล้อง
+  // บันทึกสถิติการใกล้กล้อง
   void _logCameraPassing(SpeedCamera camera) {
     final wasOverSpeed = currentSpeed > camera.speedLimit;
 
-    print('Camera passed: ${camera.roadName}, Speed: ${currentSpeed.toInt()}, '
+    // หยุด Progressive Beep เมื่ออยู่ใกล้กล้องมาก (≤ 50m)
+    _stopProgressiveBeep();
+
+    // เล่นเสียงแจ้งเตือนเมื่ออยู่ใกล้กล้อง
+    if (wasOverSpeed) {
+      _soundManager.playProximityAlert(
+        message: 'อยู่ใกล้กล้องจับความเร็ว โปรดลดความเร็ว',
+        distance: 50.0,
+      );
+
+      // แสดงแจ้งเตือนใน Badge
+      _showBadgeAlert(
+        '⚠️ อยู่ใกล้กล้อง โปรดลดความเร็ว',
+        Colors.red,
+        5000, // 5 วินาที
+      );
+    } else {
+      _soundManager.playProximityAlert(
+        message: 'อยู่ใกล้กล้องจับความเร็ว ความเร็วเหมาะสม',
+        distance: 50.0,
+      );
+
+      // แสดงแจ้งเตือนใน Badge
+      _showBadgeAlert(
+        '✅ อยู่ใกล้กล้อง ความเร็วเหมาะสม',
+        Colors.green,
+        4000, // 4 วินาที
+      );
+    }
+
+    print('Near camera: ${camera.roadName}, Speed: ${currentSpeed.toInt()}, '
         'Limit: ${camera.speedLimit}, Over: $wasOverSpeed');
 
     // อาจจะส่งข้อมูลไป Analytics ในอนาคต
   }
 
-  // คำนวณระยะแจ้งเตือนที่เหมาะสม
-  double _calculateOptimalAlertDistance(double speed, int speedLimit) {
-    // ยิ่งเร็วยิ่งแจ้งเตือนไกลขึ้น
-    final brakingDistance = (speed * speed) / (2 * 8); // สูตรการเบรก (m)
-    final reactionDistance = speed * 1.5; // ระยะการตอบสนอง (m)
-    final calculatedDistance =
-        brakingDistance + reactionDistance + 200; // บัฟเฟอร์ 200m
+  // คำนวณ Beep Interval ตามระยะทาง - Progressive Timing
+  int _calculateBeepInterval(double distance) {
+    if (distance <= 10) {
+      return 500; // 0.5 วินาที (ติดๆ)
+    } else if (distance <= 20) {
+      return 1000; // 1 วินาที
+    } else if (distance <= 30) {
+      return 2000; // 2 วินาที
+    } else if (distance <= 50) {
+      return 3000; // 3 วินาที
+    } else {
+      return 0; // ไม่เล่นเสียง
+    }
+  }
 
-    // ระยะขั้นต่ำ 300m, สูงสุด 800m
-    return calculatedDistance.clamp(300.0, 800.0);
+  // เริ่ม Progressive Beep Alert
+  void _startProgressiveBeep(SpeedCamera camera, double distance) {
+    // ==================== SECURITY CHECK ====================
+
+    // ตรวจสอบความปลอดภัยก่อนเล่นเสียงด้วย Security Service
+    if (!SpeedCameraSecurityService.canPlayAlert()) {
+      print('🔒 Progressive beep blocked by security service');
+      return;
+    }
+
+    // ตรวจสอบความปลอดภัยเพิ่มเติม
+    if (!_isSecureToPlayBeep()) {
+      return;
+    }
+
+    // ตรวจสอบว่าเตือนกล้องนี้แล้วหรือยัง
+    if (_alertedCameras.contains(camera.id)) {
+      print('=== PROGRESSIVE BEEP SKIPPED ===');
+      print('Camera already alerted: ${camera.roadName}');
+      print('Distance: ${distance.toInt()}m');
+      print('Reason: Preventing duplicate alerts');
+      print('=================================');
+      return; // เคยเตือนแล้ว ไม่เตือนซ้ำ
+    }
+
+    // ตรวจสอบว่าเป็นกล้องเดียวกันและระยะใกล้เคียงกันหรือไม่
+    if (_currentBeepCamera?.id == camera.id &&
+        (distance - _lastBeepDistance).abs() < 5) {
+      return; // ไม่ต้องเริ่มใหม่ถ้าเป็นกล้องเดียวกันและระยะไม่เปลี่ยนมาก
+    }
+
+    // เพิ่มกล้องเข้าลิสต์ที่เตือนแล้ว
+    _alertedCameras.add(camera.id);
+
+    // หยุด Progressive Beep เก่า
+    _stopProgressiveBeep();
+
+    // เริ่ม Progressive Beep ใหม่
+    _currentBeepCamera = camera;
+    _lastBeepDistance = distance;
+    _isProgressiveBeepActive = true;
+
+    final beepInterval = _calculateBeepInterval(distance);
+    if (beepInterval > 0) {
+      print('=== PROGRESSIVE BEEP START ===');
+      print('Camera: ${camera.roadName}');
+      print('Distance: ${distance.toInt()}m');
+      print('Beep interval: ${beepInterval}ms');
+      print('Added to alerted list: ${camera.id}');
+      print('Total alerted cameras: ${_alertedCameras.length}');
+      print(
+          'Security status: ${_isSecurityModeActive ? "RESTRICTED" : "NORMAL"}');
+      print('================================');
+
+      // เล่นเสียงทันที
+      _soundManager.playProgressiveBeep();
+
+      // ตั้ง Timer สำหรับเสียงต่อไป
+      _progressiveBeepTimer = Timer.periodic(
+        Duration(milliseconds: beepInterval),
+        (timer) {
+          if (!_isProgressiveBeepActive || !mounted) {
+            timer.cancel();
+            return;
+          }
+
+          // ตรวจสอบความปลอดภัยอีกครั้งก่อนเล่นเสียงต่อไป
+          if (!_isSecureToPlayBeep()) {
+            timer.cancel();
+            _stopProgressiveBeep();
+            return;
+          }
+
+          _soundManager.playProgressiveBeep();
+        },
+      );
+
+      // แสดง Badge แจ้งสถานะ
+      _showBadgeAlert(
+        '🔊 เรดาร์กล้อง ${distance.toInt()}m',
+        const Color(0xFF1158F2),
+        beepInterval + 1000, // แสดงนานกว่า interval เล็กน้อย
+      );
+    }
+  }
+
+  // หยุด Progressive Beep Alert
+  void _stopProgressiveBeep() {
+    if (_isProgressiveBeepActive) {
+      print('=== PROGRESSIVE BEEP STOP ===');
+      _progressiveBeepTimer?.cancel();
+      _progressiveBeepTimer = null;
+      _currentBeepCamera = null;
+      _lastBeepDistance = 0.0;
+      _isProgressiveBeepActive = false;
+    }
+  }
+
+  // คำนวณระยะแจ้งเตือนที่เหมาะสม - ปรับปรุงตาม 100km/h = 800m
+  double _calculateOptimalAlertDistance(double speed, int speedLimit) {
+    // กำหนดจุดอ้างอิง: 100 km/h = 800 เมตร
+    const referenceSpeed = 100.0; // km/h
+    const referenceDistance = 800.0; // เมตร
+
+    // คำนวณระยะตามสัดส่วนของความเร็ว
+    // ใช้สูตร: distance = (speed/100)² × 800
+    // เพื่อให้ระยะเพิ่มขึ้นแบบกำลังสองตามความเร็ว
+    final speedRatio = speed / referenceSpeed;
+    final calculatedDistance = speedRatio * speedRatio * referenceDistance;
+
+    // จำกัดระยะ: ขั้นต่ำ 200m, สูงสุด 1000m
+    final finalDistance = calculatedDistance.clamp(200.0, 1000.0);
+
+    // Debug log สำหรับตรวจสอบ
+    print('=== ALERT DISTANCE CALCULATION ===');
+    print('Speed: ${speed.toStringAsFixed(1)} km/h');
+    print('Speed ratio: ${speedRatio.toStringAsFixed(2)}');
+    print('Calculated distance: ${calculatedDistance.toStringAsFixed(1)} m');
+    print('Final distance: ${finalDistance.toStringAsFixed(1)} m');
+    print('====================================');
+
+    return finalDistance;
   }
 
   // ตรวจสอบว่ากล้องอยู่ในทิศทางการเดินทาง
@@ -662,8 +1575,15 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   Widget _buildTravelDirectionMarker() {
     // ใช้ทิศทางการเดินทางจาก GPS
-    final angle = _smoothTravelHeading * (3.14159 / 180); // องศาเป็น Radian
     final markerColor = const Color(0xFF1158F2); // สีน้ำเงินหลักของแอป
+
+    // คำนวณ duration ตามความเร็ว - เร็วขึ้นเมื่อความเร็วสูง
+    final animationDuration = currentSpeed > 60
+        ? const Duration(milliseconds: 150) // ความเร็วสูง = หมุนเร็ว
+        : currentSpeed > 30
+            ? const Duration(milliseconds: 250) // ความเร็วปานกลาง
+            : const Duration(
+                milliseconds: 400); // ความเร็วต่ำ = หมุนช้า นุ่มนวล
 
     return Stack(
       alignment: Alignment.center,
@@ -682,9 +1602,11 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           ),
         ),
 
-        // ลูกศรนำทางสีน้ำเงิน - แบบเรียบง่าย
-        Transform.rotate(
-          angle: angle,
+        // ลูกศรนำทางสีน้ำเงิน - แบบสมูทและนุ่มนวล
+        AnimatedRotation(
+          turns: _smoothTravelHeading / 360, // แปลงจากองศาเป็น turns (0-1)
+          duration: animationDuration, // ใช้ duration ที่คำนวณตามความเร็ว
+          curve: Curves.easeInOutCubic, // curve ที่นุ่มนวลมากขึ้น
           child: Icon(
             Icons.navigation,
             color: markerColor, // สีน้ำเงินเดิม
@@ -772,6 +1694,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                             duration: const Duration(milliseconds: 300),
                             child: SpeedCameraMarker(
                               camera: camera,
+                              onTap: () =>
+                                  _recordAppInteraction(), // บันทึกการโต้ตอบ
                             ),
                           ),
                         )),
@@ -809,8 +1733,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                     // ส่วนซ้าย - ไอคอนและข้อความ
                     SvgPicture.asset(
                       'assets/icons/speed_camera_screen/speed camera2.svg',
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       colorFilter: const ColorFilter.mode(
                         Colors.black,
                         BlendMode.srcIn,
@@ -845,7 +1769,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                           style: const TextStyle(
                             color: Colors.black,
                             fontFamily: 'Kanit',
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -856,7 +1780,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
                     const SizedBox(width: 8), // เพิ่มระยะห่างเล็กน้อย
 
-                    // ส่วนขวา - ปุ่มตั้งค่าเสียง (ไม่มีกรอบพื้นหลัง)
+                    // ส่วนขวา - ปุ่มตั้งค่าเสียง
                     Tooltip(
                       message: 'ตั้งค่าเสียงแจ้งเตือน',
                       textStyle: const TextStyle(
@@ -870,6 +1794,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                       ),
                       child: GestureDetector(
                         onTap: () {
+                          _recordAppInteraction(); // บันทึกการโต้ตอบ
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -938,6 +1863,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                     size: 18,
                   ),
                   onPressed: () {
+                    _recordAppInteraction(); // บันทึกการโต้ตอบ
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -980,122 +1906,188 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
           // Bottom speed panel - DraggableScrollableSheet with smart bottom margin
           // แสดงการ์ดเฉพาะเมื่อโหลดข้อมูลเสร็จแล้ว
           if (!isLoadingLocation && !isLoadingCameras)
-            DraggableScrollableSheet(
-              initialChildSize: 0.30, // เริ่มต้นที่ 30% - แสดงข้อมูลเต็ม
-              minChildSize: 0.08, // ต่ำสุด 8% - ซ่อนเกือบหมดแต่ยังมองเห็น
-              maxChildSize: 0.30, // สูงสุด 30% - พอดีกับที่ต้องการ
-              snap: true, // snap ไปยังตำแหน่งที่กำหนด
-              snapSizes: const [
-                0.08, // ซ่อนเกือบหมด - เหลือไว้นิดนึงเพื่อให้ดึงขึ้นได้
-                0.30, // แสดงข้อมูลเต็ม - ตรงกับ initial และ max
-              ], // 2 ระดับที่สอดคล้องกัน
-              builder: (context, scrollController) {
-                // ระบบตรวจสอบ Navigation Bar อัจฉริยะ
-                final mediaQuery = MediaQuery.of(context);
-                final bottomPadding = mediaQuery.viewPadding.bottom;
-                final bottomInset = mediaQuery.viewInsets.bottom;
-                final screenHeight = mediaQuery.size.height;
+            Builder(builder: (context) {
+              // ตรวจสอบอุปกรณ์มี navigation bar หรือไม่
+              final hasNavigationBar =
+                  MediaQuery.of(context).viewPadding.bottom > 0;
 
-                // ตรวจสอบว่ามี navigation bar หรือไม่
-                final hasNavigationBar = bottomPadding > 0;
-                final hasKeyboard = bottomInset > 0;
+              return DraggableScrollableSheet(
+                initialChildSize: hasNavigationBar
+                    ? 0.30
+                    : 0.25, // อุปกรณ์ไม่มี nav bar เริ่มต้นที่ 25%
+                minChildSize: hasNavigationBar ? 0.10 : 0.04, // ปรับตามอุปกรณ์
+                maxChildSize: hasNavigationBar
+                    ? 0.30
+                    : 0.25, // อุปกรณ์ไม่มี nav bar สูงสุด 25%
+                snap: true, // snap ไปยังตำแหน่งที่กำหนด
+                snapSizes: hasNavigationBar
+                    ? const [0.10, 0.30] // อุปกรณ์มี nav bar
+                    : const [
+                        0.04,
+                        0.25
+                      ], // อุปกรณ์ไม่มี nav bar - ใช้พื้นที่น้อยลง
+                builder: (context, scrollController) {
+                  // ระบบตรวจสอบ Navigation Bar อัจฉริยะ - ปรับปรุงใหม่
+                  final mediaQuery = MediaQuery.of(context);
+                  final bottomPadding = mediaQuery.viewPadding.bottom;
+                  final bottomInset = mediaQuery.viewInsets.bottom;
+                  final screenHeight = mediaQuery.size.height;
+                  final devicePixelRatio = mediaQuery.devicePixelRatio;
 
-                // คำนวณขนาดการ์ดปัจจุบัน
-                final currentSheetHeight = scrollController.hasClients
-                    ? scrollController.offset
-                    : 0.30 * screenHeight; // ค่าเริ่มต้น 30%
+                  // ตรวจสอบว่ามี navigation bar หรือไม่
+                  final hasNavigationBar = bottomPadding > 0;
+                  final hasKeyboard = bottomInset > 0;
+                  final isFullScreen = bottomPadding == 0 && bottomInset == 0;
 
-                // กำหนด smart margin ตามสถานการณ์
-                double smartBottomMargin = 0;
-                if (hasNavigationBar && !hasKeyboard) {
-                  // มี navigation bar แต่ไม่มีคีย์บอร์ด
-                  if (currentSheetHeight < 0.08 * screenHeight) {
-                    // การ์ดซ่อนเกือบหมด - ให้ margin น้อยหน่อย
-                    smartBottomMargin = bottomPadding * 0.3;
-                  } else {
-                    // การ์ดแสดงปกติ - ใช้ margin เต็ม
-                    smartBottomMargin = bottomPadding;
+                  // คำนวณขนาดการ์ดปัจจุบันแบบแม่นยำ
+                  double currentSheetSize = 0.30; // ค่าเริ่มต้น
+                  if (scrollController.hasClients) {
+                    // ใช้ DraggableScrollableController สำหรับการคำนวณที่แม่นยำ
+                    // เนื่องจาก scrollController ปกติไม่มี pixels property
+                    // เราจะใช้การประมาณจากสถานะปัจจุบัน
+                    try {
+                      final position = scrollController.position;
+                      final viewportDimension = position.viewportDimension;
+                      final maxScrollExtent = position.maxScrollExtent;
+
+                      if (maxScrollExtent > 0 && viewportDimension > 0) {
+                        final scrollOffset = position.pixels;
+                        final scrollRatio = scrollOffset / maxScrollExtent;
+                        currentSheetSize = 0.08 + (scrollRatio * (0.30 - 0.08));
+                      }
+                    } catch (e) {
+                      print('Error calculating sheet size: $e');
+                      // ใช้ค่าเริ่มต้นหากเกิดข้อผิดพลาด
+                      currentSheetSize = 0.30;
+                    }
                   }
-                } else if (hasKeyboard) {
-                  // มีคีย์บอร์ดเปิด - ไม่ต้อง margin เพิ่ม
-                  smartBottomMargin = 0;
-                }
 
-                return Container(
-                  // ใช้ Smart Bottom Margin ที่คำนวณแล้ว
-                  margin: EdgeInsets.only(
-                    bottom: smartBottomMargin,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
+                  // Debug: แสดงข้อมูลการตรวจสอบ
+                  print('=== NAVIGATION BAR DETECTION ===');
+                  print('bottomPadding: ${bottomPadding}px');
+                  print('bottomInset: ${bottomInset}px');
+                  print('screenHeight: ${screenHeight}px');
+                  print('devicePixelRatio: $devicePixelRatio');
+                  print('hasNavigationBar: $hasNavigationBar');
+                  print('hasKeyboard: $hasKeyboard');
+                  print('isFullScreen: $isFullScreen');
+                  print(
+                      'currentSheetSize: ${(currentSheetSize * 100).toStringAsFixed(1)}%');
+
+                  // กำหนด smart margin ตามสถานการณ์ - ปรับปรุงใหม่
+                  double smartBottomMargin = 0;
+
+                  if (hasNavigationBar && !hasKeyboard) {
+                    // มี navigation bar แต่ไม่มีคีย์บอร์ด
+                    if (currentSheetSize < 0.12) {
+                      // การ์ดซ่อนเกือบหมด (< 12%) - ให้ margin น้อย
+                      smartBottomMargin = bottomPadding * 0.2;
+                      print(
+                          'Case: Card minimized with nav bar - margin: ${smartBottomMargin}px');
+                    } else {
+                      // การ์ดแสดงปกติ - ใช้ margin เต็ม
+                      smartBottomMargin = bottomPadding;
+                      print(
+                          'Case: Card expanded with nav bar - margin: ${smartBottomMargin}px');
+                    }
+                  } else if (hasKeyboard) {
+                    // มีคีย์บอร์ดเปิด - ไม่ต้อง margin เพิ่ม
+                    smartBottomMargin = 0;
+                    print('Case: Keyboard open - margin: 0px');
+                  } else if (isFullScreen) {
+                    // โหมดเต็มจอ/ไม่มี navigation bar
+                    if (currentSheetSize < 0.12) {
+                      // การ์ดซ่อนเกือบหมด - ไม่ต้อง margin และปรับ minChildSize
+                      smartBottomMargin = 0;
+                      print(
+                          'Case: Card minimized, no nav bar - no margin: ${smartBottomMargin}px');
+                    } else {
+                      // การ์ดแสดงปกติ - ไม่ต้อง margin
+                      smartBottomMargin = 0;
+                      print('Case: Card expanded, no nav bar - margin: 0px');
+                    }
+                  }
+
+                  print('Final smartBottomMargin: ${smartBottomMargin}px');
+                  print('=====================================');
+
+                  // สร้าง Container ธรรมดา (ไม่ใช้ Transform.translate)
+                  return Container(
+                    // ใช้ Smart Bottom Margin ที่คำนวณแล้ว
+                    margin: EdgeInsets.only(
+                      bottom: smartBottomMargin,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
                       ),
-                    ],
-                  ),
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: Column(
-                      children: [
-                        // Drag handle bar
-                        Container(
-                          margin: const EdgeInsets.only(top: 8, bottom: 8),
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-
-                        // Content - ปรับการแสดงผลตามขนาดการ์ด
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // แสดงความเร็วปัจจุบัน - แสดงเสมอ
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  _buildSpeedCard(
-                                    'ความเร็วปัจจุบัน',
-                                    '${currentSpeed.toInt()}',
-                                    'km/h',
-                                    currentSpeed >
-                                            (nearestCamera?.speedLimit ?? 120)
-                                        ? Colors.red
-                                        : const Color(0xFF1158F2),
-                                  ),
-                                  if (nearestCamera != null)
-                                    _buildSpeedCard(
-                                      'จำกัดความเร็ว',
-                                      '${nearestCamera!.speedLimit}',
-                                      'km/h',
-                                      Colors.orange,
-                                    ),
-                                ],
-                              ),
-
-                              // เพิ่มพื้นที่ว่างท้าย
-                              const SizedBox(height: 8),
-                            ],
-                          ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, -2),
                         ),
                       ],
                     ),
-                  ),
-                );
-              },
-            ), // ปิด DraggableScrollableSheet
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Column(
+                        children: [
+                          // Drag handle bar
+                          Container(
+                            margin: const EdgeInsets.only(top: 8, bottom: 8),
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+
+                          // Content - ปรับการแสดงผลตามขนาดการ์ด
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // แสดงความเร็วปัจจุบัน - แสดงเสมอ
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildSpeedCard(
+                                      'ความเร็วปัจจุบัน',
+                                      '${currentSpeed.toInt()}',
+                                      'km/h',
+                                      currentSpeed >
+                                              (nearestCamera?.speedLimit ?? 120)
+                                          ? Colors.red
+                                          : const Color(0xFF1158F2),
+                                    ),
+                                    if (nearestCamera != null)
+                                      _buildSpeedCard(
+                                        'จำกัดความเร็ว',
+                                        '${nearestCamera!.speedLimit}',
+                                        'km/h',
+                                        Colors.orange,
+                                      ),
+                                  ],
+                                ),
+
+                                // เพิ่มพื้นที่ว่างท้าย
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
         ],
       ),
     );

@@ -256,7 +256,7 @@ class _ReportScreenState extends State<ReportScreen> {
         return AlertDialog(
           title: const Text(
             'เลือกแหล่งรูปภาพ',
-            style: TextStyle(fontFamily: 'Kanit'),
+            style: TextStyle(fontFamily: 'NotoSansThai'),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -265,7 +265,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 leading: const Icon(Icons.photo_library),
                 title: const Text(
                   'แกลเลอรี่',
-                  style: TextStyle(fontFamily: 'Kanit'),
+                  style: TextStyle(fontFamily: 'NotoSansThai'),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -276,7 +276,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 leading: const Icon(Icons.camera_alt),
                 title: const Text(
                   'กล้อง',
-                  style: TextStyle(fontFamily: 'Kanit'),
+                  style: TextStyle(fontFamily: 'NotoSansThai'),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -313,7 +313,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   SizedBox(width: 12),
                   Text(
                     'WebP Compression...',
-                    style: TextStyle(fontFamily: 'Kanit'),
+                    style: TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                 ],
               ),
@@ -337,7 +337,7 @@ class _ReportScreenState extends State<ReportScreen> {
             SnackBar(
               content: Text(
                 'อัพโหลดรูปภาพสำเร็จ!',
-                style: const TextStyle(fontFamily: 'Kanit'),
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
@@ -349,7 +349,7 @@ class _ReportScreenState extends State<ReportScreen> {
             const SnackBar(
               content: Text(
                 'ไม่สามารถประมวลผลรูปภาพได้',
-                style: TextStyle(fontFamily: 'Kanit'),
+                style: TextStyle(fontFamily: 'NotoSansThai'),
               ),
               backgroundColor: Colors.red,
             ),
@@ -364,7 +364,7 @@ class _ReportScreenState extends State<ReportScreen> {
           SnackBar(
             content: Text(
               'เกิดข้อผิดพลาดในการเลือกรูปภาพ: $e',
-              style: const TextStyle(fontFamily: 'Kanit'),
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
           ),
@@ -401,7 +401,7 @@ class _ReportScreenState extends State<ReportScreen> {
         SnackBar(
           content: Text(
             errorMessage,
-            style: const TextStyle(fontFamily: 'Kanit'),
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
@@ -485,7 +485,7 @@ class _ReportScreenState extends State<ReportScreen> {
           const SnackBar(
             content: Text(
               'สำเร็จ',
-              style: TextStyle(fontFamily: 'Kanit'),
+              style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.green,
             duration: Duration(milliseconds: 800), // แสดงแป๊บเดียว
@@ -507,7 +507,7 @@ class _ReportScreenState extends State<ReportScreen> {
           const SnackBar(
             content: Text(
               'ส่งรายงานไม่สำเร็จ: เกินเวลารอคอย กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
-              style: TextStyle(fontFamily: 'Kanit'),
+              style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 5),
@@ -535,7 +535,7 @@ class _ReportScreenState extends State<ReportScreen> {
           SnackBar(
             content: Text(
               '$errorMessage\n\nหากปัญหายังคงอยู่ ลองส่งโดยไม่มีรูปภาพ',
-              style: const TextStyle(fontFamily: 'Kanit'),
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 8),
@@ -573,7 +573,7 @@ class _ReportScreenState extends State<ReportScreen> {
           title: const Text(
             'แจ้งอะไร?',
             style: TextStyle(
-              fontFamily: 'Kanit-ExtraLight',
+              fontFamily: 'NotoSansThai',
               fontWeight: FontWeight.w600,
               color: Colors.black,
             ),
@@ -619,7 +619,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         hint: const Text(
                           'เลือกประเภทเหตุการณ์ *',
                           style: TextStyle(
-                            fontFamily: 'Kanit',
+                            fontFamily: 'NotoSansThai',
                             color: Colors.black,
                           ),
                         ),
@@ -657,7 +657,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
-                                        fontFamily: 'Kanit',
+                                        fontFamily: 'NotoSansThai',
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -687,13 +687,13 @@ class _ReportScreenState extends State<ReportScreen> {
                         decoration: const InputDecoration(
                           hintText: 'รายละเอียด *',
                           hintStyle: TextStyle(
-                            fontFamily: 'Kanit',
+                            fontFamily: 'NotoSansThai',
                             color: Colors.black,
                           ),
                           border: InputBorder.none,
                         ),
                         style: const TextStyle(
-                          fontFamily: 'Kanit',
+                          fontFamily: 'NotoSansThai',
                           color: Colors.black,
                         ),
                       ),
@@ -805,7 +805,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                                 color: Colors.white,
-                                                fontFamily: 'Kanit',
+                                                fontFamily: 'NotoSansThai',
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
@@ -816,7 +816,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                                 fontSize: 12,
                                                 color: Colors.white
                                                     .withValues(alpha: 0.8),
-                                                fontFamily: 'Kanit',
+                                                fontFamily: 'NotoSansThai',
                                               ),
                                             ),
                                           ],
@@ -874,7 +874,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                             fontSize: 14,
                                             color: Colors.grey.shade600,
                                             fontStyle: FontStyle.italic,
-                                            fontFamily: 'Kanit',
+                                            fontFamily: 'NotoSansThai',
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -901,7 +901,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                             fontSize: 18,
                                             color: Colors.black,
                                             fontWeight: FontWeight.w500,
-                                            fontFamily: 'Kanit-ExtraLight',
+                                            fontFamily: 'NotoSansThai',
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -911,7 +911,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Colors.grey.shade600,
-                                            fontFamily: 'Kanit',
+                                            fontFamily: 'NotoSansThai',
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -949,7 +949,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.blue.shade700,
-                                  fontFamily: 'Kanit',
+                                  fontFamily: 'NotoSansThai',
                                 ),
                               ),
                             ),
@@ -1036,7 +1036,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                                 style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 12,
-                                                  fontFamily: 'Kanit',
+                                                  fontFamily: 'NotoSansThai',
                                                 ),
                                               ),
                                             ],
@@ -1065,7 +1065,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                   label: const Text(
                                     'เพิ่มรูปภาพ (ไม่บังคับ)',
                                     style: TextStyle(
-                                      fontFamily: 'Kanit',
+                                      fontFamily: 'NotoSansThai',
                                       fontSize: 16,
                                       color: Colors.black,
                                     ),
@@ -1114,8 +1114,8 @@ class _ReportScreenState extends State<ReportScreen> {
                             await _submitReport();
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF9800),
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFFFFC107),
+                      foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(
                           vertical: 12), // ลดจาก 16 เป็น 12
                       shape: RoundedRectangleBorder(
@@ -1129,7 +1129,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                  color: Colors.white,
+                                  color: Colors.black,
                                   strokeWidth: 2,
                                 ),
                               ),
@@ -1139,25 +1139,19 @@ class _ReportScreenState extends State<ReportScreen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  fontFamily: 'Kanit',
+                                  fontFamily: 'NotoSansThai',
+                                  color: Colors.black,
                                 ),
                               ),
                             ],
                           )
-                        : Center(
-                            child: SvgPicture.asset(
-                              'assets/icons/report_screen/submit.svg',
-                              width: 32,
-                              height: 32,
-                              colorFilter: const ColorFilter.mode(
-                                Colors.white,
-                                BlendMode.srcIn,
-                              ),
-                              placeholderBuilder: (context) => const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 32,
-                              ),
+                        : const Text(
+                            'บันทึก',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'NotoSansThai',
+                              color: Colors.black,
                             ),
                           ),
                   ),

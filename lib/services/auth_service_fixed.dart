@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../screens/login_screen.dart';
+// import '../modules/speed_camera/screens/login_screen.dart';
 
 // Mock UserCredential class สำหรับจัดการ type casting error
 class MockUserCredential implements UserCredential {
@@ -93,9 +93,6 @@ class AuthService {
     try {
       print('Starting AuthService initialization...');
 
-      // Clear any cached authentication state to prevent conflicts
-      await _googleSignIn.signOut();
-
       // Setup auth state listener to catch state changes immediately
       _auth.authStateChanges().listen((User? user) {
         final wasLoggedIn = _isUserLoggedIn;
@@ -116,7 +113,7 @@ class AuthService {
       });
 
       // Wait for Firebase Auth to initialize properly
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Check current user and force sync state
       final currentUser = _auth.currentUser;
@@ -158,8 +155,12 @@ class AuthService {
     try {
       print('Starting Google Sign-In process...');
 
-      // ล้าง Google Sign-In cache ก่อน
-      await _googleSignIn.signOut();
+      // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
+      try {
+        await _googleSignIn.signInSilently();
+      } catch (e) {
+        print('Silent sign-in failed: $e');
+      }
 
       print('2. Starting Google Sign-In dialog...');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -172,16 +173,11 @@ class AuthService {
       print('3. Google account selected: ${googleUser.email}');
       print('4. Getting authentication details...');
 
-      final GoogleSignInAuthentication googleAuth;
-      try {
-        googleAuth = await googleUser.authentication;
-      } catch (e) {
-        print('Error getting Google authentication: $e');
-        throw Exception('ไม่สามารถยืนยันตัวตนจาก Google ได้');
-      }
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        throw Exception('ไม่สามารถรับ tokens จาก Google ได้');
+        throw Exception('Failed to get Google authentication tokens');
       }
 
       print('5. Creating Firebase credential...');
@@ -191,68 +187,20 @@ class AuthService {
       );
 
       print('6. Signing in to Firebase...');
-      UserCredential? userCredential;
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
 
-      // ลองล็อกอินหลายครั้งเพื่อจัดการ PigeonUserDetails error
-      for (int attempt = 1; attempt <= 3; attempt++) {
-        try {
-          print('6.${attempt} Firebase sign-in attempt $attempt/3...');
-          userCredential = await _auth.signInWithCredential(credential);
-          print('6.${attempt} Firebase sign-in successful on attempt $attempt');
-          break;
-        } catch (e) {
-          print('6.${attempt} Firebase sign-in error attempt $attempt: $e');
-
-          if (e.toString().contains('PigeonUserDetails') ||
-              e.toString().contains('type cast') ||
-              e.toString().contains('List<Object?>')) {
-            print('6.${attempt} Detected known casting error, retrying...');
-
-            // รอสักครู่แล้วลองใหม่
-            await Future.delayed(Duration(milliseconds: 500 * attempt));
-
-            // ตรวจสอบว่าจริงๆ แล้วล็อกอินสำเร็จหรือไม่
-            await Future.delayed(const Duration(milliseconds: 200));
-            final currentUser = _auth.currentUser;
-            if (currentUser != null && currentUser.email == googleUser.email) {
-              print(
-                  '6.${attempt} Actually logged in successfully despite error');
-              userCredential = MockUserCredential(user: currentUser);
-              break;
-            }
-
-            if (attempt == 3) {
-              // ครั้งสุดท้าย ตรวจสอบอีกครั้ง
-              await Future.delayed(const Duration(milliseconds: 1000));
-              final finalUser = _auth.currentUser;
-              if (finalUser != null) {
-                print('6.${attempt} Final check: User is logged in');
-                userCredential = MockUserCredential(user: finalUser);
-                break;
-              } else {
-                throw Exception(
-                    'ไม่สามารถเข้าสู่ระบบ Firebase ได้ กรุณาลองใหม่อีกครั้ง');
-              }
-            }
-          } else {
-            throw Exception(
-                'ไม่สามารถเข้าสู่ระบบ Firebase ได้: ${e.toString()}');
-          }
-        }
-      }
-
-      if (userCredential?.user != null) {
-        final user = userCredential!.user!;
+      if (userCredential.user != null) {
         print('7. Firebase sign-in successful!');
-        print('User ID: ${user.uid}');
-        print('Email: ${user.email}');
-        print('Display Name: ${user.displayName}');
+        print('User ID: ${userCredential.user!.uid}');
+        print('Email: ${userCredential.user!.email}');
+        print('Display Name: ${userCredential.user!.displayName}');
 
         // Update local state immediately
         _isUserLoggedIn = true;
 
         // บันทึกข้อมูลผู้ใช้ใน Firestore
-        await _saveUserData(user);
+        await _saveUserData(userCredential.user!);
 
         // แสดง success message หากมี context
         if (context != null) {
@@ -271,65 +219,16 @@ class AuthService {
         print('8. Login process completed successfully');
         return userCredential;
       } else {
-        throw Exception('ไม่สามารถรับข้อมูลผู้ใช้จาก Firebase ได้');
+        throw Exception('Firebase authentication failed: no user returned');
       }
-    } on Exception catch (e) {
-      print('Google Sign-In Exception: $e');
-
-      if (context != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().replaceAll('Exception: ', ''),
-              style: const TextStyle(fontFamily: 'Kanit'),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-
-      return null;
     } catch (e) {
-      print('Google Sign-In unexpected error: $e');
-
-      // จัดการข้อผิดพลาดที่ไม่คาดคิด
-      String errorMessage = 'เกิดข้อผิดพลาดที่ไม่คาดคิด';
-
-      if (e.toString().contains('PigeonUserDetails')) {
-        // ถ้าเป็น PigeonUserDetails error แต่ล็อกอินสำเร็จแล้ว ไม่ต้องแสดง error
-        final currentUser = _auth.currentUser;
-        if (currentUser != null) {
-          print(
-              'PigeonUserDetails error but login successful, skipping error message');
-          _isUserLoggedIn = true;
-          await _saveUserData(currentUser);
-
-          if (context != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'ล็อกอินสำเร็จ! ยินดีต้อนรับ ${getMaskedDisplayName()}',
-                  style: const TextStyle(fontFamily: 'Kanit'),
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-
-          return MockUserCredential(user: currentUser);
-        }
-        errorMessage = 'ปัญหาการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง';
-      } else if (e.toString().contains('network')) {
-        errorMessage = 'ปัญหาการเชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบ';
-      }
+      print('Google Sign-In error: $e');
 
       if (context != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              errorMessage,
+              'เกิดข้อผิดพลาดในการล็อกอิน: ${e.toString()}',
               style: const TextStyle(fontFamily: 'Kanit'),
             ),
             backgroundColor: Colors.red,
@@ -453,63 +352,5 @@ class AuthService {
     print(
         'Force auth status check: $_isUserLoggedIn (user: ${currentUser?.uid})');
     return _isUserLoggedIn;
-  }
-
-  // แสดงหน้าเข้าสู่ระบบแบบเต็มจอ
-  static Future<bool> showLoginDialog(BuildContext context) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginScreen(),
-        fullscreenDialog: true,
-      ),
-    );
-
-    // หลังจากกลับมาจากหน้าล็อกอิน ตรวจสอบสถานะอีกครั้ง
-    if (result == true || isLoggedIn) {
-      return true;
-    }
-
-    return false;
-  }
-
-  // ตรวจสอบว่าผู้ใช้ล็อกอินแล้วหรือไม่ ถ้าไม่ให้แสดงหน้าต่างล็อกอิน
-  static Future<bool> ensureUserLoggedIn(BuildContext context) async {
-    if (isLoggedIn) {
-      return true;
-    }
-
-    return await showLoginDialog(context);
-  }
-
-  // ฟังก์ชัน Debug สำหรับตรวจสอบสถานะ Authentication
-  static Future<void> debugAuthStatus() async {
-    print('🔍 === DEBUG AUTH STATUS ===');
-    print('🔐 Is Logged In: $isLoggedIn');
-
-    if (currentUser != null) {
-      print('👤 User ID: ${currentUser!.uid}');
-      print('📧 Email: ${currentUser!.email}');
-      print('👤 Display Name: ${currentUser!.displayName}');
-      print('📷 Photo URL: ${currentUser!.photoURL}');
-      print(
-          '🔐 Provider Data: ${currentUser!.providerData.map((p) => p.providerId).join(', ')}');
-      print('✅ Email Verified: ${currentUser!.emailVerified}');
-      print('📅 Creation Time: ${currentUser!.metadata.creationTime}');
-      print('📅 Last Sign In: ${currentUser!.metadata.lastSignInTime}');
-
-      try {
-        final token = await currentUser!.getIdToken();
-        print('🎫 Firebase Token Available: ${token != null ? 'YES' : 'NO'}');
-        if (token != null && token.length > 20) {
-          print('🎫 Token Preview: ${token.substring(0, 20)}...');
-        }
-      } catch (e) {
-        print('❌ Token Error: $e');
-      }
-    } else {
-      print('❌ No user logged in');
-    }
-    print('🔍 === END DEBUG ===');
   }
 }

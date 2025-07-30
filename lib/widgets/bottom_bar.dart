@@ -4,7 +4,6 @@ import '../models/event_model.dart';
 import '../screens/report_screen.dart';
 import '../screens/list_screen.dart';
 import '../screens/emergency_contacts.dart';
-import '../modules/speed_camera/speed_camera_module.dart';
 
 class BottomBar extends StatelessWidget {
   final List<EventCategory> selectedCategories;
@@ -83,6 +82,7 @@ class BottomBar extends StatelessWidget {
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
+                          fontFamily: 'NotoSansThai',
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -138,6 +138,7 @@ class BottomBar extends StatelessWidget {
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
+                          fontFamily: 'NotoSansThai',
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -198,68 +199,7 @@ class BottomBar extends StatelessWidget {
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ปุ่มความเร็ว
-          Flexible(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SpeedCameraScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                splashColor: const Color(0xFFC3E7FF).withValues(alpha: 0.3),
-                highlightColor: const Color(0xFFC3E7FF).withValues(alpha: 0.1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6.0, vertical: 3.0), // ลดความสูงของปุ่ม
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 40, // ปรับให้พอดีกับ 5 ปุ่ม
-                        height: 24, // ปรับให้พอดีกับ 5 ปุ่ม
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius:
-                              BorderRadius.circular(12), // ปรับตาม width ใหม่
-                        ),
-                        child: Center(
-                          child: SizedBox(
-                            width: 22, // ปรับให้พอดีกับ 5 ปุ่ม
-                            height: 22, // ปรับให้พอดีกับ 5 ปุ่ม
-                            child: SvgPicture.asset(
-                              'assets/icons/speed_camera_screen/speed camera2.svg',
-                              colorFilter: const ColorFilter.mode(
-                                Colors.red,
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'ความเร็ว',
-                        style: TextStyle(
-                          fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF424743),
+                          fontFamily: 'NotoSansThai',
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -322,6 +262,7 @@ class BottomBar extends StatelessWidget {
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
+                          fontFamily: 'NotoSansThai',
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

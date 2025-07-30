@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../services/auth_service.dart';
 import '../models/camera_report_model.dart';
 import '../services/camera_report_service.dart';
 import '../widgets/camera_report_form_widget.dart';
@@ -20,59 +21,184 @@ class CameraReportScreen extends StatefulWidget {
 }
 
 class _CameraReportScreenState extends State<CameraReportScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   List<CameraReport> _pendingReports = [];
   List<String> _userVotedReports = [];
   Map<String, int> _userStats = {};
   bool _isLoading = true;
+  bool _previousLoginState = false;
+
+  // Key สำหรับ force rebuild FutureBuilder เมื่อลบรายงาน
+  int _dataRefreshKey = 0;
+  int _scaffoldRefreshKey = 0; // Key สำหรับ rebuild หน้าจอทั้งหมด
+
+  // GlobalKey สำหรับ RefreshIndicator
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _previousLoginState = AuthService.isLoggedIn;
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // ตรวจสอบเมื่อกลับมาที่แอป
+    if (state == AppLifecycleState.resumed) {
+      // ตรวจสอบว่าสถานะล็อกอินเปลี่ยนแปลงหรือไม่
+      final currentLoginState = AuthService.isLoggedIn;
+      if (_previousLoginState != currentLoginState) {
+        _previousLoginState = currentLoginState;
+        _loadData(); // รีเฟรชข้อมูลเมื่อสถานะล็อกอินเปลี่ยน
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // ตรวจสอบสถานะล็อกอินเมื่อกลับมาที่หน้านี้
+    final currentLoginState = AuthService.isLoggedIn;
+    if (_previousLoginState != currentLoginState) {
+      _previousLoginState = currentLoginState;
+      _loadData();
+    }
+  }
+
+  Future<void> _loadData({bool forceRefresh = false}) async {
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
 
     try {
+      // ตรวจสอบการล็อกอินก่อน
+      if (!AuthService.isLoggedIn) {
+        if (mounted) {
+          setState(() {
+            _pendingReports = [];
+            _userVotedReports = [];
+            _userStats = {};
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
       final futures = await Future.wait([
         CameraReportService.getPendingReports(
           userLat: widget.initialLocation?.latitude,
           userLng: widget.initialLocation?.longitude,
+          forceRefresh: forceRefresh, // ส่ง force refresh flag
         ),
         CameraReportService.getUserVotedReports(),
         CameraReportService.getUserStats(),
       ]);
 
-      setState(() {
-        _pendingReports = futures[0] as List<CameraReport>;
-        _userVotedReports = futures[1] as List<String>;
-        _userStats = futures[2] as Map<String, int>;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _pendingReports = futures[0] as List<CameraReport>;
+          _userVotedReports = futures[1] as List<String>;
+          _userStats = futures[2] as Map<String, int>;
+          _isLoading = false;
+        });
+
+        // Debug log เพื่อดูจำนวนรายงาน
+        if (forceRefresh) {
+          print(
+              'DEBUG: After force refresh - pending reports: ${_pendingReports.length}');
+        }
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('เกิดข้อผิดพลาด: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        // แสดง error เฉพาะเมื่อผู้ใช้ล็อกอินแล้ว
+        if (AuthService.isLoggedIn) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('เกิดข้อผิดพลาด: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // Force refresh ทุกอย่างหลังจากลบรายงาน
+  Future<void> _forceRefreshAfterDelete() async {
+    // ตรวจสอบว่า widget ยังอยู่หรือไม่
+    if (!mounted) return;
+
+    try {
+      print('🔄 Starting force refresh after delete...');
+
+      // บังคับรีเฟรช UI ทันที
+      setState(() {
+        _dataRefreshKey++;
+        _scaffoldRefreshKey++;
+      });
+
+      // รอสัก 100ms ให้ UI update
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) return;
+
+      // Clear local cache และโหลดข้อมูลใหม่จาก server
+      _pendingReports.clear();
+      await _loadData(forceRefresh: true);
+
+      if (!mounted) return;
+
+      // รีเฟรชครั้งสุดท้าย เพื่อให้แน่ใจ
+      setState(() {
+        _dataRefreshKey++;
+        _scaffoldRefreshKey++;
+      });
+
+      print('✅ Force refresh completed');
+    } catch (e) {
+      print('❌ Error in _forceRefreshAfterDelete: $e');
+    }
+  }
+
+  // Refresh หลังจากโพสรายงานใหม่
+  Future<void> _refreshAfterSubmit() async {
+    if (!mounted) return;
+
+    try {
+      // รีเฟรชข้อมูลทันที (ไม่ต้อง debug logs)
+      setState(() {
+        _dataRefreshKey++;
+        _scaffoldRefreshKey++;
+      });
+
+      // โหลดข้อมูลใหม่
+      await _loadData(forceRefresh: true);
+    } catch (e) {
+      print('Error refreshing after submit: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: ValueKey(_scaffoldRefreshKey), // Key สำหรับ force rebuild ทั้งหน้า
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
@@ -102,6 +228,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         ),
       ),
       body: TabBarView(
+        key: ValueKey(
+            _scaffoldRefreshKey), // Force rebuild TabBarView เมื่อ key เปลี่ยน
         controller: _tabController,
         children: [
           _buildReportTab(),
@@ -172,7 +300,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             initialLocation: widget.initialLocation,
             initialRoadName: widget.initialRoadName,
             onReportSubmitted: () {
-              _loadData(); // Refresh data
+              _refreshAfterSubmit(); // ใช้ method แยกสำหรับ refresh หลังโพสใหม่
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
@@ -190,6 +318,49 @@ class _CameraReportScreenState extends State<CameraReportScreen>
   }
 
   Widget _buildVotingTab() {
+    // ตรวจสอบการล็อกอินก่อน
+    if (!AuthService.isLoggedIn) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_circle_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'จำเป็นต้องล็อกอินเพื่อโหวต',
+              style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 18,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'กรุณาล็อกอินผ่านโปรไฟล์ในหน้าแผนที่',
+              style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'แตะที่ปุ่มโปรไฟล์มุมขวาบนของแผนที่',
+              style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 12,
+                color: Colors.grey.shade400,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_isLoading) {
       return const Center(
         child: Column(
@@ -240,8 +411,11 @@ class _CameraReportScreenState extends State<CameraReportScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: _loadData,
+      key: _refreshIndicatorKey,
+      onRefresh: () =>
+          _loadData(forceRefresh: true), // ใช้ force refresh เมื่อดึงลงมา
       child: ListView.builder(
+        key: ValueKey(_dataRefreshKey), // บังคับ rebuild เมื่อลบรายงาน
         padding: const EdgeInsets.all(16),
         itemCount: _pendingReports.length,
         itemBuilder: (context, index) {
@@ -255,6 +429,18 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               hasVoted: hasVoted,
               onVoteSubmitted: (voteType) async {
                 try {
+                  // ตรวจสอบการล็อกอินก่อนโหวต
+                  if (!AuthService.isLoggedIn) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('กรุณาล็อกอินผ่านหน้าแผนที่ก่อนโหวต',
+                            style: TextStyle(fontFamily: 'Kanit')),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
                   await CameraReportService.submitVote(
                     reportId: report.id,
                     voteType: voteType,
@@ -287,6 +473,15 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   );
                 }
               },
+              onReportDeleted: () {
+                // ลบ report ออกจาก local list ทันที
+                setState(() {
+                  _pendingReports.removeWhere((r) => r.id == report.id);
+                });
+
+                // รีเฟรชข้อมูลเมื่อลบรายงานสำเร็จ
+                _forceRefreshAfterDelete();
+              },
             ),
           );
         },
@@ -295,6 +490,49 @@ class _CameraReportScreenState extends State<CameraReportScreen>
   }
 
   Widget _buildStatsTab() {
+    // ตรวจสอบการล็อกอินก่อน
+    if (!AuthService.isLoggedIn) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_circle_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'จำเป็นต้องล็อกอินเพื่อดูสถิติ',
+              style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 18,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'กรุณาล็อกอินผ่านโปรไฟล์ในหน้าแผนที่',
+              style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'แตะที่ปุ่มโปรไฟล์มุมขวาบนของแผนที่',
+              style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 12,
+                color: Colors.grey.shade400,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(

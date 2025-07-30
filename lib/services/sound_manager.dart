@@ -154,6 +154,25 @@ class SoundManager {
     }
   }
 
+  /// เล่นเสียงบี๊บแบบ Progressive สำหรับระบบเรดาร์กล้อง
+  Future<void> playProgressiveBeep() async {
+    if (!_isSoundEnabled) return;
+
+    switch (_currentSoundType) {
+      case AlertSoundType.none:
+        break;
+      case AlertSoundType.beep:
+      case AlertSoundType.warning:
+        // เล่นเสียงบี๊บแบบเดี่ยวๆ (ไม่ใช่ 3 ครั้ง)
+        await _playSingleBeep();
+        break;
+      case AlertSoundType.tts:
+        // สำหรับ TTS ให้เล่นเสียงบี๊บแทน
+        await _playSingleBeep();
+        break;
+    }
+  }
+
   /// เล่นเสียงบี๊บ 3 ครั้งติดต่อกัน (ใช้ไฟล์เสียงจริง)
   Future<void> _playBeepSound() async {
     try {
@@ -188,6 +207,27 @@ class SoundManager {
         print('TRIPLE BEEP: TTS fallback completed successfully');
       } catch (e2) {
         print('ERROR in TTS fallback: $e2');
+      }
+    }
+  }
+
+  /// เล่นเสียงบี๊บครั้งเดียว สำหรับ Progressive Beep
+  Future<void> _playSingleBeep() async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.setVolume(0.8); // ลดเสียงเล็กน้อยสำหรับ Progressive
+      await _audioPlayer.play(AssetSource('sounds/beep.wav'));
+    } catch (e) {
+      print('ERROR in _playSingleBeep: $e');
+      // ถ้าเล่นเสียงจริงไม่ได้ ให้ใช้ TTS สำรอง
+      try {
+        await _flutterTts.setSpeechRate(1.5);
+        await _flutterTts.setPitch(1.2);
+        await _flutterTts.speak('บี๊บ');
+        await _flutterTts.setSpeechRate(0.7);
+        await _flutterTts.setPitch(1.0);
+      } catch (e2) {
+        print('ERROR in single beep TTS fallback: $e2');
       }
     }
   }

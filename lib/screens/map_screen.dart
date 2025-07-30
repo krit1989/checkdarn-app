@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,7 @@ import '../widgets/location_button.dart';
 import '../widgets/comment_bottom_sheet.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
+import '../modules/speed_camera/screens/speed_camera_screen.dart';
 
 // Enum สำหรับประเภท Navigation Bar
 enum NavigationBarType {
@@ -414,6 +416,72 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return earthRadius * c;
   }
 
+  // ฟังก์ชันคำนวณตำแหน่งปุ่มให้ฉลาดตาม Navigation Bar และ Bottom Bar
+  double _calculateSmartButtonPosition(double basePosition) {
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // คำนวณความสูงของ Bottom Bar (ประมาณ 90px + bottom padding)
+    final bottomBarHeight = 90.0 + bottomPadding;
+
+    // ตรวจสอบขนาดหน้าจอและ Navigation Bar
+    final aspectRatio = screenHeight / screenWidth;
+
+    if (kDebugMode) {
+      debugPrint('🎯 Smart Button Position Calculation:');
+      debugPrint('   - Base position: $basePosition');
+      debugPrint('   - Bottom padding: $bottomPadding');
+      debugPrint('   - Screen size: ${screenWidth}x$screenHeight');
+      debugPrint('   - Aspect ratio: $aspectRatio');
+      debugPrint('   - Bottom bar height: $bottomBarHeight');
+    }
+
+    // กรณีมี Navigation Bar ชัดเจน (bottom padding > 20)
+    if (bottomPadding > 20) {
+      final adjustedPosition =
+          basePosition + bottomBarHeight + 20; // เพิ่มระยะห่างพิเศษ 20px
+      if (kDebugMode) {
+        debugPrint('   - Device with Navigation Bar detected');
+        debugPrint('   - Adjusted position: $adjustedPosition');
+      }
+      return adjustedPosition;
+    }
+
+    // กรณี Navigation Bar แบบ customizable (bottom padding 10-20)
+    else if (bottomPadding >= 10 && bottomPadding <= 20) {
+      final adjustedPosition =
+          basePosition + bottomBarHeight + 15; // เพิ่มระยะห่างปานกลาง 15px
+      if (kDebugMode) {
+        debugPrint('   - Device with customizable Navigation Bar detected');
+        debugPrint('   - Adjusted position: $adjustedPosition');
+      }
+      return adjustedPosition;
+    }
+
+    // กรณีหน้าจอยาว (iPhone-like) แต่ไม่มี Navigation Bar
+    else if (aspectRatio > 2.0 && bottomPadding < 10) {
+      final adjustedPosition =
+          basePosition + bottomBarHeight + 10; // เพิ่มระยะห่างเล็กน้อย 10px
+      if (kDebugMode) {
+        debugPrint('   - Tall screen without Navigation Bar detected');
+        debugPrint('   - Adjusted position: $adjustedPosition');
+      }
+      return adjustedPosition;
+    }
+
+    // กรณีปกติ (ไม่มี Navigation Bar หรือ gesture only)
+    else {
+      final adjustedPosition =
+          basePosition + bottomBarHeight + 5; // เพิ่มระยะห่างขั้นต่ำ 5px
+      if (kDebugMode) {
+        debugPrint('   - Standard device detected');
+        debugPrint('   - Adjusted position: $adjustedPosition');
+      }
+      return adjustedPosition;
+    }
+  }
+
   // เริ่มต้น progress timer สำหรับหน้าโหลด
   void _startProgressTimer() {
     _progressTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
@@ -573,6 +641,30 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         debugPrint('🔍 Finding actual location before showing map...');
       }
 
+      // ตั้ง timeout ให้เร็วขึ้น - บังคับใช้ default หลัง 3 วินาที
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && (currentPosition == null || isLoadingLocation)) {
+          if (kDebugMode) {
+            debugPrint('⏰ Force timeout - using default location');
+          }
+          _useDefaultLocationImmediately();
+        }
+      });
+
+      // ลองใช้ last known position ก่อน (เร็วที่สุด)
+      Position? lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        if (kDebugMode) {
+          debugPrint(
+              '📍 Using last known position (${lastKnown.latitude}, ${lastKnown.longitude})');
+        }
+        setState(() {
+          currentPosition = LatLng(lastKnown.latitude, lastKnown.longitude);
+          isLoadingLocation = false;
+        });
+        return;
+      }
+
       // ตรวจสอบการเปิดใช้งาน Location Services
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -586,56 +678,34 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       // ตรวจสอบ Permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        if (kDebugMode) {
-          debugPrint('⚠️ Location permission denied - requesting...');
-        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          if (kDebugMode) {
-            debugPrint(
-                '❌ Location permission denied again - using default location');
-          }
           _useDefaultLocationImmediately();
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        if (kDebugMode) {
-          debugPrint(
-              '❌ Location permission denied forever - using default location');
-        }
         _useDefaultLocationImmediately();
         return;
       }
 
-      if (kDebugMode) {
-        debugPrint('✅ Location permission granted - getting position...');
-      }
+      // ลองหาตำแหน่งปัจจุบัน (แต่มี timeout เร็ว)
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low, // ลดความแม่นยำให้เร็วขึ้น
+          timeLimit: const Duration(seconds: 2), // timeout เร็วมาก
+        );
 
-      // หาตำแหน่งปัจจุบัน - ใช้เวลานานขึ้นเพื่อความแม่นยำ
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10), // เพิ่มเวลาเป็น 10 วินาที
-      );
-
-      // อัปเดตตำแหน่งและหยุด loading
-      final userPosition = LatLng(position.latitude, position.longitude);
-      setState(() {
-        currentPosition = userPosition;
-        isLoadingLocation = false;
-      });
-
-      // ดึงข้อมูลที่อยู่ในพื้นหลัง
-      if (mounted) {
-        _getLocationInfo(userPosition);
-      }
-
-      // Track analytics
-      // trackAction('location_updates'); // ปิดการใช้งาน analytics
-
-      if (kDebugMode) {
-        debugPrint('✅ Found actual location before map: $userPosition');
+        if (mounted) {
+          setState(() {
+            currentPosition = LatLng(position.latitude, position.longitude);
+            isLoadingLocation = false;
+          });
+        }
+      } catch (e) {
+        // ถ้าไม่ได้ ใช้ default
+        _useDefaultLocationImmediately();
       }
     } catch (e) {
       _useDefaultLocationImmediately();
@@ -1842,9 +1912,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     // แสดง loading screen จนกว่าจะหาตำแหน่งจริงเจอ
     if (isLoadingLocation || currentPosition == null) {
-      // ตั้งค่า Navigation Bar สำหรับหน้า Loading
-      _setLoadingScreenNavigationBar();
-
       return Scaffold(
         backgroundColor: const Color(0xFFFDC621), // เปลี่ยนกลับเป็นสีเหลืองเดิม
         extendBodyBehindAppBar: true,
@@ -1888,6 +1955,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.black, // เปลี่ยนกลับเป็นสีดำเดิม
+                  fontFamily: 'NotoSansThai',
                 ),
               ),
 
@@ -1940,6 +2008,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         color: Colors.black87, // เปลี่ยนกลับเป็นสีดำเดิม
                         fontStyle: FontStyle.italic,
                         height: 1.4,
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1950,6 +2019,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         color: Colors.black.withValues(
                             alpha: 0.8), // เปลี่ยนกลับเป็นสีดำอ่อนเดิม
                         fontWeight: FontWeight.w500,
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                   ],
@@ -1996,6 +2066,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
+                      fontFamily: 'NotoSansThai',
                     ),
                   ),
 
@@ -2020,6 +2091,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 18,
+                                      fontFamily: 'NotoSansThai',
                                     ),
                                   ),
                                 ],
@@ -2036,7 +2108,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                       Expanded(
                                         child: Text(
                                           'จิ้มที่แผนที่ 1 ครั้ง = ย้ายตำแหน่งการค้นหา',
-                                          style: TextStyle(fontSize: 14),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'NotoSansThai',
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -2050,7 +2125,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                       Expanded(
                                         child: Text(
                                           'กดค้างที่แผนที่ = สร้างโพสต์ใหม่',
-                                          style: TextStyle(fontSize: 14),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'NotoSansThai',
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -2064,7 +2142,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                       Expanded(
                                         child: Text(
                                           'ปุ่มตำแหน่ง = กลับมาตำแหน่งจริงของคุณ',
-                                          style: TextStyle(fontSize: 14),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'NotoSansThai',
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -2079,6 +2160,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       color: Color(0xFF4673E5),
+                                      fontFamily: 'NotoSansThai',
                                     ),
                                   ),
                                 ),
@@ -2433,10 +2515,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // ปุ่มกลับมาตำแหน่งจริงของผู้ใช้ (รวมหาตำแหน่งใหม่)
+          // ปุ่มกลับมาตำแหน่งจริงของผู้ใช้ (รวมหาตำแหน่งใหม่) - ปรับให้ฉลาดตาม Navigation Bar
           Positioned(
             right: 16,
-            bottom: 100,
+            bottom: _calculateSmartButtonPosition(
+                60), // ใช้ตำแหน่งฐาน 60 สำหรับปุ่มบน
             child: LocationButton(
               onPressed: _goToMyLocation,
               isLoading: isLoadingMyLocation, // ใช้ loading state แยก
@@ -2444,6 +2527,57 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               icon: Icons.my_location,
               tooltip: 'กลับมาตำแหน่งจริงของฉัน',
               iconColor: const Color(0xFF4673E5),
+            ),
+          ),
+
+          // ปุ่มสวิตช์ไปหน้าความเร็ว (Speed Camera) - ปรับให้ฉลาดตาม Navigation Bar
+          Positioned(
+            right: 16,
+            bottom: _calculateSmartButtonPosition(
+                0), // ใช้ตำแหน่งฐาน 0 สำหรับปุ่มล่าง
+            child: Tooltip(
+              message: 'ไปหน้ากล้องจับความเร็ว',
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SpeedCameraScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(12),
+                      child: SvgPicture.asset(
+                        'assets/icons/speed_camera_screen/speed camera2.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFF4673E5),
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
 

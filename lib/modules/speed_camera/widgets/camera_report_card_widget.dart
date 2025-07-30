@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import '../models/camera_report_model.dart';
+import '../services/camera_report_service.dart';
+import '../../../services/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class CameraReportCardWidget extends StatelessWidget {
   final CameraReport report;
   final bool hasVoted;
   final Function(VoteType) onVoteSubmitted;
+  final VoidCallback? onReportDeleted;
 
   const CameraReportCardWidget({
     super.key,
     required this.report,
     required this.hasVoted,
     required this.onVoteSubmitted,
+    this.onReportDeleted,
   });
 
   @override
@@ -47,6 +51,20 @@ class CameraReportCardWidget extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+
+                // Delete button for owner
+                if (_canDeleteReport()) ...[
+                  IconButton(
+                    onPressed: () => _showDeleteDialog(context),
+                    icon: const Icon(Icons.delete_outline),
+                    iconSize: 20,
+                    color: Colors.red.shade400,
+                    tooltip: 'ลบรายงาน',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 4),
+                ],
+
                 Text(
                   _formatDateTime(report.reportedAt),
                   style: TextStyle(
@@ -284,6 +302,150 @@ class CameraReportCardWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ตรวจสอบว่าสามารถลบรายงานได้หรือไม่
+  bool _canDeleteReport() {
+    final currentUser = AuthService.currentUser;
+    return currentUser != null &&
+        currentUser.uid == report.reportedBy &&
+        report.status == CameraStatus.pending;
+  }
+
+  // แสดง dialog ยืนยันการลบ
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: const Text(
+            'ยืนยันการลบ',
+            style: TextStyle(fontFamily: 'Kanit', fontWeight: FontWeight.w600),
+          ),
+          content: const Text(
+            'คุณต้องการลบรายงานนี้ใช่หรือไม่?\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้',
+            style: TextStyle(fontFamily: 'Kanit'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'ยกเลิก',
+                style: TextStyle(fontFamily: 'Kanit'),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteReport(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text(
+                'ลบ',
+                style: TextStyle(fontFamily: 'Kanit'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ลบรายงาน
+  Future<void> _deleteReport(BuildContext context) async {
+    // เก็บ reference ของ ScaffoldMessenger ไว้ก่อนเพื่อป้องกัน error
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      // แสดงข้อความแจ้งเตือนแทน loading dialog
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'กำลังลบรายงาน...',
+                style: TextStyle(fontFamily: 'Kanit'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 10), // ให้เวลาพอสำหรับการลบ
+        ),
+      );
+
+      // ลบรายงาน
+      await CameraReportService.deleteReport(report.id);
+
+      // ซ่อน snackbar ที่แสดงอยู่
+      scaffoldMessenger.hideCurrentSnackBar();
+
+      // แสดงข้อความสำเร็จ
+      if (context.mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ลบรายงานเรียบร้อยแล้ว 🎉 กำลังอัปเดตหน้าจอ...',
+              style: TextStyle(fontFamily: 'Kanit'),
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+
+        // เรียก callback ทันทีพร้อม report ID เพื่อลบออกจาก UI
+        onReportDeleted?.call();
+
+        // เรียก callback หลายครั้งเพื่อให้แน่ใจ
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (context.mounted) {
+            onReportDeleted?.call();
+          }
+        });
+
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (context.mounted) {
+            onReportDeleted?.call();
+          }
+        });
+      }
+    } catch (e) {
+      // ซ่อน loading snackbar
+      scaffoldMessenger.hideCurrentSnackBar();
+
+      String errorMessage = 'เกิดข้อผิดพลาด: $e';
+      if (e.toString().contains('TimeoutException')) {
+        errorMessage = 'การลบใช้เวลานานเกินไป กรุณาลองใหม่';
+      }
+
+      // แสดงข้อความผิดพลาด
+      if (context.mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMessage,
+              style: const TextStyle(fontFamily: 'Kanit'),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   String _getTypeDisplayName(CameraReportType type) {

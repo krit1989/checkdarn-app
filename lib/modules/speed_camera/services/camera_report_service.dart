@@ -158,6 +158,7 @@ class CameraReportService {
     double? userLng,
     double radiusKm = 10.0,
     int limit = 20,
+    bool forceRefresh = false, // เพิ่มพารามิเตอร์สำหรับ force refresh
   }) async {
     Query query = _firestore
         .collection(_reportsCollection)
@@ -165,7 +166,11 @@ class CameraReportService {
         .orderBy('reportedAt', descending: true)
         .limit(limit);
 
-    final snapshot = await query.get();
+    // Force refresh จาก server ถ้าต้องการ
+    final snapshot = forceRefresh
+        ? await query.get(const GetOptions(source: Source.server))
+        : await query.get();
+
     final reports = snapshot.docs
         .map((doc) => CameraReport.fromJson(doc.data() as Map<String, dynamic>))
         .toList();
@@ -314,13 +319,38 @@ class CameraReportService {
   }
 
   /// Get reports by status
-  static Future<List<CameraReport>> getReportsByStatus(
-      CameraStatus status) async {
-    final snapshot = await _firestore
+  static Future<List<CameraReport>> getReportsByStatus(CameraStatus status,
+      {bool forceRefresh = false}) async {
+    final query = _firestore
         .collection(_reportsCollection)
         .where('status', isEqualTo: status.toString().split('.').last)
-        .orderBy('reportedAt', descending: true)
-        .get();
+        .orderBy('reportedAt', descending: true);
+
+    // Force refresh จาก server ถ้าต้องการ
+    final snapshot = forceRefresh
+        ? await query.get(const GetOptions(source: Source.server))
+        : await query.get();
+
+    return snapshot.docs
+        .map((doc) => CameraReport.fromJson(doc.data()))
+        .toList();
+  }
+
+  /// Get user's own reports (เฉพาะรายงานของผู้ใช้ปัจจุบัน)
+  static Future<List<CameraReport>> getUserReports(
+      {bool forceRefresh = false}) async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    final query = _firestore
+        .collection(_reportsCollection)
+        .where('reportedBy', isEqualTo: user.uid)
+        .orderBy('reportedAt', descending: true);
+
+    // Force refresh จาก server ถ้าต้องการ
+    final snapshot = forceRefresh
+        ? await query.get(const GetOptions(source: Source.server))
+        : await query.get();
 
     return snapshot.docs
         .map((doc) => CameraReport.fromJson(doc.data()))
@@ -332,29 +362,48 @@ class CameraReportService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    // Check if user is admin or the original reporter
-    final reportDoc =
-        await _firestore.collection(_reportsCollection).doc(reportId).get();
-    if (!reportDoc.exists) throw Exception('Report not found');
+    try {
+      // ตรวจสอบสิทธิ์ก่อน (ไม่ timeout เพื่อความเร็ว)
+      final reportDoc =
+          await _firestore.collection(_reportsCollection).doc(reportId).get();
 
-    final report = CameraReport.fromJson(reportDoc.data()!);
+      if (!reportDoc.exists) throw Exception('ไม่พบรายงานนี้');
 
-    // Allow deletion if user is the original reporter and report is still pending
-    if (report.reportedBy == user.uid &&
-        report.status == CameraStatus.pending) {
+      final report = CameraReport.fromJson(reportDoc.data()!);
+
+      // ตรวจสอบว่าเป็นเจ้าของและสถานะ pending
+      if (report.reportedBy != user.uid) {
+        throw Exception('คุณไม่ใช่เจ้าของรายงานนี้');
+      }
+      if (report.status != CameraStatus.pending) {
+        throw Exception('ไม่สามารถลบรายงานที่ไม่ใช่สถานะ pending ได้');
+      }
+
+      // ลบรายงานหลักเลย (ไม่ timeout)
       await _firestore.collection(_reportsCollection).doc(reportId).delete();
 
-      // Also delete associated votes
+      // ลบ votes ในพื้นหลัง (ไม่รอ)
+      _deleteVotesInBackground(reportId);
+    } catch (e) {
+      throw Exception('ไม่สามารถลบรายงานได้: $e');
+    }
+  }
+
+  /// ลบ votes ในพื้นหลัง
+  static void _deleteVotesInBackground(String reportId) async {
+    try {
       final votes = await _firestore
           .collection(_votesCollection)
           .where('reportId', isEqualTo: reportId)
           .get();
 
       for (final vote in votes.docs) {
-        await vote.reference.delete();
+        vote.reference.delete().catchError((e) {
+          print('Warning: Could not delete vote ${vote.id}: $e');
+        });
       }
-    } else {
-      throw Exception('ไม่สามารถลบรายงานนี้ได้');
+    } catch (e) {
+      print('Warning: Could not delete associated votes: $e');
     }
   }
 }

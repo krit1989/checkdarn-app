@@ -38,12 +38,29 @@ class LocationService {
         return null;
       }
 
-      // Get current position
+      // Try to get last known position first (faster)
+      final lastKnown = await getLastKnownPosition();
+      if (lastKnown != null) {
+        final now = DateTime.now();
+        final positionTime = lastKnown.timestamp;
+        // ใช้ position เก่าถ้าไม่เก่าเกิน 5 นาที
+        if (now.difference(positionTime).inMinutes < 5) {
+          return lastKnown;
+        }
+      }
+
+      // Get current position with timeout
       return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.medium, // ลดความแม่นยำเพื่อความเร็ว
+        timeLimit: const Duration(seconds: 8), // เพิ่ม timeout
       );
     } catch (e) {
-      return null;
+      // ถ้า error ลอง fallback ไปใช้ last known position
+      try {
+        return await getLastKnownPosition();
+      } catch (e2) {
+        return null;
+      }
     }
   }
 
@@ -51,9 +68,16 @@ class LocationService {
   static Stream<Position> getLocationStream() {
     return Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // Update every 10 meters
+        accuracy: LocationAccuracy.medium, // ลดความแม่นยำเพื่อประสิทธิภาพ
+        distanceFilter: 15, // Update every 15 meters (เพิ่มจาก 10)
+        timeLimit: Duration(seconds: 10), // เพิ่ม timeout
       ),
+    ).timeout(
+      const Duration(seconds: 12), // Global timeout สำหรับ stream
+      onTimeout: (sink) {
+        // ถ้า timeout ให้ปิด stream
+        sink.close();
+      },
     );
   }
 

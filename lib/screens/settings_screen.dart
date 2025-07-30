@@ -24,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             fontSize: 20,
             fontWeight: FontWeight.w600,
             color: Colors.black,
+            fontFamily: 'NotoSansThai',
           ),
         ),
         backgroundColor: const Color(0xFFFDC621),
@@ -105,6 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -114,6 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                       ],
@@ -142,6 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Color(0xFF4673E5),
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
+                    fontFamily: 'NotoSansThai',
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
@@ -190,6 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                       ],
@@ -263,6 +268,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                       ],
@@ -330,6 +336,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                       ],
@@ -346,6 +353,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 14,
                             color: Colors.black87,
                             fontWeight: FontWeight.w500,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -354,6 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
+                            fontFamily: 'NotoSansThai',
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -399,18 +408,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('ออกจากระบบ'),
-                      content: const Text('คุณต้องการออกจากระบบหรือไม่?'),
+                      title: const Text(
+                        'ออกจากระบบ',
+                        style: TextStyle(fontFamily: 'NotoSansThai'),
+                      ),
+                      content: const Text(
+                        'คุณต้องการออกจากระบบหรือไม่?',
+                        style: TextStyle(fontFamily: 'NotoSansThai'),
+                      ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('ยกเลิก'),
+                          child: const Text(
+                            'ยกเลิก',
+                            style: TextStyle(fontFamily: 'NotoSansThai'),
+                          ),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(context, true),
                           child: const Text(
                             'ออกจากระบบ',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontFamily: 'NotoSansThai',
+                            ),
                           ),
                         ),
                       ],
@@ -443,6 +464,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                   ],
@@ -486,6 +508,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
+                    fontFamily: 'NotoSansThai',
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -494,6 +517,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.grey,
+                    fontFamily: 'NotoSansThai',
                   ),
                 ),
               ],
@@ -545,6 +569,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
+                      fontFamily: 'NotoSansThai',
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -554,6 +579,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: const TextStyle(
                         fontSize: 13,
                         color: Colors.grey,
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                   ],

@@ -270,6 +270,360 @@ class SpeedCameraService {
         type: CameraType.fixed,
         description: 'ตลาดดีมาร์เก็ท',
       ),
+
+      // === กล้องจับความเร็วจังหวัดระยอง ===
+
+      // โตโยต้าระยอง
+      SpeedCamera(
+        id: 'rayong_toyota_001',
+        location: const LatLng(12.682739, 101.263314),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'โตโยต้าระยอง',
+      ),
+
+      // โรงพยาบาลระยอง
+      SpeedCamera(
+        id: 'rayong_hospital_002',
+        location: const LatLng(12.681832, 101.276501),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'รพ.ระยอง',
+      ),
+
+      // สรรพากรระยอง
+      SpeedCamera(
+        id: 'rayong_revenue_003',
+        location: const LatLng(12.667918, 101.296249),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'สรรพากร ระยอง',
+      ),
+
+      // พีทีที LGV
+      SpeedCamera(
+        id: 'rayong_ptt_lgv_004',
+        location: const LatLng(12.660460, 101.320307),
+        speedLimit: 60, // เขตเมือง
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'พีทีที LGV',
+      ),
+
+      // วัดตะพงนอก
+      SpeedCamera(
+        id: 'rayong_wat_tapong_005',
+        location: const LatLng(12.648805, 101.344112),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'วัดตะพงนอก',
+      ),
+
+      // เจเจ เครื่องครัว
+      SpeedCamera(
+        id: 'rayong_jj_kitchen_006',
+        location: const LatLng(12.640898, 101.399628),
+        speedLimit: 120, // ทางหลวงพิเศษ
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'เจเจ เครื่องครัว',
+      ),
+
+      // BMW
+      SpeedCamera(
+        id: 'rayong_bmw_007',
+        location: const LatLng(12.641372, 101.405702),
+        speedLimit: 120, // ทางหลวงพิเศษ
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'BMW',
+      ),
+
+      // PT บ้านเพ
+      SpeedCamera(
+        id: 'rayong_pt_banphe_008',
+        location: const LatLng(12.642290, 101.419683),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'PT บ้านเพ',
+      ),
+
+      // ตำรวจทางหลวงสวนสน
+      SpeedCamera(
+        id: 'rayong_police_suanson_009',
+        location: const LatLng(12.661185, 101.471284),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'ตำรวจทางหลวงสวนสน',
+      ),
+
+      // สวนลุงสุนระยอง
+      SpeedCamera(
+        id: 'rayong_uncle_sun_010',
+        location: const LatLng(12.678339, 101.523056),
+        speedLimit: 120, // ทางหลวงพิเศษ
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'สวนลุงสุนระยอง',
+      ),
+
+      // วัดสองสลึง
+      SpeedCamera(
+        id: 'rayong_wat_song_salueang_011',
+        location: const LatLng(12.712509, 101.558611),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'วัดสองสลึง',
+      ),
+
+      // ตลาดผลไม้ป้ากัลยา
+      SpeedCamera(
+        id: 'rayong_fruit_market_012',
+        location: const LatLng(12.716883, 101.566770),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'ตลาดผลไม้ป้ากัลยา',
+      ),
+
+      // บายพาสเลี่ยงแกลง
+      SpeedCamera(
+        id: 'rayong_bypass_klaeng_013',
+        location: const LatLng(12.758812, 101.619012),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนบายพาสแกลง',
+        type: CameraType.fixed,
+        description: 'บายพาสเลี่ยงแกลง',
+      ),
+
+      // พีทีหนองน้ำขุ่น
+      SpeedCamera(
+        id: 'rayong_pt_nongnamkhun_014',
+        location: const LatLng(12.768635, 101.631719),
+        speedLimit: 120, // ทางหลวงพิเศษ
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'พีทีหนองน้ำขุ่น',
+      ),
+
+      // ร้านทองเยาวราช
+      SpeedCamera(
+        id: 'rayong_gold_yaowarat_015',
+        location: const LatLng(12.780082, 101.645424),
+        speedLimit: 120, // ทางหลวงพิเศษ
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'ร้านทองเยาวราช',
+      ),
+
+      // แยกสามย่าน แกลง
+      SpeedCamera(
+        id: 'rayong_samyan_klaeng_016',
+        location: const LatLng(12.782776, 101.649986),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.redLight,
+        description: 'แยกสามย่าน แกลง',
+      ),
+
+      // ปตท แกลง
+      SpeedCamera(
+        id: 'rayong_ptt_klaeng_017',
+        location: const LatLng(12.792164, 101.645969),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'ปตท แกลง',
+      ),
+
+      // แยกบายพาสท่าเกวียน
+      SpeedCamera(
+        id: 'rayong_bypass_thakwian_018',
+        location: const LatLng(12.806262, 101.638181),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนบายพาสแกลง',
+        type: CameraType.redLight,
+        description: 'แยกบายพาสท่าเกวียน',
+      ),
+
+      // อบต
+      SpeedCamera(
+        id: 'rayong_tambon_admin_019',
+        location: const LatLng(12.825886, 101.629028),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'อบต',
+      ),
+
+      // บ้านลุงแว่น
+      SpeedCamera(
+        id: 'rayong_uncle_waen_020',
+        location: const LatLng(12.829838, 101.628008),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'บ้านลุงแว่น',
+      ),
+
+      // === กล้องจับความเร็วระยอง ชุดที่ 2 ===
+
+      // เซ็นทรัลระยอง
+      SpeedCamera(
+        id: 'rayong_central_021',
+        location: const LatLng(12.697739, 101.266253),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'เซ็นทรัล ระยอง',
+      ),
+
+      // บายพาสยอง
+      SpeedCamera(
+        id: 'rayong_bypass_yong_022',
+        location: const LatLng(12.707487, 101.238154),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนบายพาส',
+        type: CameraType.fixed,
+        description: 'บายพาสยอง',
+      ),
+
+      // เลี่ยงเมืองยอง
+      SpeedCamera(
+        id: 'rayong_bypass_city_023',
+        location: const LatLng(12.704022, 101.225315),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนเลี่ยงเมือง',
+        type: CameraType.fixed,
+        description: 'เลี่ยงเมืองยอง',
+      ),
+
+      // เนินพระ
+      SpeedCamera(
+        id: 'rayong_noen_phra_024',
+        location: const LatLng(12.691430, 101.208772),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'เนินพระ',
+      ),
+
+      // อภิชาติออโต้
+      SpeedCamera(
+        id: 'rayong_apichart_auto_025',
+        location: const LatLng(12.683766, 101.218963),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'อภิชาติออโต้',
+      ),
+
+      // ช่างหนุ่ย
+      SpeedCamera(
+        id: 'rayong_chang_nui_026',
+        location: const LatLng(12.683520, 101.234861),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'ช่างหนุ่ย',
+      ),
+
+      // โฮมโปรยอง
+      SpeedCamera(
+        id: 'rayong_homepro_027',
+        location: const LatLng(12.683296, 101.244322),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'โฮมโปรยอง',
+      ),
+
+      // คลีนิกหมอเอกภพ
+      SpeedCamera(
+        id: 'rayong_clinic_ekkaphop_028',
+        location: const LatLng(12.682428, 101.267440),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'คลีนิกหมอเอกภพ',
+      ),
+
+      // หลังเซนทรัล
+      SpeedCamera(
+        id: 'rayong_behind_central_029',
+        location: const LatLng(12.691144, 101.269000),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'หลังเซนทรัล',
+      ),
+
+      // หลังเซน
+      SpeedCamera(
+        id: 'rayong_behind_zen_030',
+        location: const LatLng(12.686713, 101.271745),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'หลังเซน',
+      ),
+
+      // บจก กิจสัมพัน
+      SpeedCamera(
+        id: 'rayong_kitsamphan_031',
+        location: const LatLng(12.700094, 101.253565),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'บจก กิจสัมพัน',
+      ),
+
+      // บิ้กซียอง
+      SpeedCamera(
+        id: 'rayong_bigc_032',
+        location: const LatLng(12.697981, 101.266695),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'บิ้กซียอง',
+      ),
+
+      // คอกพิทยอง
+      SpeedCamera(
+        id: 'rayong_coke_pit_033',
+        location: const LatLng(12.696865, 101.278372),
+        speedLimit: 120, // ทางหลวงพิเศษ
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'คอกพิทยอง',
+      ),
+
+      // แพล้นปูนเชิงเนิน
+      SpeedCamera(
+        id: 'rayong_plan_cement_034',
+        location: const LatLng(12.688094, 101.297516),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'แพล้นปูนเชิงเนิน',
+      ),
+
+      // ไทวัสดุ
+      SpeedCamera(
+        id: 'rayong_thai_material_035',
+        location: const LatLng(12.672094, 101.305252),
+        speedLimit: 90, // ถนนหลัก
+        roadName: 'ถนนสุขุมวิท',
+        type: CameraType.fixed,
+        description: 'ไทวัสดุ',
+      ),
     ];
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../services/geocoding_service.dart';
 
 class LocationPickerScreen extends StatefulWidget {
@@ -195,7 +196,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message, style: const TextStyle(fontFamily: 'Kanit')),
+          content:
+              Text(message, style: const TextStyle(fontFamily: 'NotoSansThai')),
           backgroundColor: Colors.red,
         ),
       );
@@ -237,12 +239,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           widget.title,
           style: const TextStyle(
-            fontFamily: 'Kanit',
+            fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
             color: Colors.black,
           ),
@@ -251,18 +253,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             const Color(0xFFFFC107), // เปลี่ยนเป็นสีเหลืองแบบหน้าอื่นๆ
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black),
-        actions: [
-          // Toggle coordinate input
-          IconButton(
-            icon: Icon(_showCoordinateInput ? Icons.map : Icons.edit_location),
-            onPressed: () {
-              setState(() {
-                _showCoordinateInput = !_showCoordinateInput;
-              });
-            },
-            tooltip: _showCoordinateInput ? 'ซ่อนช่องพิกัด' : 'แสดงช่องพิกัด',
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -282,7 +272,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   const Text(
                     'ป้อนพิกัดโดยตรง',
                     style: TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -302,7 +292,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          style: const TextStyle(fontFamily: 'Kanit'),
+                          style: const TextStyle(fontFamily: 'NotoSansThai'),
                           onChanged: (_) => _onCoordinateChanged(),
                         ),
                       ),
@@ -319,7 +309,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          style: const TextStyle(fontFamily: 'Kanit'),
+                          style: const TextStyle(fontFamily: 'NotoSansThai'),
                           onChanged: (_) => _onCoordinateChanged(),
                         ),
                       ),
@@ -329,7 +319,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   Text(
                     'หรือแตะบนแผนที่เพื่อเลือกตำแหน่ง',
                     style: TextStyle(
-                      fontFamily: 'Kanit',
+                      fontFamily: 'NotoSansThai',
                       fontSize: 12,
                       color: Colors.grey.shade600,
                     ),
@@ -356,7 +346,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                             )
                           : null,
                     ),
-                    style: const TextStyle(fontFamily: 'Kanit'),
+                    style: const TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                 ],
               ),
@@ -402,68 +392,81 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   ],
                 ),
 
-                // Precise crosshair overlay
-                IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black.withValues(alpha: 0.1),
-                        border: Border.all(color: Colors.red, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.red,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-
                 // Info overlay showing current coordinates
                 Positioned(
                   top: 16,
                   left: 16,
                   right: 16,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Stack(
                       children: [
-                        const Text(
-                          'ตำแหน่งที่เลือก:',
-                          style: TextStyle(
-                            fontFamily: 'Kanit',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ตำแหน่งที่เลือก:',
+                              style: TextStyle(
+                                fontFamily: 'NotoSansThai',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Lat: ${_selectedLocation.latitude.toStringAsFixed(6)}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              'Lng: ${_selectedLocation.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Lat: ${_selectedLocation.latitude.toStringAsFixed(6)}',
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          'Lng: ${_selectedLocation.longitude.toStringAsFixed(6)}',
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 12,
+                        // Edit coordinate button in top-right corner of card
+                        Positioned(
+                          top: -8,
+                          right: -8,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _showCoordinateInput = !_showCoordinateInput;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: _showCoordinateInput
+                                    ? const Icon(Icons.map,
+                                        size: 16, color: Colors.black)
+                                    : SvgPicture.asset(
+                                        'assets/icons/location_picker_screen/edit_location.svg',
+                                        width: 16,
+                                        height: 16,
+                                        colorFilter: const ColorFilter.mode(
+                                            Colors.black, BlendMode.srcIn),
+                                      ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -473,71 +476,113 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
                 // GPS button (moved to bottom)
                 Positioned(
-                  bottom: 80, // Above the action bar
+                  bottom: 100 +
+                      (MediaQuery.of(context).viewPadding.bottom > 0
+                          ? MediaQuery.of(context).viewPadding.bottom
+                          : 0), // ขยับขึ้นตาม navigation bar
                   right: 16,
-                  child: FloatingActionButton(
-                    heroTag: "gps_btn",
-                    onPressed:
-                        _isLoadingCurrentLocation ? null : _getCurrentLocation,
-                    backgroundColor: const Color(0xFF1158F2),
-                    child: _isLoadingCurrentLocation
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.my_location, color: Colors.white),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _isLoadingCurrentLocation
+                            ? null
+                            : _getCurrentLocation,
+                        borderRadius: BorderRadius.circular(
+                            22), // ครึ่งหนึ่งของ size (44/2)
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                          ),
+                          child: _isLoadingCurrentLocation
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF1158F2),
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.my_location,
+                                  color: Color(0xFF1158F2),
+                                  size: 20,
+                                ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
 
-          // Bottom action bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'ยกเลิก',
-                      style: TextStyle(
-                        fontFamily: 'Kanit',
-                        fontSize: 16,
+                // Bottom action buttons positioned directly on map
+                Positioned(
+                  bottom: 16 +
+                      (MediaQuery.of(context).viewPadding.bottom > 0
+                          ? MediaQuery.of(context).viewPadding.bottom
+                          : 0), // ขยับขึ้นตาม navigation bar
+                  left: 16,
+                  right: 16,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFC107),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'ยกเลิก',
+                            style: TextStyle(
+                              fontFamily: 'NotoSansThai',
+                              fontSize: 16,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, {
-                      'location': _selectedLocation,
-                      'locationInfo': _selectedLocationInfo,
-                    }),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1158F2),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text(
-                      'ยืนยันตำแหน่ง',
-                      style: TextStyle(
-                        fontFamily: 'Kanit',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, {
+                            'location': _selectedLocation,
+                            'locationInfo': _selectedLocationInfo,
+                          }),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFC107),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'ยืนยันตำแหน่ง',
+                            style: TextStyle(
+                              fontFamily: 'NotoSansThai',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],

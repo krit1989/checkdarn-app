@@ -55,7 +55,9 @@ class EmergencyContactsScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'ไม่สามารถโทรหาเบอร์ $phoneNumber ได้\nกรุณาตรวจสอบว่าอุปกรณ์รองรับการโทรออก'),
+              'ไม่สามารถโทรหาเบอร์ $phoneNumber ได้\nกรุณาตรวจสอบว่าอุปกรณ์รองรับการโทรออก',
+              style: TextStyle(fontFamily: 'NotoSansThai'),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -74,6 +76,7 @@ class EmergencyContactsScreen extends StatelessWidget {
             fontSize: 22,
             fontWeight: FontWeight.w600,
             color: Colors.black,
+            fontFamily: 'NotoSansThai',
           ),
         ),
         backgroundColor: const Color(0xFFFDC621),
@@ -119,6 +122,7 @@ class EmergencyContactsScreen extends StatelessWidget {
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
+                        fontFamily: 'NotoSansThai',
                       ),
                     ),
                   ),
@@ -130,6 +134,7 @@ class EmergencyContactsScreen extends StatelessWidget {
                       fontSize: 14,
                       color: Colors.grey.shade600,
                       fontWeight: FontWeight.w500,
+                      fontFamily: 'NotoSansThai',
                     ),
                   ),
                   const SizedBox(width: 12),

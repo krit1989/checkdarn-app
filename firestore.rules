@@ -14,7 +14,30 @@ service cloud.firestore {
       }
     }
     
-    // 👤 กฎสำหรับข้อมูลผู้ใช้ - เฉพาะเจ้าของ
+    // � กฎสำหรับ camera reports - ระบบรายงานกล้องใหม่
+    match /camera_reports/{reportId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;  // อนุญาตให้อัปเดตได้ (สำหรับ vote counts)
+      allow delete: if request.auth != null && 
+                     request.auth.uid == resource.data.reportedBy;
+    }
+    
+    // 🗳️ กฎสำหรับ camera votes - โหวตสำหรับกล้อง
+    match /camera_votes/{voteId} {
+      allow read: if request.auth != null;  // ให้ทุกคนที่ล็อกอินอ่านได้
+      allow create: if request.auth != null;  // ผู้ล็อกอินสามารถสร้างโหวตได้
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // 📈 กฎสำหรับ user report stats - สถิติการรายงาน
+    match /user_report_stats/{userId} {
+      allow read: if request.auth != null;  // ให้อ่านได้ทั้งหมด
+      allow write: if request.auth != null;  // ให้เขียนได้สำหรับการอัปเดต stats
+    }
+    
+    // �👤 กฎสำหรับข้อมูลผู้ใช้ - เฉพาะเจ้าของ
     match /users/{userId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
