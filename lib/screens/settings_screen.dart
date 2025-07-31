@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/smart_security_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,6 +13,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isNewEventNotificationEnabled = true;
   bool _isSoundNotificationEnabled = true;
   bool _isVibrationNotificationEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSmartSecurity();
+  }
+
+  Future<void> _initializeSmartSecurity() async {
+    await SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.medium);
+  }
+
+  Future<bool> _validateSettingsActionSimple({
+    String? action,
+    Map<String, dynamic>? context,
+  }) async {
+    try {
+      final result = await SmartSecurityService.checkPageSecurity(
+        'settings_page',
+        context: {
+          'action': action ?? 'generic',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          ...(context ?? {}),
+        },
+      );
+      return result.isAllowed;
+    } catch (e) {
+      print('Smart Security validation failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> _handleSecureNotificationToggle(
+    String notificationType,
+    bool newValue,
+    Function(bool) originalCallback,
+  ) async {
+    if (!await _validateSettingsActionSimple(
+      action: 'notification_toggle',
+      context: {
+        'notification_type': notificationType,
+        'new_value': newValue,
+        'user_email': AuthService.currentUser?.email,
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    originalCallback(newValue);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +88,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            if (!await _validateSettingsActionSimple(
+              action: 'navigation_back',
+              context: {'exit_type': 'back_button'},
+            )) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            Navigator.pop(context);
+          },
         ),
       ),
       body: SingleChildScrollView(
@@ -131,7 +201,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 24),
               child: OutlinedButton.icon(
-                onPressed: () {
+                onPressed: () async {
+                  // Smart Security validation for profile edit
+                  if (!await _validateSettingsActionSimple(
+                    action: 'edit_profile',
+                    context: {
+                      'user_email': AuthService.currentUser?.email,
+                      'is_logged_in': AuthService.isLoggedIn,
+                    },
+                  )) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
                   // TODO: Navigate to edit profile screen
                 },
                 icon: const Icon(
@@ -204,31 +290,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'เปิดการแจ้งเตือน',
                     'รับการแจ้งเตือนเหตุการณ์ใหม่',
                     _isNewEventNotificationEnabled,
-                    (value) {
-                      setState(() {
-                        _isNewEventNotificationEnabled = value;
-                      });
-                    },
+                    (value) => _handleSecureNotificationToggle(
+                      'new_event',
+                      value,
+                      (v) => setState(() => _isNewEventNotificationEnabled = v),
+                    ),
                   ),
                   _buildNotificationToggle(
                     'เสียงแจ้งเตือน',
                     'เล่นเสียงเมื่อมีการแจ้งเตือน',
                     _isSoundNotificationEnabled,
-                    (value) {
-                      setState(() {
-                        _isSoundNotificationEnabled = value;
-                      });
-                    },
+                    (value) => _handleSecureNotificationToggle(
+                      'sound',
+                      value,
+                      (v) => setState(() => _isSoundNotificationEnabled = v),
+                    ),
                   ),
                   _buildNotificationToggle(
                     'การสั่นแจ้งเตือน',
                     'สั่นเครื่องเมื่อมีการแจ้งเตือน',
                     _isVibrationNotificationEnabled,
-                    (value) {
-                      setState(() {
-                        _isVibrationNotificationEnabled = value;
-                      });
-                    },
+                    (value) => _handleSecureNotificationToggle(
+                      'vibration',
+                      value,
+                      (v) =>
+                          setState(() => _isVibrationNotificationEnabled = v),
+                    ),
                     isLast: true,
                   ),
                 ],
@@ -404,6 +491,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               margin: const EdgeInsets.only(bottom: 32),
               child: ElevatedButton(
                 onPressed: () async {
+                  // Smart Security validation for logout
+                  if (!await _validateSettingsActionSimple(
+                    action: 'logout_attempt',
+                    context: {
+                      'user_email': AuthService.currentUser?.email,
+                      'is_logged_in': AuthService.isLoggedIn,
+                    },
+                  )) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
                   // Show confirmation dialog
                   final confirmed = await showDialog<bool>(
                     context: context,
@@ -439,6 +543,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
 
                   if (confirmed == true) {
+                    // Additional security validation for actual logout
+                    if (!await _validateSettingsActionSimple(
+                      action: 'logout_confirmed',
+                      context: {
+                        'confirmation': true,
+                        'user_email': AuthService.currentUser?.email,
+                      },
+                    )) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('การออกจากระบบล้มเหลว'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
                     await AuthService.signOut();
                     if (mounted) {
                       Navigator.pop(context);

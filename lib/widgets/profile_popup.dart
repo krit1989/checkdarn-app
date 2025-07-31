@@ -1,10 +1,66 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/smart_security_service.dart';
 
-class ProfilePopup extends StatelessWidget {
+class ProfilePopup extends StatefulWidget {
   final VoidCallback onLogout;
 
   const ProfilePopup({super.key, required this.onLogout});
+
+  @override
+  State<ProfilePopup> createState() => _ProfilePopupState();
+}
+
+class _ProfilePopupState extends State<ProfilePopup> {
+  @override
+  void initState() {
+    super.initState();
+    _initializeSmartSecurity();
+  }
+
+  Future<void> _initializeSmartSecurity() async {
+    await SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.high);
+  }
+
+  Future<bool> _validateProfileActionSimple({
+    String? action,
+    Map<String, dynamic>? context,
+  }) async {
+    try {
+      final result = await SmartSecurityService.checkPageSecurity(
+        'profile_popup',
+        context: {
+          'action': action ?? 'generic',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          ...(context ?? {}),
+        },
+      );
+      return result.isAllowed;
+    } catch (e) {
+      print('Smart Security validation failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> _handleSecureLogout() async {
+    if (!await _validateProfileActionSimple(
+      action: 'logout_from_popup',
+      context: {
+        'user_email': AuthService.currentUser?.email,
+        'is_logged_in': AuthService.isLoggedIn,
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    widget.onLogout();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +194,23 @@ class ProfilePopup extends StatelessWidget {
           width: double.infinity,
           margin: const EdgeInsets.symmetric(horizontal: 20),
           child: OutlinedButton(
-            onPressed: () {
+            onPressed: () async {
+              // Smart Security validation for Google account management
+              if (!await _validateProfileActionSimple(
+                action: 'manage_google_account',
+                context: {
+                  'user_email': AuthService.currentUser?.email,
+                  'is_logged_in': AuthService.isLoggedIn,
+                },
+              )) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
               // TODO: เพิ่มฟังก์ชันจัดการบัญชี Google
             },
             style: OutlinedButton.styleFrom(
@@ -169,23 +241,68 @@ class ProfilePopup extends StatelessWidget {
         _buildMenuItem(
           icon: '🔔',
           title: 'การแจ้งเตือนของฉัน',
-          onTap: () {},
+          onTap: () async {
+            if (!await _validateProfileActionSimple(
+              action: 'view_notifications',
+              context: {
+                'user_email': AuthService.currentUser?.email,
+                'source': 'profile_popup',
+              },
+            )) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            // TODO: Navigate to notifications
+          },
         ),
         _buildMenuItem(
           icon: '📤',
           title: 'แชร์แอปให้เพื่อน',
-          onTap: () {},
+          onTap: () async {
+            if (!await _validateProfileActionSimple(
+              action: 'share_app',
+              context: {'source': 'profile_popup'},
+            )) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            // TODO: Share app functionality
+          },
         ),
         _buildMenuItem(
           icon: '🌐',
           title: 'เปลี่ยนภาษา',
-          onTap: () {},
+          onTap: () async {
+            if (!await _validateProfileActionSimple(
+              action: 'change_language',
+              context: {'source': 'profile_popup'},
+            )) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            // TODO: Language change functionality
+          },
         ),
         _buildMenuDivider(),
         _buildMenuItem(
           icon: '🔒',
           title: 'ออกจากระบบ',
-          onTap: onLogout,
+          onTap: _handleSecureLogout,
           isLogout: true,
         ),
         const SizedBox(height: 16),

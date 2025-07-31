@@ -15,11 +15,11 @@ dependencies:
   provider: ^6.1.1
   
   # Firebase
-  firebase_core: ^2.24.2
-  cloud_firestore: ^4.13.6
-  firebase_storage: ^11.6.0
-  firebase_auth: ^4.15.3
-  google_sign_in: 6.1.6
+  firebase_core: ^2.32.0
+  cloud_firestore: ^4.17.5
+  firebase_storage: ^11.6.5
+  firebase_auth: ^4.16.0
+  google_sign_in: ^6.2.1
   
   # Maps & Location
   location: ^5.0.3
@@ -42,6 +42,7 @@ dependencies:
   # HTTP requests
   http: ^1.5.0-beta.2
   shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.2
   url_launcher: ^6.1.12
   flutter_svg: ^2.0.7
   flutter_compass: ^0.8.0

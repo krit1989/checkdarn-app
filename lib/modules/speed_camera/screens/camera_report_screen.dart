@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/smart_security_service.dart';
 import '../models/camera_report_model.dart';
 import '../services/camera_report_service.dart';
 import '../widgets/camera_report_form_widget.dart';
@@ -40,10 +41,55 @@ class _CameraReportScreenState extends State<CameraReportScreen>
   @override
   void initState() {
     super.initState();
+    _initializeSmartSecurity();
     _tabController = TabController(length: 3, vsync: this);
     _previousLoginState = AuthService.isLoggedIn;
     WidgetsBinding.instance.addObserver(this);
     _loadData();
+  }
+
+  Future<void> _initializeSmartSecurity() async {
+    await SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.high);
+  }
+
+  Future<bool> _validateCameraReportActionSimple({
+    String? action,
+    Map<String, dynamic>? context,
+  }) async {
+    try {
+      final result = await SmartSecurityService.checkPageSecurity(
+        'camera_report_page',
+        context: {
+          'action': action ?? 'generic',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          ...(context ?? {}),
+        },
+      );
+      return result.isAllowed;
+    } catch (e) {
+      print('Smart Security validation failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> _handleSecureRefresh() async {
+    if (!await _validateCameraReportActionSimple(
+      action: 'refresh_data',
+      context: {
+        'user_email': AuthService.currentUser?.email,
+        'is_logged_in': AuthService.isLoggedIn,
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    await _loadData(forceRefresh: true);
   }
 
   @override
@@ -299,7 +345,24 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           CameraReportFormWidget(
             initialLocation: widget.initialLocation,
             initialRoadName: widget.initialRoadName,
-            onReportSubmitted: () {
+            onReportSubmitted: () async {
+              // Smart Security validation for report submission
+              if (!await _validateCameraReportActionSimple(
+                action: 'submit_report',
+                context: {
+                  'user_email': AuthService.currentUser?.email,
+                  'location': widget.initialLocation?.toString(),
+                },
+              )) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
               _refreshAfterSubmit(); // ใช้ method แยกสำหรับ refresh หลังโพสใหม่
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -412,8 +475,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
 
     return RefreshIndicator(
       key: _refreshIndicatorKey,
-      onRefresh: () =>
-          _loadData(forceRefresh: true), // ใช้ force refresh เมื่อดึงลงมา
+      onRefresh: _handleSecureRefresh,
       child: ListView.builder(
         key: ValueKey(_dataRefreshKey), // บังคับ rebuild เมื่อลบรายงาน
         padding: const EdgeInsets.all(16),
@@ -429,6 +491,24 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               hasVoted: hasVoted,
               onVoteSubmitted: (voteType) async {
                 try {
+                  // Smart Security validation for voting
+                  if (!await _validateCameraReportActionSimple(
+                    action: 'submit_vote',
+                    context: {
+                      'vote_type': voteType.toString(),
+                      'report_id': report.id,
+                      'user_email': AuthService.currentUser?.email,
+                    },
+                  )) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
                   // ตรวจสอบการล็อกอินก่อนโหวต
                   if (!AuthService.isLoggedIn) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -473,7 +553,24 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   );
                 }
               },
-              onReportDeleted: () {
+              onReportDeleted: () async {
+                // Smart Security validation for report deletion
+                if (!await _validateCameraReportActionSimple(
+                  action: 'delete_report',
+                  context: {
+                    'report_id': report.id,
+                    'user_email': AuthService.currentUser?.email,
+                  },
+                )) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
                 // ลบ report ออกจาก local list ทันที
                 setState(() {
                   _pendingReports.removeWhere((r) => r.id == report.id);

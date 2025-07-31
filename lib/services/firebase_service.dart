@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:io';
 import 'dart:async';
 import '../models/event_model.dart';
+import 'enhanced_cache_service.dart';
 
 class FirebaseService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,15 +13,19 @@ class FirebaseService {
   static const String _collection = 'reports';
   static const int _maxPostsPerDay = 10; // จำกัด 10 โพสต์ต่อคนต่อวัน
 
-  // 🚀 Cache สำหรับ Smart Prefetch
-  static List<QueryDocumentSnapshot>? _cachedReports;
-  static DateTime? _lastCacheTime;
-  static const Duration _cacheValidDuration = Duration(minutes: 5);
-
   /// 🚀 Smart Prefetch System - โหลดข้อมูลล่วงหน้าแบบฉลาด
   static Future<void> prefetchRecentReports() async {
     try {
       print('🚀 Starting smart prefetch...');
+
+      // Check if we have valid cached data first
+      final cachedReports =
+          await EnhancedCacheService.get<List<Map<String, dynamic>>>(
+              'reports_recent');
+      if (cachedReports != null) {
+        print('✅ Using cached prefetch data: ${cachedReports.length} reports');
+        return;
+      }
 
       // ดึงข้อมูลล่วงหน้าและเก็บใน cache
       final snapshot = await _firestore
@@ -31,19 +36,25 @@ class FirebaseService {
           .get(const GetOptions(source: Source.server)) // บังคับจากเซิร์ฟเวอร์
           .timeout(const Duration(seconds: 10));
 
-      _cachedReports = snapshot.docs;
-      _lastCacheTime = DateTime.now();
+      // Convert to serializable format and cache
+      final reportsData = snapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                'data': doc.data(),
+              })
+          .toList();
+
+      await EnhancedCacheService.set(
+        'reports_recent',
+        reportsData,
+        ttl: const Duration(minutes: 10),
+        persistent: true,
+      );
 
       print('✅ Prefetch completed: ${snapshot.docs.length} reports cached');
     } catch (e) {
       print('⚠️ Prefetch failed (non-critical): $e');
     }
-  }
-
-  /// 🚀 ตรวจสอบว่ามี cache ที่ใช้ได้หรือไม่
-  static bool _isCacheValid() {
-    if (_cachedReports == null || _lastCacheTime == null) return false;
-    return DateTime.now().difference(_lastCacheTime!) < _cacheValidDuration;
   }
 
   /// อัพโหลดรูปภาพไป Firebase Storage พร้อม retry mechanism

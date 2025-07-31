@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,7 +10,7 @@ import 'dart:async';
 import 'dart:math';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
-import '../services/speed_camera_security_service.dart';
+import '../../../services/smart_security_service.dart';
 import '../../../services/sound_manager.dart';
 import '../../../services/smart_tile_provider.dart';
 import '../../../services/connection_manager.dart';
@@ -70,32 +71,40 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   Set<String> _alertedCameras = {};
   Timer? _cameraCleanupTimer;
 
-  // Security & Anti-Abuse System - ระบบป้องกันการใช้งานในทางที่ผิด
-  DateTime? _lastLocationUpdateTime;
-  double? _lastValidSpeed;
-  List<Position> _speedHistory = [];
-  int _suspiciousActivityCount = 0;
-  DateTime _sessionStartTime = DateTime.now();
-  Timer? _securityCheckTimer;
+  // Smart Security System variables
   bool _isSecurityModeActive = false;
-  final int _maxSuspiciousActivity =
-      20; // เพิ่มจาก 5 เป็น 20 เพื่อลดการ false positive
-  final Duration _securityCooldown = const Duration(minutes: 10);
+  DateTime _sessionStartTime = DateTime.now();
 
   // Performance & Resource Protection - ป้องกันการใช้ทรัพยากรมากเกินไป
   int _mapMovementCount = 0;
   DateTime? _lastMapMovement;
   final int _maxMapMovements =
-      500; // เพิ่มจาก 50 เป็น 500 (อนุญาตให้ใช้งานได้มากขึ้น)
+      5000; // เพิ่มจาก 1000 เป็น 5000 (อนุญาตให้ใช้งานได้มากขึ้น)
   Timer? _resourceMonitorTimer;
+  DateTime? _lastExcessiveWarning; // เพิ่มสำหรับ throttle warnings
+  final Duration _warningThrottle =
+      const Duration(seconds: 10); // เตือนทุก 10 วินาที
 
   // Data Validation & Integrity - ตรวจสอบความถูกต้องของข้อมูล
   double? _previousLatitude;
   double? _previousLongitude;
   final double _maxReasonableSpeed =
-      200.0; // กม./ชม. (ความเร็วสูงสุดที่เป็นไปได้)
+      180.0; // ลดจาก 200 เป็น 180 กม./ชม. (เข้มงวดขึ้น)
   final double _maxLocationJump =
-      1000.0; // เมตร (การกระโดดตำแหน่งสูงสุดที่ยอมรับได้)
+      500.0; // ลดจาก 1000 เป็น 500 เมตร (เข้มงวดขึ้น)
+
+  // GPS Anti-Spoofing System - ป้องกัน Fake GPS
+  final double _maxAcceptableAccuracy =
+      50.0; // ความแม่นยำต่ำสุดที่ยอมรับ (เมตร)
+  final double _maxAcceptableSpeedAccuracy = 2.0; // ความแม่นยำความเร็วต่ำสุด
+  Position? _lastTrustedPosition; // ตำแหน่งล่าสุดที่เชื่อถือได้
+  int _gpsAnomalyCount = 0; // นับจำนวนความผิดปกติของ GPS
+  final int _maxGpsAnomalies =
+      5; // จำนวนความผิดปกติสูงสุดก่อนเปิด Security Mode
+
+  // Enhanced Security Thresholds - ปรับค่าเพื่อความเข้มงวดขึ้น
+  final Duration _maxSessionDuration =
+      Duration(hours: 6); // ลดจาก 8 เป็น 6 ชั่วโมง
 
   // Smart map system
   SmartTileProvider? _smartTileProvider; // เปลี่ยนเป็น nullable
@@ -111,6 +120,15 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   Timer? _loginPromptTimer; // Timer สำหรับเด้งล็อกอินหลังจากเวลาที่กำหนด
   int _appInteractionCount = 0; // จำนวนการโต้ตอบกับแอป (แตะกล้อง, ดูข้อมูล)
 
+  // Missing member variables for Smart Security System
+  Timer? _securityCheckTimer;
+  List<Position> _speedHistory = [];
+  int _suspiciousActivityCount = 0;
+  final int _maxSuspiciousActivity = 10;
+  final Duration _securityCooldown = const Duration(minutes: 5);
+  DateTime? _lastLocationUpdateTime;
+  double? _lastValidSpeed;
+
   // Login Detection Thresholds - เงื่อนไขสำหรับเด้งล็อกอิน
   static const int _minMovementCount = 3; // ต้องเคลื่อนไหวอย่างน้อย 3 ครั้ง
   static const double _minTravelDistance =
@@ -123,6 +141,10 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   void initState() {
     super.initState();
     mapController = MapController();
+
+    // เริ่มระบบ Smart Security สำหรับ Speed Camera (HIGH RISK)
+    _initializeSmartSecurity();
+
     _getCurrentLocation();
     _loadSpeedCameras();
     _startSpeedTracking();
@@ -130,7 +152,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _startConnectionMonitoring();
     _enableWakelock(); // เปิด wakelock เพื่อไม่ให้หน้าจอดับ
     _startCameraCleanupTimer(); // เริ่มระบบล้างข้อมูลกล้องที่เตือนแล้ว
-    _initializeSecuritySystem(); // เริ่มระบบความปลอดภัย
     _startResourceMonitoring(); // เริ่มตรวจสอบการใช้ทรัพยากร
     _initializeSmartLoginDetection(); // เริ่มระบบตรวจจับการใช้งานเพื่อเด้งล็อกอิน
 
@@ -138,6 +159,28 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeSmartMapSystem();
     });
+  }
+
+  // ==================== SMART SECURITY SYSTEM ====================
+
+  /// เริ่มระบบ Smart Security สำหรับ Speed Camera (HIGH RISK)
+  void _initializeSmartSecurity() {
+    SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.high);
+    print('🔒 Smart Security initialized for Speed Camera (HIGH RISK)');
+
+    // เริ่ม security monitoring ทุก 30 วินาที (ยกเว้นใน Debug Mode)
+    if (!kDebugMode) {
+      _securityCheckTimer =
+          Timer.periodic(const Duration(seconds: 30), (timer) {
+        _performSecurityCheck();
+      });
+    } else {
+      print('🔧 Debug Mode: Security monitoring disabled');
+    }
+
+    // บันทึกเวลาเริ่มต้น session
+    _sessionStartTime = DateTime.now();
   }
 
   // ==================== SMART LOGIN DETECTION SYSTEM ====================
@@ -385,37 +428,47 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _checkLoginPromptConditions();
   }
 
-  // ==================== SECURITY & ANTI-ABUSE SYSTEM ====================
+  // ==================== SMART SECURITY VALIDATION ====================
 
-  /// เริ่มระบบความปลอดภัยและป้องกันการใช้งานในทางที่ผิด
-  void _initializeSecuritySystem() {
-    print('🔒 Initializing security system...');
+  /// ตรวจสอบการทำงานด้วย Smart Security Service (Hybrid Mode)
+  bool _validateSpeedCameraActionSimple(String action) {
+    try {
+      // ใช้ Smart Security Level เป็นเกณฑ์พื้นฐาน
+      final currentLevel = SmartSecurityService.getCurrentSecurityLevel();
 
-    // เริ่ม security service
-    SpeedCameraSecurityService.initialize();
+      // ถ้าเป็น High Security Level (Speed Camera) ให้ตรวจสอบเข้มงวดขึ้น
+      if (currentLevel == SecurityLevel.high) {
+        // ตรวจสอบเวลาการใช้งาน
+        final sessionDuration = DateTime.now().difference(_sessionStartTime);
+        if (sessionDuration.inHours > 6) {
+          print('🔒 Session too long for high security action: $action');
+          _isSecurityModeActive = true;
+          return false;
+        }
 
-    // เริ่ม security monitoring ทุก 30 วินาที
-    _securityCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _performSecurityCheck();
-    });
+        // ตรวจสอบความเร็วที่สมเหตุสมผล
+        if (currentSpeed > 200) {
+          print('🔒 Unrealistic speed detected: ${currentSpeed.toInt()} km/h');
+          return false;
+        }
+      }
 
-    // บันทึกเวลาเริ่มต้น session
-    _sessionStartTime = DateTime.now();
-    print('🔒 Security system initialized');
+      return true;
+    } catch (e) {
+      print('❌ Security validation error: $e');
+      return true; // ให้ผ่านในกรณีที่เกิดข้อผิดพลาด
+    }
   }
+
+  // ==================== SECURITY & ANTI-ABUSE SYSTEM ====================
 
   /// ตรวจสอบความปลอดภัยและพฤติกรรมผิดปกติ
   void _performSecurityCheck() {
     final now = DateTime.now();
     final sessionDuration = now.difference(_sessionStartTime);
 
-    // ใช้ Security Service ตรวจสอบการใช้งาน
-    final usageCheck = SpeedCameraSecurityService.checkUsagePattern();
-    if (!usageCheck.isValid) {
-      for (final violation in usageCheck.violations) {
-        _trackSuspiciousActivity(violation.type, violation.description);
-      }
-    }
+    // ใช้ Smart Security แทน legacy security service
+    print('🔒 Smart Security monitoring active');
 
     // ตรวจสอบ: การใช้งานนานเกินไป (บอกเป็นนัยว่าอาจใช้เพื่อหลีกเลี่ยงการจับ)
     if (sessionDuration.inHours > 8) {
@@ -461,6 +514,72 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
     // ตรวจสอบสถานะความปลอดภัย
     _evaluateSecurityStatus();
+  }
+
+  /// ตรวจสอบความน่าเชื่อถือของ GPS
+  bool _isGpsTrusted(Position position) {
+    // ตรวจสอบความแม่นยำ
+    if (position.accuracy > _maxAcceptableAccuracy) {
+      _gpsAnomalyCount++;
+      print('⚠️ GPS accuracy too low: ${position.accuracy}m');
+      return false;
+    }
+
+    // ตรวจสอบความแม่นยำความเร็ว
+    if (position.speedAccuracy > _maxAcceptableSpeedAccuracy) {
+      _gpsAnomalyCount++;
+      print('⚠️ GPS speed accuracy too low: ${position.speedAccuracy}');
+      return false;
+    }
+
+    // ตรวจสอบการกระโดดตำแหน่งผิดปกติ
+    if (_lastTrustedPosition != null) {
+      final distance = Geolocator.distanceBetween(
+        _lastTrustedPosition!.latitude,
+        _lastTrustedPosition!.longitude,
+        position.latitude,
+        position.longitude,
+      );
+
+      final timeDiff = position.timestamp
+          .difference(_lastTrustedPosition!.timestamp)
+          .inSeconds;
+      final maxPossibleDistance =
+          (position.speed * timeDiff) + 100; // เผื่อ 100m
+
+      if (distance > maxPossibleDistance && distance > 500) {
+        _gpsAnomalyCount++;
+        print('⚠️ Impossible GPS jump: ${distance}m in ${timeDiff}s');
+        return false;
+      }
+    }
+
+    // ตรวจสอบความเร็วผิดปกติ
+    final speedKmh = position.speed * 3.6;
+    if (speedKmh > _maxReasonableSpeed) {
+      _gpsAnomalyCount++;
+      print('⚠️ Unrealistic speed: ${speedKmh}km/h');
+      return false;
+    }
+
+    // ถ้าผ่านการตรวจสอบทั้งหมด
+    _lastTrustedPosition = position;
+    if (_gpsAnomalyCount > 0) {
+      _gpsAnomalyCount--; // ลดค่าความผิดปกติเมื่อมีข้อมูลที่ถูกต้อง
+    }
+
+    return true;
+  }
+
+  /// ตรวจสอบช่วงเวลาการใช้งาน
+  void _checkSessionDuration() {
+    final now = DateTime.now();
+    final sessionLength = now.difference(_sessionStartTime);
+
+    if (sessionLength > _maxSessionDuration) {
+      _trackSuspiciousActivity(
+          'long_session', 'Session duration: ${sessionLength.inHours} hours');
+    }
   }
 
   /// ติดตามกิจกรรมที่น่าสงสัย
@@ -556,8 +675,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     // ตรวจสอบการใช้ทรัพยากรทุกนาที
     _resourceMonitorTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       _checkResourceUsage();
-      // รีเซ็ตตัวนับรายนาทีใน Security Service
-      SpeedCameraSecurityService.resetMinuteCounters();
+      // Reset minute counters for the Smart Security Service
+      print('🔄 Resetting security counters');
     });
   }
 
@@ -565,14 +684,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   void _checkResourceUsage() {
     final now = DateTime.now();
 
-    // รีเซ็ตตัวนับการเคลื่อนไหวแผนที่ทุกนาที
+    // รีเซ็ตตัวนับการเคลื่อนไหวแผนที่ทุก 5 นาที (เปลี่ยนจาก 1 นาที)
     if (_lastMapMovement != null &&
-        now.difference(_lastMapMovement!).inMinutes >= 1) {
-      print('📊 Map movements in last minute: $_mapMovementCount');
+        now.difference(_lastMapMovement!).inMinutes >= 5) {
+      print('📊 Map movements in last 5 minutes: $_mapMovementCount');
 
       if (_mapMovementCount > _maxMapMovements) {
         _trackSuspiciousActivity('excessive_map_movement',
-            'Map moved $_mapMovementCount times in 1 minute');
+            'Map moved $_mapMovementCount times in 5 minutes');
       }
 
       _mapMovementCount = 0;
@@ -716,7 +835,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     _resourceMonitorTimer?.cancel(); // ยกเลิก resource monitoring
 
     // ล้างข้อมูล security
-    SpeedCameraSecurityService.dispose(); // ล้างข้อมูล Security Service
+    print('🔒 Smart Security system cleaned up');
     _speedHistory.clear();
     _alertedCameras.clear();
     _suspiciousActivityCount = 0;
@@ -822,17 +941,20 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
         // ==================== SECURITY VALIDATION ====================
 
-        // ตรวจสอบความถูกต้องของข้อมูล GPS ด้วย Security Service
-        final securityCheck =
-            SpeedCameraSecurityService.validateGPSData(position);
-        if (!securityCheck.isValid) {
-          print('🚨 Invalid GPS data detected, skipping update');
-          // แสดงการละเมิดความปลอดภัย
-          for (final violation in securityCheck.violations) {
-            _trackSuspiciousActivity(violation.type, violation.description);
+        // ตรวจสอบความถูกต้องของข้อมูล GPS ด้วย Enhanced Anti-Spoofing
+        if (!_isGpsTrusted(position)) {
+          print('🚨 Untrusted GPS data detected, skipping update');
+
+          // ตรวจสอบว่าควรเปิด Security Mode หรือไม่
+          if (_gpsAnomalyCount >= _maxGpsAnomalies) {
+            _trackSuspiciousActivity('gps_spoofing',
+                'GPS anomalies: $_gpsAnomalyCount, accuracy: ${position.accuracy}m');
           }
           return;
         }
+
+        // ตรวจสอบระยะเวลาการใช้งาน
+        _checkSessionDuration();
 
         // เพิ่มประวัติความเร็วสำหรับการตรวจสอบความปลอดภัย
         _speedHistory.add(position);
@@ -1039,21 +1161,34 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     // บันทึกการโต้ตอบสำหรับระบบ Smart Login Detection
     _recordAppInteraction();
 
-    // ==================== RESOURCE PROTECTION ====================
+    // ==================== SMART SECURITY CHECK ====================
 
-    // บันทึกการโต้ตอบแผนที่ใน Security Service
-    SpeedCameraSecurityService.recordMapInteraction();
+    // ตรวจสอบด้วย Smart Security Service
+    if (!_validateSpeedCameraActionSimple('map_interaction')) {
+      print('🔒 Map interaction blocked by Smart Security');
+      return;
+    }
 
-    // นับการเคลื่อนไหวแผนที่
-    _mapMovementCount++;
-    _lastMapMovement ??= now;
+    // นับการเคลื่อนไหวแผนที่แบบ throttled (ทุก 100ms)
+    if (_lastMapMovement == null ||
+        now.difference(_lastMapMovement!).inMilliseconds >= 100) {
+      _mapMovementCount++;
+      _lastMapMovement = now;
+    }
 
-    // ตรวจสอบการใช้งานมากเกินไป
+    // ตรวจสอบการใช้งานมากเกินไป (แต่ throttle warnings)
     if (_mapMovementCount > _maxMapMovements) {
-      print(
-          '⚠️ Excessive map interaction detected: $_mapMovementCount movements');
-      _trackSuspiciousActivity(
-          'excessive_map_interaction', 'Map moved $_mapMovementCount times');
+      // เตือนเฉพาะเมื่อผ่านไป 10 วินาทีจากการเตือนครั้งล่าสุด
+      if (_lastExcessiveWarning == null ||
+          now.difference(_lastExcessiveWarning!).inSeconds >=
+              _warningThrottle.inSeconds) {
+        print(
+            '⚠️ Excessive map interaction detected: $_mapMovementCount movements');
+        _trackSuspiciousActivity(
+            'excessive_map_interaction', 'Map moved $_mapMovementCount times');
+
+        _lastExcessiveWarning = now;
+      }
 
       // ลิมิตการทำงานถ้าใช้งานมากเกินไป
       if (_isSecurityModeActive) {
@@ -1336,16 +1471,11 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   // เริ่ม Progressive Beep Alert
   void _startProgressiveBeep(SpeedCamera camera, double distance) {
-    // ==================== SECURITY CHECK ====================
+    // ==================== SMART SECURITY CHECK ====================
 
-    // ตรวจสอบความปลอดภัยก่อนเล่นเสียงด้วย Security Service
-    if (!SpeedCameraSecurityService.canPlayAlert()) {
-      print('🔒 Progressive beep blocked by security service');
-      return;
-    }
-
-    // ตรวจสอบความปลอดภัยเพิ่มเติม
-    if (!_isSecureToPlayBeep()) {
+    // ตรวจสอบความปลอดภัยด้วย Smart Security Service
+    if (!_validateSpeedCameraActionSimple('progressive_beep')) {
+      print('🔒 Progressive beep blocked by Smart Security');
       return;
     }
 

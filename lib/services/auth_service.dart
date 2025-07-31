@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../screens/login_screen.dart';
+import 'secure_storage_service.dart';
 
 // Mock UserCredential class สำหรับจัดการ type casting error
 class MockUserCredential implements UserCredential {
@@ -93,11 +94,24 @@ class AuthService {
     try {
       print('Starting AuthService initialization...');
 
+      // Initialize secure storage first
+      await SecureStorageService.initialize();
+
+      // Check for existing secure session
+      final hasValidSession = await SecureStorageService.hasValidSession();
+      if (hasValidSession) {
+        final credentials = await SecureStorageService.getUserCredentials();
+        if (credentials != null) {
+          print(
+              '🔒 Found valid secure session for user: ${credentials['email']}');
+        }
+      }
+
       // Clear any cached authentication state to prevent conflicts
       await _googleSignIn.signOut();
 
       // Setup auth state listener to catch state changes immediately
-      _auth.authStateChanges().listen((User? user) {
+      _auth.authStateChanges().listen((User? user) async {
         final wasLoggedIn = _isUserLoggedIn;
         _isUserLoggedIn = user != null;
 
@@ -109,8 +123,28 @@ class AuthService {
           if (user != null) {
             print('User logged in: ${user.uid}');
             print('Email: ${user.email}');
+
+            // Store user credentials securely
+            await SecureStorageService.storeUserCredentials(
+              userId: user.uid,
+              email: user.email ?? '',
+              displayName: user.displayName,
+              photoUrl: user.photoURL,
+            );
+
+            // Store auth token if available
+            try {
+              final idToken = await user.getIdToken();
+              if (idToken != null) {
+                await SecureStorageService.storeAuthToken(idToken);
+              }
+            } catch (e) {
+              print('⚠️ Could not store auth token: $e');
+            }
           } else {
             print('User logged out');
+            // Clear secure storage on logout
+            await SecureStorageService.clearAuthData();
           }
         }
       });

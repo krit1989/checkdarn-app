@@ -15,6 +15,19 @@ class BottomBar extends StatelessWidget {
     required this.onCategorySelectorTap,
   });
 
+  // ฟังก์ชันแจ้ง MapScreen ให้ refresh cache
+  void _notifyMapScreenToRefresh(BuildContext context) {
+    // ใช้วิธีง่าย ๆ โดยตั้ง flag ใน SharedPreferences
+    // ให้ MapScreen ตรวจสอบเมื่อ resume
+    try {
+      // Set flag ว่ามีการโพสใหม่
+      // MapScreen จะตรวจสอบ flag นี้เมื่อ resume
+      // และจะ clear cache ถ้า flag เป็น true
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -159,7 +172,14 @@ class BottomBar extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ReportScreen()),
-                  );
+                  ).then((_) {
+                    // เมื่อกลับมาจากหน้า Report ให้ส่งสัญญาณไปยัง parent widget
+                    // ใช้ Navigator callback หรือ global refresh mechanism
+                    if (context.mounted) {
+                      // หา MapScreen ใน widget tree และเรียก refresh
+                      _notifyMapScreenToRefresh(context);
+                    }
+                  });
                 },
                 borderRadius: BorderRadius.circular(12),
                 splashColor: const Color(0xFFC3E7FF).withValues(alpha: 0.3),

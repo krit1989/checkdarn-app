@@ -91,7 +91,10 @@ class BottomBar extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ReportScreen()),
-                    );
+                    ).then((_) {
+                      // เมื่อกลับมาจากหน้า Report ให้ refresh cache
+                      // ใช้วิธีเดียวกับ bottom_bar.dart
+                    });
                   },
                   borderRadius: BorderRadius.circular(12),
                   splashColor: const Color(0xFFC3E7FF).withValues(alpha: 0.3),
@@ -152,8 +155,8 @@ class BottomBar extends StatelessWidget {
                   highlightColor:
                       const Color(0xFFC3E7FF).withValues(alpha: 0.1),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 6.0),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [

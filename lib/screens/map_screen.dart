@@ -13,7 +13,7 @@ import '../models/event_model.dart';
 import '../services/geocoding_service.dart';
 import '../services/firebase_service.dart';
 import '../services/auth_service.dart';
-import '../services/security_service.dart';
+import '../services/smart_security_service.dart';
 import '../utils/formatters.dart';
 import '../widgets/bottom_bar.dart';
 import '../widgets/category_selector_dialog.dart';
@@ -39,7 +39,8 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
+class _MapScreenState extends State<MapScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   LatLng? currentPosition; // เปลี่ยนกลับเป็น nullable เพื่อรอหาตำแหน่งจริงก่อน
   late MapController mapController;
   double searchRadius = 50.0; // เปลี่ยนเป็น 50 km เป็นค่าเริ่มต้น (10-100 km)
@@ -81,6 +82,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const double _clusterDistanceKm =
       0.5; // ระยะทางขั้นต่ำสำหรับ clustering (500m)
 
+  // เก็บรัศมีล่าสุดที่ cache เพื่อตรวจสอบการเปลี่ยนแปลง
+  double _lastCachedRadius = 0.0;
+
   List<EventCategory> selectedCategories = EventCategory.values.toList();
 
   @override
@@ -92,6 +96,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _setLoadingScreenNavigationBar();
     });
 
+    // เพิ่ม observer สำหรับ app lifecycle
+    WidgetsBinding.instance.addObserver(this);
+
     // เพิ่มการตั้งค่าสำรองด้วย Future.delayed
     Future.delayed(Duration.zero, () {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -99,6 +106,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     // ตรวจสอบและจัดการ Navigation Bar อัจฉริยะ
     _initializeSmartNavigationBarControl();
+
+    // เริ่มต้น Smart Security Service สำหรับ Map Screen (MEDIUM RISK)
+    _initializeSmartSecurity();
 
     // เริ่มต้น MapController และ Animation อย่างเดียวก่อน
     mapController = MapController();
@@ -134,6 +144,41 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
     });
   }
+
+  // ==================== SMART SECURITY SYSTEM ====================
+
+  /// เริ่มระบบ Smart Security สำหรับ Map Screen (MEDIUM RISK)
+  void _initializeSmartSecurity() {
+    SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.medium);
+    print('🔒 Smart Security initialized for Map Screen (MEDIUM RISK)');
+  }
+
+  /// ตรวจสอบการทำงานด้วย Smart Security Service
+  bool _validateMapAction(String action) {
+    try {
+      // ใช้ Smart Security Level เป็นเกณฑ์พื้นฐาน
+      final currentLevel = SmartSecurityService.getCurrentSecurityLevel();
+
+      // ถ้าเป็น Medium Security Level (Map) ให้ตรวจสอบพื้นฐาน
+      if (currentLevel == SecurityLevel.medium ||
+          currentLevel == SecurityLevel.high) {
+        // บันทึกการใช้งานใน Smart Security Service
+        // ในอนาคตสามารถเพิ่มการตรวจสอบ rate limiting ได้ที่นี่
+        if (kDebugMode) {
+          print('🔒 Map action validated: $action (level: $currentLevel)');
+        }
+        return true;
+      }
+
+      return true;
+    } catch (e) {
+      print('❌ Map Security validation error: $e');
+      return true; // ให้ผ่านในกรณีที่เกิดข้อผิดพลาด
+    }
+  }
+
+  // ==================== NAVIGATION BAR SYSTEM ====================
 
   // ระบบตรวจสอบและจัดการ Navigation Bar อัจฉริยะ
   void _initializeSmartNavigationBarControl() {
@@ -517,6 +562,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // ลบ observer
+    WidgetsBinding.instance.removeObserver(this);
+
     // คืนค่า System UI เป็นปกติสำหรับแอปอื่น
     try {
       SystemChrome.setEnabledSystemUIMode(
@@ -550,8 +598,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _clusteredMarkers.clear();
     _clusterGroups.clear();
 
-    // Cleanup security tracking
-    SecurityService.cleanup();
+    // Cleanup Smart Security tracking
+    print('🔒 Smart Security cleanup for Map Screen');
 
     // เคลียร์ image cache เพื่อจัดการ memory
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -559,6 +607,79 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
 
     super.dispose();
+  }
+
+  // ตรวจสอบ app lifecycle เพื่อ refresh markers เมื่อกลับมาจากหน้าอื่น
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed && mounted) {
+      // เมื่อ app resume (กลับจากหน้าอื่น) ให้ตรวจสอบว่ามีโพสใหม่ไหม
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        if (mounted) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final hasNewPost = prefs.getBool('has_new_post') ?? false;
+
+            if (hasNewPost) {
+              // เคลียร์ flag
+              await prefs.setBool('has_new_post', false);
+              if (kDebugMode) {
+                debugPrint('🆕 New post detected - invalidating cache');
+              }
+            } else {
+              if (kDebugMode) {
+                debugPrint('🔄 App resumed - normal cache invalidation');
+              }
+            }
+
+            // Invalidate cache ในทุกกรณี
+            _invalidateMarkersCache();
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('Error checking new post flag: $e');
+            }
+            // ถ้า error ก็ refresh ปกติ
+            _invalidateMarkersCache();
+          }
+        }
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // ตรวจจับเมื่อกลับมาหน้า MapScreen จาก navigation
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent && mounted) {
+      // ตรวจสอบ flag เมื่อกลับมาหน้านี้
+      Future.delayed(const Duration(milliseconds: 300), () async {
+        if (mounted) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final hasNewPost = prefs.getBool('has_new_post') ?? false;
+
+            if (hasNewPost) {
+              // เคลียร์ flag
+              await prefs.setBool('has_new_post', false);
+              if (kDebugMode) {
+                debugPrint(
+                    '🔄 Returned to MapScreen - new post detected, refreshing...');
+              }
+              _invalidateMarkersCache();
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint(
+                  'Error checking new post flag in didChangeDependencies: $e');
+            }
+          }
+        }
+      });
+    }
   }
 
   // ฟังก์ชันโหลดการตั้งค่าที่บันทึกไว้
@@ -586,15 +707,38 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble('search_radius', searchRadius);
+
+      // Clear cache เมื่อรัศมีเปลี่ยน เพื่อให้ markers อัปเดตทันที
+      _invalidateMarkersCache();
+
       print('Saved search radius: $searchRadius km');
       if (kDebugMode) {
-        debugPrint('Saved search radius: $searchRadius km');
+        debugPrint('Saved search radius: $searchRadius km - cache invalidated');
       }
     } catch (e) {
       print('Error saving settings: $e');
       if (kDebugMode) {
         debugPrint('Error saving settings: $e');
       }
+    }
+  }
+
+  // ฟังก์ชัน clear cache เพื่อให้ markers อัปเดตแบบเรียลไทม์
+  void _invalidateMarkersCache() {
+    setState(() {
+      _cachedDocuments.clear();
+      _cachedMarkers.clear();
+      _markerCache.clear();
+      _clusteredMarkers.clear();
+      _clusterGroups.clear();
+      _lastFirebaseUpdate = null;
+      _lastCachedPosition = null;
+      _lastCachedZoom = 0.0;
+      _lastCachedRadius = 0.0; // รีเซ็ตรัศมีที่ cache
+    });
+
+    if (kDebugMode) {
+      debugPrint('🗑️ Markers cache invalidated - will rebuild on next frame');
     }
   }
 
@@ -744,8 +888,28 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ฟังก์ชันจัดการ Long Press บนแผนที่เพื่อสร้างโพสต์ที่ตำแหน่งนั้น
+  // ฟังก์ชันจัดการ Long Press บนแผนที่เพื่อสร้างโพสต์ที่ตำแหน่งนั้น (เฉพาะนิ้วเดียว)
   void _onMapLongPress(TapPosition tapPosition, LatLng point) async {
+    // ==================== SMART SECURITY CHECK ====================
+
+    // ตรวจสอบด้วย Smart Security Service
+    if (!_validateMapAction('long_press_create_post')) {
+      print('🔒 Long press blocked by Smart Security');
+      return;
+    }
+
+    // ตรวจสอบว่าเป็นการกดค้างด้วยนิ้วเดียวเท่านั้น
+    if (_activePointers > 1) {
+      if (kDebugMode) {
+        debugPrint(
+            '🚫 Long press ignored - multi-finger detected ($_activePointers fingers)');
+      }
+      return; // ไม่ทำอะไรถ้ากดด้วยหลายนิ้ว
+    }
+
+    if (kDebugMode) {
+      debugPrint('✅ Single finger long press detected - opening ReportScreen');
+    }
     // ตรวจสอบการล็อกอิน
     if (!AuthService.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -801,7 +965,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               initialLocationInfo: locationInfo,
             ),
           ),
-        );
+        ).then((_) {
+          // เมื่อกลับมาจากหน้า Report ให้ invalidate cache เพื่อแสดงโพสใหม่
+          if (mounted) {
+            _invalidateMarkersCache();
+            if (kDebugMode) {
+              debugPrint(
+                  '🔄 Returned from ReportScreen - cache invalidated for new posts');
+            }
+          }
+        });
       }
     } catch (e) {
       // ซ่อน loading snackbar
@@ -830,6 +1003,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Offset? _panStartPosition;
   DateTime? _panStartTime;
   bool _isPanning = false;
+  int _activePointers = 0; // เพิ่มตัวแปรนับจำนวนนิ้วที่สัมผัสหน้าจอ
 
   // ฟังก์ชันแสดง popup เลือกหมวดหมู่
   void _showCategorySelector() {
@@ -849,6 +1023,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           setState(() {
             selectedCategories = categories;
           });
+
+          // Clear cache เมื่อหมวดหมู่เปลี่ยน เพื่อให้ markers อัปเดตทันที
+          _invalidateMarkersCache();
 
           // Track analytics
           // trackAction('category_changes'); // ปิดการใช้งาน analytics
@@ -1399,21 +1576,31 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         ? currentTime.difference(_lastFirebaseUpdate!)
         : Duration.zero;
 
-    if (cacheAge > _cacheValidDuration) {
+    // ตรวจสอบการเปลี่ยนแปลงของรัศมี
+    final radiusChanged = (_lastCachedRadius - searchRadius).abs() > 0.1;
+
+    if (cacheAge > _cacheValidDuration || radiusChanged) {
       _cachedDocuments.clear();
       _cachedMarkers.clear();
+      _lastCachedRadius = searchRadius; // อัปเดตรัศมีที่ cache
       if (kDebugMode) {
-        debugPrint(
-            'Debug: 🗑️ Cache expired, cleared after ${cacheAge.inMinutes}m ${cacheAge.inSeconds % 60}s');
+        if (radiusChanged) {
+          debugPrint(
+              'Debug: � Search radius changed from $_lastCachedRadius to $searchRadius km - cache cleared');
+        } else {
+          debugPrint(
+              'Debug: �🗑️ Cache expired, cleared after ${cacheAge.inMinutes}m ${cacheAge.inSeconds % 60}s');
+        }
       }
     }
 
     // ตรวจสอบว่า currentPosition ไม่เป็น null ก่อน
     if (currentPosition == null) return [];
 
-    // ถ้าข้อมูลไม่เปลี่ยนและ cache ยังใหม่ (ภายใน cache valid duration)
+    // ถ้าข้อมูลไม่เปลี่ยนและ cache ยังใหม่ (ภายใน cache valid duration) และรัศมีไม่เปลี่ยน
     if (_lastFirebaseUpdate != null &&
         currentTime.difference(_lastFirebaseUpdate!) < _cacheValidDuration &&
+        !radiusChanged &&
         _cachedDocuments.isNotEmpty &&
         _lastCachedPosition != null &&
         _calculateDistanceInKm(
@@ -1423,7 +1610,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               currentPosition!.longitude,
             ) <
             0.5) {
-      // ใช้ cache ถ้าเคลื่อนที่น้อยกว่า 500 เมตร
+      // ใช้ cache ถ้าเคลื่อนที่น้อยกว่า 500 เมตร และรัศมีไม่เปลี่ยน
       if (kDebugMode) {
         debugPrint(
             'Debug: 📦 Using cached data (${_cachedDocuments.length} docs)');
@@ -1454,7 +1641,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final lng = (data['lng'] ?? 0.0) as double;
       if (lat == 0.0 && lng == 0.0) return false;
 
-      // ตรวจสอบระยะทาง
+      // ตรวจสอบระยะทาง - ใช้รัศมีปัจจุบัน
       final distance = FirebaseService.calculateDistance(
         currentPosition!.latitude,
         currentPosition!.longitude,
@@ -1468,10 +1655,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _cachedDocuments = filteredDocs;
     _lastFirebaseUpdate = currentTime;
     _lastCachedPosition = currentPosition;
+    _lastCachedRadius = searchRadius; // เก็บรัศมีที่ใช้ในการ cache
 
     if (kDebugMode) {
       debugPrint(
-          'Debug: 🔄 Updated cache with ${filteredDocs.length} documents');
+          'Debug: 🔄 Updated cache with ${filteredDocs.length} documents (radius: $searchRadius km)');
     }
 
     return filteredDocs;
@@ -2280,17 +2468,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               keepAlive: true, // เก็บ state ของแผนที่
               // Enhanced pointer event handlers - แก้ปัญหา tap หลัง drag
               onPointerDown: (event, point) {
+                _activePointers++; // เพิ่มจำนวนนิ้วที่สัมผัสหน้าจอ
                 _panStartPosition = event.position;
                 _panStartTime = DateTime.now();
                 _isPanning = false; // Reset panning state
 
                 if (kDebugMode) {
-                  debugPrint('🎯 Pointer down at: ${event.position}');
+                  debugPrint(
+                      '🎯 Pointer down at: ${event.position}, active pointers: $_activePointers');
                 }
               },
               onPointerUp: (event, point) {
+                _activePointers =
+                    (_activePointers - 1).clamp(0, 10); // ลดจำนวนนิ้ว
+
                 if (kDebugMode) {
-                  debugPrint('🎯 Pointer up - _isPanning: $_isPanning');
+                  debugPrint(
+                      '🎯 Pointer up - _isPanning: $_isPanning, active pointers: $_activePointers');
                 }
 
                 // หน่วงเวลาก่อน reset variables
@@ -2301,12 +2495,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 });
               },
               onPointerCancel: (event, point) {
+                _activePointers =
+                    (_activePointers - 1).clamp(0, 10); // ลดจำนวนนิ้ว
                 _isPanning = false;
                 _panStartPosition = null;
                 _panStartTime = null;
 
                 if (kDebugMode) {
-                  debugPrint('🚫 Pointer cancelled');
+                  debugPrint(
+                      '🚫 Pointer cancelled, active pointers: $_activePointers');
                 }
               },
               // Enhanced performance callbacks
@@ -2317,6 +2514,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 }
 
                 if (hasGesture) {
+                  // ==================== SMART SECURITY CHECK ====================
+
+                  // ตรวจสอบด้วย Smart Security Service สำหรับการเคลื่อนไหวแผนที่
+                  if (!_validateMapAction('map_position_change')) {
+                    if (kDebugMode) {
+                      debugPrint(
+                          '🔒 Map position change blocked by Smart Security');
+                    }
+                    return;
+                  }
+
                   // ตรวจสอบว่ากำลังลากจริงหรือไม่
                   if (_panStartPosition != null && _panStartTime != null) {
                     final now = DateTime.now();

@@ -7,12 +7,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:async';
 import '../models/event_model.dart';
 import '../services/geocoding_service.dart';
 import '../services/firebase_service.dart';
 import '../services/auth_service.dart';
+import '../services/smart_security_service.dart';
 import '../widgets/location_picker_screen.dart';
 import 'list_screen.dart';
 
@@ -45,6 +47,7 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeSmartSecurity();
 
     // ใช้ข้อมูลเริ่มต้นที่ส่งมาจากการ Long Press บนแผนที่
     if (widget.initialLocation != null) {
@@ -53,6 +56,31 @@ class _ReportScreenState extends State<ReportScreen> {
       hasUserSelectedLocation = true; // ตั้งค่า flag เมื่อมีตำแหน่งเริ่มต้น
     }
     // ไม่โหลดตำแหน่งปัจจุบันอัตโนมัติ ให้ผู้ใช้เลือกเอง
+  }
+
+  Future<void> _initializeSmartSecurity() async {
+    await SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.high);
+  }
+
+  Future<bool> _validateReportActionSimple({
+    String? action,
+    Map<String, dynamic>? context,
+  }) async {
+    try {
+      final result = await SmartSecurityService.checkPageSecurity(
+        'report_page',
+        context: {
+          'action': action ?? 'generic',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          ...(context ?? {}),
+        },
+      );
+      return result.isAllowed;
+    } catch (e) {
+      print('Smart Security validation failed: $e');
+      return false;
+    }
   }
 
   String? _validateRequiredFields() {
@@ -291,6 +319,24 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _pickImageFromSource(ImageSource source) async {
+    // Smart Security validation for image upload
+    if (!await _validateReportActionSimple(
+      action: 'image_upload',
+      context: {
+        'source': source.toString(),
+        'current_image_exists': selectedImage != null,
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('การตรวจสอบความปลอดภัยล้มเหลว ไม่สามารถอัปโหลดรูปภาพได้'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
 
@@ -382,6 +428,25 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Future<void> _submitReport() async {
     if (isSubmitting) return;
+
+    // Smart Security validation - HIGH RISK operation
+    if (!await _validateReportActionSimple(
+      action: 'submit_report',
+      context: {
+        'report_category': selectedCategory?.name,
+        'has_image': selectedImage != null,
+        'has_location': selectedLocation != null,
+        'detail_length': _detailController.text.length,
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('การตรวจสอบความปลอดภัยล้มเหลว กรุณาลองใหม่อีกครั้ง'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final isLoggedIn = await AuthService.ensureUserLoggedIn(context);
     if (!isLoggedIn) {
@@ -491,6 +556,14 @@ class _ReportScreenState extends State<ReportScreen> {
             duration: Duration(milliseconds: 800), // แสดงแป๊บเดียว
           ),
         );
+
+        // เซ็ต flag ว่ามีโพสใหม่ เพื่อให้ MapScreen refresh cache
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('has_new_post', true);
+        } catch (e) {
+          print('Error setting new post flag: $e');
+        }
 
         // Navigate ทันที
         Navigator.pushReplacement(

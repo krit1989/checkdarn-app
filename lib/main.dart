@@ -7,6 +7,8 @@ import 'screens/map_screen.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
 import 'services/cleanup_service.dart';
+import 'services/enhanced_cache_service.dart';
+import 'services/secure_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +45,9 @@ void main() async {
 
   // Initialize AuthService
   await AuthService.initialize();
+
+  // Initialize Enhanced Cache Service
+  await EnhancedCacheService.initialize();
 
   // Migrate existing data to TTL และเพิ่ม expireAt field
   await FirebaseService.initializeAndMigrate();

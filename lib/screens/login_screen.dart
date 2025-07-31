@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/smart_security_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+    _initializeSmartSecurity();
 
     // Setup animations
     _fadeController = AnimationController(
@@ -61,7 +63,68 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  Future<void> _initializeSmartSecurity() async {
+    await SmartSecurityService.initialize();
+    SmartSecurityService.setSecurityLevel(SecurityLevel.critical);
+  }
+
+  Future<bool> _validateLoginActionSimple({
+    String? action,
+    Map<String, dynamic>? context,
+  }) async {
+    try {
+      final result = await SmartSecurityService.checkPageSecurity(
+        'login_page',
+        context: {
+          'action': action ?? 'generic',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          ...(context ?? {}),
+        },
+      );
+      return result.isAllowed;
+    } catch (e) {
+      print('Smart Security validation failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> _handleSecureNavigation(bool result) async {
+    if (!await _validateLoginActionSimple(
+      action: 'navigation',
+      context: {
+        'result': result,
+        'exit_type': result ? 'success' : 'cancel',
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(result);
+  }
+
   Future<void> _handleGoogleSignIn() async {
+    // Smart Security validation - CRITICAL RISK operation
+    if (!await _validateLoginActionSimple(
+      action: 'google_signin',
+      context: {
+        'provider': 'google',
+        'is_loading': _isLoading,
+      },
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('การตรวจสอบความปลอดภัยล้มเหลว กรุณาลองใหม่อีกครั้ง'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -74,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (result != null) {
         // ล็อกอินสำเร็จ
         if (mounted) {
-          Navigator.of(context).pop(true);
+          await _handleSecureNavigation(true);
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -89,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen>
       } else {
         // ผู้ใช้ยกเลิก
         if (mounted) {
-          Navigator.of(context).pop(false);
+          await _handleSecureNavigation(false);
         }
       }
     } catch (e) {
@@ -135,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen>
                     IconButton(
                       onPressed: _isLoading
                           ? null
-                          : () => Navigator.of(context).pop(false),
+                          : () => _handleSecureNavigation(false),
                       icon: Icon(
                         Icons.close,
                         color: _isLoading ? Colors.grey : Colors.black54,
@@ -323,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen>
                         TextButton(
                           onPressed: _isLoading
                               ? null
-                              : () => Navigator.of(context).pop(false),
+                              : () => _handleSecureNavigation(false),
                           child: Text(
                             'ข้ามไปก่อน',
                             style: TextStyle(
