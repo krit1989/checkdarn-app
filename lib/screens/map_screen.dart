@@ -125,6 +125,11 @@ class _MapScreenState extends State<MapScreen>
     // หาตำแหน่งจริงทันทีก่อน - สำคัญที่สุด
     _getCurrentLocationImmediately();
 
+    // ตรวจสอบสถานะ Location สำหรับการ debug
+    if (kDebugMode) {
+      _checkLocationStatus();
+    }
+
     // เลื่อนส่วนอื่นๆ ไปทำหลัง location เจอแล้ว
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeOtherServices();
@@ -782,64 +787,120 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _getCurrentLocationImmediately() async {
     try {
       if (kDebugMode) {
-        debugPrint('🔍 Finding actual location before showing map...');
+        debugPrint('🔍 Starting GPS location detection...');
+        debugPrint('🔧 Checking location prerequisites...');
       }
 
-      // ตั้ง timeout ให้เร็วขึ้น - บังคับใช้ default หลัง 3 วินาที
-      Future.delayed(const Duration(seconds: 3), () {
+      // ตั้ง timeout ให้เร็วขึ้น - บังคับใช้ default หลัง 8 วินาที
+      Future.delayed(const Duration(seconds: 8), () {
         if (mounted && (currentPosition == null || isLoadingLocation)) {
           if (kDebugMode) {
-            debugPrint('⏰ Force timeout - using default location');
+            debugPrint(
+                '⏰ GPS timeout after 8 seconds - using default location');
           }
           _useDefaultLocationImmediately();
         }
       });
 
+      // ขอ permission ก่อนทำอะไรอื่น เพื่อให้ popup ขึ้นทันทีตอนเปิดแอพ
+      if (kDebugMode) {
+        debugPrint('🔧 Requesting location permissions first...');
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (kDebugMode) {
+        debugPrint('📋 Current permission status: $permission');
+      }
+
+      // บังคับขอ permission ทันทีถ้ายังไม่ได้อนุญาต
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          debugPrint('⚠️ Requesting location permission...');
+        }
+        permission = await Geolocator.requestPermission();
+        if (kDebugMode) {
+          debugPrint('📋 Permission after request: $permission');
+        }
+      }
+
+      // ตรวจสอบผลลัพธ์หลังจากขอ permission
+      if (permission == LocationPermission.denied) {
+        if (kDebugMode) {
+          debugPrint('❌ Location permission DENIED by user');
+        }
+        _useDefaultLocationImmediately();
+        return;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          debugPrint('❌ Location permission PERMANENTLY DENIED');
+          debugPrint('💡 Please enable location in app settings');
+        }
+        _useDefaultLocationImmediately();
+        return;
+      }
+
+      if (kDebugMode) {
+        debugPrint('✅ Location permission granted: $permission');
+      }
+
       // ลองใช้ last known position ก่อน (เร็วที่สุด)
+      if (kDebugMode) {
+        debugPrint('📋 Checking last known position...');
+      }
       Position? lastKnown = await Geolocator.getLastKnownPosition();
       if (lastKnown != null && mounted) {
         if (kDebugMode) {
           debugPrint(
-              '📍 Using last known position (${lastKnown.latitude}, ${lastKnown.longitude})');
+              '✅ Found last known position: ${lastKnown.latitude}, ${lastKnown.longitude}');
         }
         setState(() {
           currentPosition = LatLng(lastKnown.latitude, lastKnown.longitude);
           isLoadingLocation = false;
         });
         return;
+      } else {
+        if (kDebugMode) {
+          debugPrint('⚠️ No last known position available');
+        }
       }
 
       // ตรวจสอบการเปิดใช้งาน Location Services
+      if (kDebugMode) {
+        debugPrint('🔧 Checking if location services are enabled...');
+      }
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (kDebugMode) {
-          debugPrint('❌ Location services disabled - using default location');
+          debugPrint('❌ Location services are DISABLED');
+          debugPrint(
+              '💡 Please enable location in device Settings > Privacy & Security > Location Services');
         }
         _useDefaultLocationImmediately();
         return;
-      }
-
-      // ตรวจสอบ Permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _useDefaultLocationImmediately();
-          return;
+      } else {
+        if (kDebugMode) {
+          debugPrint('✅ Location services are enabled');
         }
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        _useDefaultLocationImmediately();
-        return;
+      // ลองหาตำแหน่งปัจจุบัน
+      if (kDebugMode) {
+        debugPrint('🔍 Getting current GPS position...');
       }
-
-      // ลองหาตำแหน่งปัจจุบัน (แต่มี timeout เร็ว)
       try {
         Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.low, // ลดความแม่นยำให้เร็วขึ้น
-          timeLimit: const Duration(seconds: 2), // timeout เร็วมาก
+          desiredAccuracy: LocationAccuracy.medium, // เพิ่มความแม่นยำ
+          timeLimit: const Duration(seconds: 7), // เพิ่มเวลา timeout
         );
+
+        if (kDebugMode) {
+          debugPrint(
+              '✅ GPS position acquired: ${position.latitude}, ${position.longitude}');
+          debugPrint(
+              '📊 Accuracy: ${position.accuracy}m, Speed: ${position.speed}m/s');
+        }
 
         if (mounted) {
           setState(() {
@@ -848,13 +909,56 @@ class _MapScreenState extends State<MapScreen>
           });
         }
       } catch (e) {
-        // ถ้าไม่ได้ ใช้ default
+        if (kDebugMode) {
+          debugPrint('❌ Failed to get GPS position: $e');
+        }
         _useDefaultLocationImmediately();
       }
     } catch (e) {
       _useDefaultLocationImmediately();
       if (kDebugMode) {
-        debugPrint('⚠️ Location error: $e - using default location');
+        debugPrint(
+            '⚠️ Location initialization error: $e - using default location');
+      }
+    }
+  }
+
+  // ฟังก์ชันตรวจสอบสถานะ Location Services และ Permissions (สำหรับการ debug)
+  Future<void> _checkLocationStatus() async {
+    if (kDebugMode) {
+      debugPrint('🔧 === LOCATION STATUS DIAGNOSIS ===');
+
+      try {
+        // ตรวจสอบ Location Services
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        debugPrint(
+            '📡 Location Services: ${serviceEnabled ? "✅ ENABLED" : "❌ DISABLED"}');
+
+        // ตรวจสอบ Permissions
+        LocationPermission permission = await Geolocator.checkPermission();
+        debugPrint('🔐 Location Permission: $permission');
+
+        // ตรวจสอบ Last Known Position
+        Position? lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          debugPrint(
+              '📍 Last Known Position: ${lastKnown.latitude}, ${lastKnown.longitude}');
+        } else {
+          debugPrint('📍 Last Known Position: ❌ NONE');
+        }
+
+        // แนะนำการแก้ไข
+        if (!serviceEnabled) {
+          debugPrint('💡 FIX: Enable Location Services in device Settings');
+        }
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          debugPrint('💡 FIX: Grant location permission to this app');
+        }
+
+        debugPrint('🔧 === END DIAGNOSIS ===');
+      } catch (e) {
+        debugPrint('❌ Error checking location status: $e');
       }
     }
   }
@@ -870,6 +974,8 @@ class _MapScreenState extends State<MapScreen>
     }
     if (kDebugMode) {
       debugPrint('📍 Using default location (Bangkok): $_defaultPosition');
+      debugPrint(
+          '💡 User can press My Location button to find actual position');
     }
   }
 
@@ -1523,11 +1629,54 @@ class _MapScreenState extends State<MapScreen>
     try {
       setState(() => isLoadingMyLocation = true); // ใช้ loading state แยก
 
+      if (kDebugMode) {
+        debugPrint('🔍 [My Location Button] Starting location search...');
+      }
+
+      // ตรวจสอบการเปิดใช้งาน Location Services ก่อน
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (kDebugMode) {
+          debugPrint('❌ [My Location Button] Location services are disabled');
+        }
+        return;
+      }
+
+      // ตรวจสอบ Permission และขอ permission ทันทีถ้าจำเป็น
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          debugPrint(
+              '⚠️ [My Location Button] Requesting location permission...');
+        }
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          debugPrint('❌ [My Location Button] Location permission denied');
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        debugPrint(
+            '✅ [My Location Button] Permissions OK, getting position...');
+      }
+
       // หาตำแหน่งจริงใหม่ด้วย GPS แบบไม่บล็อก UI
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 3), // ลดเวลาจาก 5 เป็น 3 วินาที
+        timeLimit: const Duration(seconds: 10), // เพิ่มเวลาให้มากขึ้น
       );
+
+      if (kDebugMode) {
+        debugPrint(
+            '✅ [My Location Button] Got GPS position: ${position.latitude}, ${position.longitude}');
+        debugPrint('📊 [My Location Button] Accuracy: ${position.accuracy}m');
+      }
 
       final actualPosition = LatLng(position.latitude, position.longitude);
 
@@ -1542,15 +1691,13 @@ class _MapScreenState extends State<MapScreen>
       // ดึงข้อมูลที่อยู่ใหม่ในพื้นหลัง (ไม่บล็อก UI)
       _getLocationInfo(actualPosition);
 
-      // Track analytics
-      // trackAction('location_updates'); // ปิดการใช้งาน analytics
-
       if (kDebugMode) {
-        debugPrint('📍 Updated to actual GPS location: $actualPosition');
+        debugPrint(
+            '📍 [My Location Button] Successfully updated to GPS location: $actualPosition');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error getting GPS location: $e');
+        debugPrint('❌ [My Location Button] Error getting GPS location: $e');
       }
 
       // ถ้าหาตำแหน่งใหม่ไม่ได้ ให้ใช้ตำแหน่งเดิม
@@ -1559,7 +1706,8 @@ class _MapScreenState extends State<MapScreen>
           _smoothMoveMap(currentPosition!, 15.0);
         } catch (e2) {
           if (kDebugMode) {
-            debugPrint('Error moving to current position: $e2');
+            debugPrint(
+                '❌ [My Location Button] Error moving to current position: $e2');
           }
         }
       }
