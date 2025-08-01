@@ -145,13 +145,20 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         return;
       }
 
+      print('🗺️ USER LOCATION DEBUG:');
+      print('   Initial location: ${widget.initialLocation}');
+      print('   Latitude: ${widget.initialLocation?.latitude}');
+      print('   Longitude: ${widget.initialLocation?.longitude}');
+
       final futures = await Future.wait([
         CameraReportService.getPendingReports(
           userLat: widget.initialLocation?.latitude,
           userLng: widget.initialLocation?.longitude,
+          radiusKm: 50.0, // เพิ่มจาก 10km เป็น 50km เพื่อให้ครอบคลุมมากขึ้น
           forceRefresh: forceRefresh, // ส่ง force refresh flag
         ),
-        CameraReportService.getUserVotedReports(),
+        CameraReportService
+            .getUserVotedReports(), // Force server check แล้วใน service
         CameraReportService.getUserStats(),
       ]);
 
@@ -164,9 +171,13 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         });
 
         // Debug log เพื่อดูจำนวนรายงาน
+        print('📊 Loaded ${_pendingReports.length} pending reports');
         if (forceRefresh) {
           print(
               'DEBUG: After force refresh - pending reports: ${_pendingReports.length}');
+          for (final report in _pendingReports.take(3)) {
+            print('   Report: ${report.roadName} at ${report.reportedAt}');
+          }
         }
       }
     } catch (e) {
@@ -228,16 +239,39 @@ class _CameraReportScreenState extends State<CameraReportScreen>
     if (!mounted) return;
 
     try {
-      // รีเฟรชข้อมูลทันที (ไม่ต้อง debug logs)
+      print('🔄 === POST-SUBMISSION REFRESH PROCESS ===');
+      print('🔄 Step 1: Waiting for server sync...');
+
+      // รอให้ข้อมูลซิงค์กับ server
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      print('🔄 Step 2: Forcing UI rebuild...');
+      // รีเฟรชข้อมูลทันที
       setState(() {
         _dataRefreshKey++;
         _scaffoldRefreshKey++;
       });
 
-      // โหลดข้อมูลใหม่
+      print('🔄 Step 3: Force loading new data from server...');
+      // โหลดข้อมูลใหม่พร้อม force refresh
       await _loadData(forceRefresh: true);
+
+      print('🔄 Step 4: Checking pending reports count after refresh...');
+      print('   _pendingReports.length: ${_pendingReports.length}');
+
+      if (_pendingReports.isNotEmpty) {
+        print('✅ Pending reports found after refresh:');
+        for (int i = 0; i < _pendingReports.take(3).length; i++) {
+          final report = _pendingReports[i];
+          print('   ${i + 1}. ${report.roadName} - ${report.reportedAt}');
+        }
+      } else {
+        print('❌ NO pending reports found after refresh!');
+      }
+
+      print('✅ Post-submission refresh completed');
     } catch (e) {
-      print('Error refreshing after submit: $e');
+      print('❌ Error refreshing after submit: $e');
     }
   }
 
@@ -364,10 +398,14 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               }
 
               _refreshAfterSubmit(); // ใช้ method แยกสำหรับ refresh หลังโพสใหม่
+
+              // เปลี่ยนไปแท็บโหวตเพื่อให้เห็นโพสต์ใหม่
+              _tabController.animateTo(1); // Index 1 = แท็บโหวต
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'ส่งรายงานเรียบร้อยแล้ว! รอการตรวจสอบจากชุมชน',
+                    'ส่งรายงานเรียบร้อยแล้ว! ตรวจสอบในแท็บโหวต',
                     style: TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                   backgroundColor: Colors.green,
@@ -438,6 +476,18 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           ],
         ),
       );
+    }
+
+    // DEBUG: ดูสถานะข้อมูลในหน้าโหวต
+    print('🗳️ VOTING TAB DEBUG:');
+    print('   _isLoading: $_isLoading');
+    print('   _pendingReports.length: ${_pendingReports.length}');
+    print('   _userVotedReports.length: ${_userVotedReports.length}');
+    if (_pendingReports.isNotEmpty) {
+      print('   Recent reports:');
+      for (final report in _pendingReports.take(3)) {
+        print('     - ${report.roadName} (${report.reportedAt})');
+      }
     }
 
     if (_pendingReports.isEmpty) {
@@ -521,15 +571,45 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     return;
                   }
 
+                  // แสดง loading indicator
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            'กำลังโหวต...',
+                            style: const TextStyle(fontFamily: 'NotoSansThai'),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.blue,
+                      duration: const Duration(
+                          seconds: 5), // จะถูกแทนที่เมื่อโหวตเสร็จ
+                    ),
+                  );
+
                   await CameraReportService.submitVote(
                     reportId: report.id,
                     voteType: voteType,
                   );
 
+                  // เฉพาะเมื่อโหวตสำเร็จถึงจะอัปเดต state และ refresh
                   setState(() {
                     _userVotedReports.add(report.id);
                   });
 
+                  ScaffoldMessenger.of(context)
+                      .clearSnackBars(); // ลบ loading indicator
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -542,15 +622,26 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     ),
                   );
 
-                  // Refresh data after a short delay
+                  // Refresh data เฉพาะเมื่อโหวตสำเร็จ
                   Future.delayed(const Duration(seconds: 1), _loadData);
                 } catch (e) {
+                  // ลบ loading indicator และแสดง error
+                  ScaffoldMessenger.of(context).clearSnackBars();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('เกิดข้อผิดพลาด: $e'),
+                      content: Text(
+                        'เกิดข้อผิดพลาด: $e',
+                        style: const TextStyle(fontFamily: 'NotoSansThai'),
+                      ),
                       backgroundColor: Colors.red,
+                      duration: const Duration(
+                          seconds: 4), // แสดงนานขึ้นเพื่อให้ผู้ใช้อ่าน
                     ),
                   );
+
+                  // ไม่ต้อง refresh data เมื่อเกิด error เพื่อป้องกันโพสต์หายไป
+                  print(
+                      '❌ Vote failed - not refreshing data to preserve posts');
                 }
               },
               onReportDeleted: () async {

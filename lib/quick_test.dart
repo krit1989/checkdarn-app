@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'modules/speed_camera/services/camera_report_service.dart';
+import 'modules/speed_camera/models/camera_report_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,11 +108,98 @@ class _QuickTestScreenState extends State<QuickTestScreen> {
     });
 
     try {
-      await CameraReportService.createSampleReports();
+      // Create a simple test report
+      if (AuthService.isLoggedIn) {
+        print('สร้างรายงานทดสอบ...');
+        await CameraReportService.submitReport(
+          latitude: 13.7563,
+          longitude: 100.5018,
+          roadName: 'ถนนทดสอบ',
+          speedLimit: 80,
+          type: CameraReportType.newCamera,
+          description: 'รายงานทดสอบระบบ',
+        );
+        setState(() {
+          _status = 'สร้างรายงานทดสอบสำเร็จ!';
+        });
+      } else {
+        setState(() {
+          _status = 'กรุณาล็อกอินก่อนเพื่อสร้างข้อมูลทดสอบ';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _status = 'สร้างข้อมูลตัวอย่างสำเร็จ!';
+        _status = 'เกิดข้อผิดพลาด: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _debugPendingReports() async {
+    setState(() {
+      _isLoading = true;
+      _status = 'กำลังตรวจสอบโพสต์รอโหวต...';
+    });
+
+    try {
+      print('🔍 === DEBUGGING PENDING REPORTS STEP BY STEP ===');
+
+      // Step 1: Check login status
+      if (!AuthService.isLoggedIn) {
+        setState(() {
+          _status = 'กรุณาล็อกอินก่อนเพื่อดูรายงานรอโหวต';
+        });
+        return;
+      }
+
+      print('✅ User is logged in: ${AuthService.currentUser?.email}');
+
+      // Step 2: Get pending reports with full debug
+      final pendingReports =
+          await CameraReportService.getPendingReports(forceRefresh: true);
+
+      // Step 3: Get user voted reports
+      final userVotedReports = await CameraReportService.getUserVotedReports();
+
+      // Step 4: Analyze results
+      print('📊 ANALYSIS RESULTS:');
+      print('   Total pending reports: ${pendingReports.length}');
+      print('   User voted reports: ${userVotedReports.length}');
+
+      if (pendingReports.isEmpty) {
+        print('❌ NO PENDING REPORTS FOUND!');
+        print('   Possible causes:');
+        print('   1. No reports in database');
+        print('   2. All reports have non-pending status');
+        print('   3. Location filter too restrictive');
+        print('   4. Database connection issue');
+      } else {
+        print('✅ PENDING REPORTS FOUND:');
+        for (int i = 0; i < pendingReports.length; i++) {
+          final report = pendingReports[i];
+          final hasVoted = userVotedReports.contains(report.id);
+          print('   ${i + 1}. ${report.roadName}');
+          print('      ID: ${report.id}');
+          print('      Status: ${report.status}');
+          print('      Upvotes: ${report.upvotes}');
+          print('      Downvotes: ${report.downvotes}');
+          print('      User voted: $hasVoted');
+          print('      Reported at: ${report.reportedAt}');
+          print('      ---');
+        }
+      }
+
+      setState(() {
+        _status = 'ตรวจสอบเสร็จสิ้น!\n'
+            'รายงานรอโหวต: ${pendingReports.length} รายการ\n'
+            'รายงานที่โหวตแล้ว: ${userVotedReports.length} รายการ\n'
+            'ดูรายละเอียดใน Debug Console';
       });
     } catch (e) {
+      print('❌ Error in debug pending reports: $e');
       setState(() {
         _status = 'เกิดข้อผิดพลาด: $e';
       });
@@ -129,21 +217,23 @@ class _QuickTestScreenState extends State<QuickTestScreen> {
     });
 
     try {
-      await CameraReportService.debugAllReports();
+      // Test basic functionality
+      print('🔍 Testing CameraReportService basic functions...');
 
       if (AuthService.isLoggedIn) {
-        // Test multi-user functionality
-        await CameraReportService.debugMultiUserTest();
-
         final pendingReports = await CameraReportService.getPendingReports();
+        final userStats = await CameraReportService.getUserStats();
+
         setState(() {
           _status = 'พบรายการรอตรวจสอบ: ${pendingReports.length} รายการ\n'
+              'สถิติผู้ใช้: ${userStats.length} รายการ\n'
               'ดู Debug Console สำหรับรายละเอียด\n'
               'Email: ${AuthService.currentUser?.email}';
         });
       } else {
         setState(() {
-          _status = 'ตรวจสอบข้อมูลเสร็จสิ้น\nดูผลลัพธ์ใน Debug Console';
+          _status =
+              'ตรวจสอบข้อมูลเสร็จสิ้น\nกรุณาล็อกอินเพื่อดูข้อมูลเพิ่มเติม';
         });
       }
     } catch (e) {
@@ -200,6 +290,16 @@ class _QuickTestScreenState extends State<QuickTestScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: const Text('สร้างข้อมูลตัวอย่าง'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _debugPendingReports,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('ดีบักโพสต์รอโหวต'),
             ),
             const SizedBox(height: 12),
             ElevatedButton(

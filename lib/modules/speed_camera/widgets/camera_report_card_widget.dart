@@ -18,6 +18,31 @@ class CameraReportCardWidget extends StatelessWidget {
     this.onReportDeleted,
   });
 
+  // ฟังก์ชันสร้างชื่อแบบ masked สำหรับการแสดงผล
+  String _getMaskedPosterName() {
+    final currentUser = AuthService.currentUser;
+
+    // ถ้าเป็นผู้ใช้ปัจจุบัน
+    if (currentUser != null && currentUser.uid == report.reportedBy) {
+      return AuthService.getMaskedDisplayName();
+    }
+
+    // ถ้าเป็นคนอื่น - mask userId
+    final userId = report.reportedBy;
+    if (userId.isEmpty || userId == 'anonymous') {
+      return 'ผู้ใช้ไม่ระบุชื่อ';
+    }
+
+    // Mask userId ให้สวยงาม
+    if (userId.length <= 4) {
+      return userId; // ถ้าสั้นเกินไป ไม่ต้อง mask
+    } else if (userId.length <= 8) {
+      return '${userId.substring(0, 4)}****';
+    } else {
+      return '${userId.substring(0, 4)}${'*' * (userId.length - 4)}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -142,6 +167,27 @@ class CameraReportCardWidget extends StatelessWidget {
                 ),
               ),
             ],
+
+            // Poster information
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text(
+                  '👤',
+                  style: TextStyle(fontSize: 12),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _getMaskedPosterName(),
+                  style: TextStyle(
+                    fontFamily: 'NotoSansThai',
+                    fontSize: 11,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
 
             const SizedBox(height: 16),
 
@@ -323,7 +369,8 @@ class CameraReportCardWidget extends StatelessWidget {
           ),
           title: const Text(
             'ยืนยันการลบ',
-            style: TextStyle(fontFamily: 'NotoSansThai', fontWeight: FontWeight.w600),
+            style: TextStyle(
+                fontFamily: 'NotoSansThai', fontWeight: FontWeight.w600),
           ),
           content: const Text(
             'คุณต้องการลบรายงานนี้ใช่หรือไม่?\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้',
@@ -454,8 +501,6 @@ class CameraReportCardWidget extends StatelessWidget {
         return '📷 กล้องใหม่';
       case CameraReportType.removedCamera:
         return '❌ กล้องถูกถอด';
-      case CameraReportType.movedCamera:
-        return '📍 กล้องย้ายที่';
       case CameraReportType.speedChanged:
         return '⚡ เปลี่ยนความเร็ว';
       case CameraReportType.verification:
@@ -469,8 +514,6 @@ class CameraReportCardWidget extends StatelessWidget {
         return Colors.green;
       case CameraReportType.removedCamera:
         return Colors.red;
-      case CameraReportType.movedCamera:
-        return Colors.orange;
       case CameraReportType.speedChanged:
         return Colors.purple;
       case CameraReportType.verification:

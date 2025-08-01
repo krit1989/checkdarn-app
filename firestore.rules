@@ -14,21 +14,22 @@ service cloud.firestore {
       }
     }
     
-    // � กฎสำหรับ camera reports - ระบบรายงานกล้องใหม่
+    // 📷 กฎสำหรับ camera reports - ระบบรายงานกล้องใหม่ (ปรับปรุงใหม่)
     match /camera_reports/{reportId} {
-      allow read: if request.auth != null;
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (ไม่ต้องล็อกอิน)
       allow create: if request.auth != null;
-      allow update: if request.auth != null;  // อนุญาตให้อัปเดตได้ (สำหรับ vote counts)
+      allow update: if request.auth != null;  // เปิดให้อัปเดตได้ทั้งหมดสำหรับผู้ล็อกอิน
       allow delete: if request.auth != null && 
-                     request.auth.uid == resource.data.reportedBy;
+                     request.auth.uid == resource.data.reportedBy &&
+                     resource.data.status == 'pending';
     }
     
-    // 🗳️ กฎสำหรับ camera votes - โหวตสำหรับกล้อง
+    // 🗳️ กฎสำหรับ camera votes - โหวตสำหรับกล้อง (ปรับปรุงใหม่)
     match /camera_votes/{voteId} {
-      allow read: if request.auth != null;  // ให้ทุกคนที่ล็อกอินอ่านได้
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน
       allow create: if request.auth != null;  // ผู้ล็อกอินสามารถสร้างโหวตได้
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update: if request.auth != null;  // เปิดให้อัปเดตได้สำหรับผู้ล็อกอิน
+      allow delete: if request.auth != null;  // เปิดให้ลบได้สำหรับผู้ล็อกอิน
     }
     
     // 📈 กฎสำหรับ user report stats - สถิติการรายงาน
@@ -37,7 +38,7 @@ service cloud.firestore {
       allow write: if request.auth != null;  // ให้เขียนได้สำหรับการอัปเดต stats
     }
     
-    // �👤 กฎสำหรับข้อมูลผู้ใช้ - เฉพาะเจ้าของ
+    // 👤 กฎสำหรับข้อมูลผู้ใช้ - เฉพาะเจ้าของ
     match /users/{userId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;

@@ -54,6 +54,8 @@ class CameraReportService {
         .doc(reportId)
         .set(report.toJson());
 
+    print('✅ New camera report created: ${report.roadName} (ID: $reportId)');
+
     // Update user stats
     await _updateUserStats(user.uid, 'reports_submitted');
 
@@ -65,41 +67,194 @@ class CameraReportService {
     required String reportId,
     required VoteType voteType,
     String? comment,
+    int maxRetries = 2, // เพิ่ม retry mechanism
   }) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('User not authenticated');
+    if (user == null) throw Exception('กรุณาล็อกอินก่อน');
 
-    // Check if user has already voted
-    final existingVote = await _firestore
-        .collection(_votesCollection)
-        .where('reportId', isEqualTo: reportId)
-        .where('userId', isEqualTo: user.uid)
-        .get();
+    // Debug user info
+    print('🔍 DEBUG - User info:');
+    print('   User ID: ${user.uid}');
+    print('   Email: ${user.email}');
+    print('   Is Anonymous: ${user.isAnonymous}');
+    print('   Display Name: ${user.displayName}');
+    print('   Auth Token: ${user.refreshToken != null ? "Available" : "None"}');
 
-    if (existingVote.docs.isNotEmpty) {
-      throw Exception('คุณได้โหวตรายงานนี้แล้ว');
+    Exception? lastError;
+
+    // พยายามโหวตสูงสุด maxRetries + 1 ครั้ง
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          print('🔄 Vote retry attempt $attempt of $maxRetries');
+          // รอเล็กน้อยก่อน retry
+          await Future.delayed(Duration(milliseconds: 1000 * attempt));
+
+          // ตรวจสอบ auth token ใหม่ก่อน retry
+          await user.getIdToken(true); // Force refresh token
+          print('🔐 Auth token refreshed for retry');
+        }
+
+        print(
+            '🗳️ Starting vote submission for user: ${user.uid} (attempt ${attempt + 1})');
+
+        // Check if user has already voted (FORCE SERVER CHECK - ไม่ใช้ cache)
+        print('🔍 Checking if user has already voted (from server)...');
+        final existingVote = await _firestore
+            .collection(_votesCollection)
+            .where('reportId', isEqualTo: reportId)
+            .where('userId', isEqualTo: user.uid)
+            .get(const GetOptions(source: Source.server)) // FORCE SERVER
+            .timeout(const Duration(seconds: 15));
+
+        if (existingVote.docs.isNotEmpty) {
+          print(
+              '❌ User has already voted - vote ID: ${existingVote.docs.first.id}');
+          throw Exception('คุณได้โหวตรายงานนี้แล้ว');
+        }
+
+        print('✅ Vote check passed - user has not voted yet');
+
+        // Check if report exists first (FORCE SERVER CHECK)
+        print('🔍 Checking if report exists (from server)...');
+        final reportDoc = await _firestore
+            .collection(_reportsCollection)
+            .doc(reportId)
+            .get(const GetOptions(source: Source.server)) // FORCE SERVER
+            .timeout(const Duration(seconds: 15));
+
+        if (!reportDoc.exists) {
+          throw Exception('ไม่พบรายงานนี้ อาจถูกลบไปแล้ว');
+        }
+
+        final report = CameraReport.fromJson(reportDoc.data()!);
+
+        // ตรวจสอบสถานะรายงาน
+        if (report.status != CameraStatus.pending) {
+          throw Exception('ไม่สามารถโหวตรายงานที่ไม่ใช่สถานะ pending ได้');
+        }
+
+        print('✅ Report exists and is pending - proceeding with vote');
+        print(
+            '📊 Report details: ${report.roadName}, Status: ${report.status}');
+
+        final voteId = _firestore.collection(_votesCollection).doc().id;
+        final vote = CameraVote(
+          id: voteId,
+          reportId: reportId,
+          userId: user.uid,
+          voteType: voteType,
+          votedAt: DateTime.now(),
+          comment: comment,
+        );
+
+        // ขั้นตอนที่ 1: สร้าง vote ก่อน (with timeout)
+        print('📝 Creating vote document...');
+        await _firestore
+            .collection(_votesCollection)
+            .doc(voteId)
+            .set(vote.toJson())
+            .timeout(const Duration(seconds: 15));
+        print('✅ Vote document created successfully');
+
+        // ขั้นตอนที่ 2: อัปเดต report counts แยกต่างหาก
+        print('📊 Updating report vote counts...');
+        await _updateReportVoteCounts(reportId, voteType);
+        print('✅ Report vote counts updated successfully');
+
+        // Update user stats (with timeout)
+        print('📈 Updating user stats...');
+        await _updateUserStats(user.uid, 'votes_submitted')
+            .timeout(const Duration(seconds: 15));
+        print('✅ User stats updated successfully');
+
+        // If auto-verified, potentially add to main speed camera database
+        if (await _isReportAutoVerified(reportId)) {
+          print('🎯 Report auto-verified - promoting to main database');
+          await _promoteToMainDatabase(reportId);
+        }
+
+        print('🎉 Vote submission completed successfully');
+        return; // สำเร็จแล้ว ออกจาก loop
+      } catch (e) {
+        lastError = Exception(e.toString());
+        print('❌ Vote attempt ${attempt + 1} failed: $e');
+        print('🔍 Error type: ${e.runtimeType}');
+
+        // แสดงรายละเอียด error เพิ่มเติม
+        if (e.toString().contains('permission-denied')) {
+          print('🚫 Permission denied details:');
+          print('   Current user: ${user.uid}');
+          print('   User email: ${user.email ?? "No email"}');
+          print('   Is authenticated: ${user.uid.isNotEmpty}');
+          print('   Report ID: $reportId');
+        }
+
+        // ถ้าเป็น error ที่ไม่ควร retry ให้หยุดทันที
+        if (e.toString().contains('คุณได้โหวตรายงานนี้แล้ว') ||
+            e.toString().contains('ไม่พบรายงานนี้') ||
+            e.toString().contains('ไม่ใช่สถานะ pending')) {
+          print('💡 Non-retryable error - stopping retries');
+          break;
+        }
+
+        // ถ้ายังมี attempt เหลือและเป็น error ที่ retry ได้
+        if (attempt < maxRetries) {
+          print('🔄 Will retry in ${1000 * (attempt + 1)}ms...');
+          continue;
+        }
+      }
     }
 
-    final voteId = _firestore.collection(_votesCollection).doc().id;
-    final vote = CameraVote(
-      id: voteId,
-      reportId: reportId,
-      userId: user.uid,
-      voteType: voteType,
-      votedAt: DateTime.now(),
-      comment: comment,
-    );
+    // ถ้าถึงจุดนี้แปลว่าล้มเหลวทั้งหมด
+    print('💥 All vote attempts failed');
+    print('🔍 Last error: ${lastError?.toString()}');
 
-    // Submit vote and update report stats in transaction
-    await _firestore.runTransaction((transaction) async {
+    // ให้ข้อมูล error ที่ชัดเจนขึ้น
+    if (lastError != null) {
+      final errorMsg = lastError.toString();
+      if (errorMsg.contains('permission-denied')) {
+        // ข้อมูล debug เพิ่มเติมสำหรับ permission error
+        print('🚫 Permission denied - Debug info:');
+        print('   User authenticated: ${user.uid.isNotEmpty}');
+        print('   User email: ${user.email}');
+        print('   Report ID: $reportId');
+
+        throw Exception(
+            'ไม่มีสิทธิ์ในการโหวต - กรุณาลองออกจากระบบแล้วล็อกอินใหม่');
+      } else if (errorMsg.contains('not-found')) {
+        throw Exception('ไม่พบรายงานนี้ อาจถูกลบไปแล้ว');
+      } else if (errorMsg.contains('network') ||
+          errorMsg.contains('timeout') ||
+          errorMsg.contains('TimeoutException')) {
+        throw Exception('ปัญหาการเชื่อมต่อ กรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่');
+      } else if (errorMsg.contains('คุณได้โหวตรายงานนี้แล้ว')) {
+        throw Exception('คุณได้โหวตรายงานนี้แล้ว');
+      } else {
+        throw Exception(
+            'ไม่สามารถโหวตได้ กรุณาลองใหม่อีกครั้ง\nรายละเอียด: ${errorMsg.length > 100 ? errorMsg.substring(0, 100) + "..." : errorMsg}');
+      }
+    } else {
+      throw Exception('ไม่สามารถโหวตได้ กรุณาลองใหม่อีกครั้ง');
+    }
+  }
+
+  /// Update report vote counts separately (ไม่ใช้ transaction)
+  static Future<void> _updateReportVoteCounts(
+      String reportId, VoteType voteType) async {
+    try {
+      print('📊 Getting report document for vote count update...');
       final reportRef = _firestore.collection(_reportsCollection).doc(reportId);
-      final reportDoc = await transaction.get(reportRef);
+      final reportDoc = await reportRef
+          .get(const GetOptions(source: Source.server)); // Force server read
 
       if (!reportDoc.exists) {
         throw Exception('Report not found');
       }
 
       final report = CameraReport.fromJson(reportDoc.data()!);
+      print(
+          '📄 Current report - Upvotes: ${report.upvotes}, Downvotes: ${report.downvotes}');
 
       // Update vote counts
       final newUpvotes =
@@ -111,6 +266,9 @@ class CameraReportService {
       final newConfidenceScore =
           newTotalVotes > 0 ? newUpvotes / newTotalVotes : 0.0;
 
+      print(
+          '📊 New counts - Upvotes: $newUpvotes, Downvotes: $newDownvotes, Confidence: ${(newConfidenceScore * 100).toStringAsFixed(1)}%');
+
       // Auto-verify if confidence is high enough
       CameraStatus newStatus = report.status;
       DateTime? verifiedAt;
@@ -121,83 +279,129 @@ class CameraReportService {
           newStatus = CameraStatus.verified;
           verifiedAt = DateTime.now();
           verifiedBy = 'auto_system';
+          print(
+              '✅ Auto-verifying report due to high confidence (${(newConfidenceScore * 100).toStringAsFixed(1)}%)');
         } else if (newConfidenceScore <= 0.2) {
           newStatus = CameraStatus.rejected;
           verifiedAt = DateTime.now();
           verifiedBy = 'auto_system';
+          print(
+              '❌ Auto-rejecting report due to low confidence (${(newConfidenceScore * 100).toStringAsFixed(1)}%)');
         }
       }
 
-      // Update report
-      transaction.update(reportRef, {
+      // Update report ด้วย merge: true เพื่อป้องกันการเขียนทับ
+      final updateData = {
         'upvotes': newUpvotes,
         'downvotes': newDownvotes,
         'confidenceScore': newConfidenceScore,
         'status': newStatus.toString().split('.').last,
         if (verifiedAt != null) 'verifiedAt': verifiedAt.toIso8601String(),
         if (verifiedBy != null) 'verifiedBy': verifiedBy,
-      });
+      };
 
-      // Add vote
-      final voteRef = _firestore.collection(_votesCollection).doc(voteId);
-      transaction.set(voteRef, vote.toJson());
-    });
+      print('🔄 Updating report with new vote counts...');
+      await reportRef.update(updateData);
+      print('✅ Report vote counts updated successfully');
+    } catch (e) {
+      print('❌ Error updating report vote counts: $e');
 
-    // Update user stats
-    await _updateUserStats(user.uid, 'votes_submitted');
-
-    // If auto-verified, potentially add to main speed camera database
-    if (await _isReportAutoVerified(reportId)) {
-      await _promoteToMainDatabase(reportId);
+      // ให้ข้อมูล error ที่ชัดเจนขึ้น
+      if (e.toString().contains('permission-denied')) {
+        throw Exception('ไม่มีสิทธิ์ในการอัปเดตคะแนนโหวต');
+      } else if (e.toString().contains('not-found')) {
+        throw Exception('ไม่พบรายงานที่ต้องการอัปเดต');
+      } else {
+        throw Exception('ไม่สามารถอัปเดตคะแนนโหวตได้: ${e.toString()}');
+      }
     }
   }
 
-  /// Get pending reports that need votes
+  /// Get pending reports that need votes (ALWAYS FORCE REFRESH)
   static Future<List<CameraReport>> getPendingReports({
     double? userLat,
     double? userLng,
     double radiusKm = 10.0,
     int limit = 20,
-    bool forceRefresh = false, // เพิ่มพารามิเตอร์สำหรับ force refresh
+    bool forceRefresh = true, // เปลี่ยนเป็น true เป็นค่าเริ่มต้น
   }) async {
+    print('🔍 getPendingReports called with:');
+    print('   userLat: $userLat, userLng: $userLng');
+    print('   radiusKm: $radiusKm, limit: $limit');
+    print('   forceRefresh: $forceRefresh');
+
     Query query = _firestore
         .collection(_reportsCollection)
         .where('status', isEqualTo: 'pending')
         .orderBy('reportedAt', descending: true)
         .limit(limit);
 
-    // Force refresh จาก server ถ้าต้องการ
-    final snapshot = forceRefresh
-        ? await query.get(const GetOptions(source: Source.server))
-        : await query.get();
+    // ALWAYS FORCE REFRESH เพื่อให้เห็นโพสต์ใหม่ทันที
+    final snapshot = await query.get(const GetOptions(source: Source.server));
 
-    final reports = snapshot.docs
-        .map((doc) => CameraReport.fromJson(doc.data() as Map<String, dynamic>))
-        .toList();
+    print('📊 Firestore query result: ${snapshot.docs.length} documents');
+
+    final reports = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      print(
+          '   Document ID: ${doc.id}, Status: ${data['status']}, Road: ${data['roadName']}');
+      return CameraReport.fromJson(data);
+    }).toList();
+
+    print('📋 Converted to ${reports.length} CameraReport objects');
 
     // Filter by distance if user location provided
     if (userLat != null && userLng != null) {
+      final originalCount = reports.length;
+      print(
+          '📍 Applying distance filter with user location: ($userLat, $userLng)');
+
+      // Debug: Check distances for all reports
+      for (int i = 0; i < reports.length; i++) {
+        final report = reports[i];
+        final distance = _calculateDistance(
+            userLat, userLng, report.latitude, report.longitude);
+        print(
+            '   Report ${i + 1}: ${report.roadName} - Distance: ${distance.toStringAsFixed(2)}km');
+      }
+
       reports.removeWhere((report) {
         final distance = _calculateDistance(
             userLat, userLng, report.latitude, report.longitude);
-        return distance > radiusKm;
+        final tooFar = distance > radiusKm;
+        if (tooFar) {
+          print(
+              '   ❌ Filtering out ${report.roadName} - ${distance.toStringAsFixed(2)}km > ${radiusKm}km');
+        }
+        return tooFar;
       });
+      print(
+          '📍 Distance filter: ${originalCount} -> ${reports.length} reports (within ${radiusKm}km)');
+    } else {
+      print('📍 No user location provided - skipping distance filter');
     }
 
+    print('✅ Final result: ${reports.length} pending reports');
     return reports;
   }
 
-  /// Get user's voting history
+  /// Get user's voting history (FORCE FROM SERVER)
   static Future<List<String>> getUserVotedReports() async {
     final user = _auth.currentUser;
     if (user == null) return [];
 
+    // FORCE SERVER READ - ไม่ใช้ cache เพื่อป้องกันปัญหาข้อมูลเก่า
     final snapshot = await _firestore
         .collection(_votesCollection)
         .where('userId', isEqualTo: user.uid)
-        .get();
+        .get(const GetOptions(source: Source.server));
 
-    return snapshot.docs.map((doc) => doc['reportId'] as String).toList();
+    final votedReports =
+        snapshot.docs.map((doc) => doc['reportId'] as String).toList();
+    print(
+        '📊 User voted reports (from server): ${votedReports.length} reports');
+
+    return votedReports;
   }
 
   /// Get user's report statistics

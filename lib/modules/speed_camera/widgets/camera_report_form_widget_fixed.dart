@@ -110,8 +110,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       value: type,
                       child: Text(
                         _getReportTypeDisplayName(type),
-                        style:
-                            const TextStyle(fontFamily: 'NotoSansThai', fontSize: 14),
+                        style: const TextStyle(
+                            fontFamily: 'NotoSansThai', fontSize: 14),
                         overflow: TextOverflow.ellipsis,
                       ),
                     );
@@ -354,8 +354,6 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         return '📷 รายงานกล้องใหม่';
       case CameraReportType.removedCamera:
         return '❌ รายงานกล้องที่ถูกถอด';
-      case CameraReportType.movedCamera:
-        return '📍 รายงานกล้องที่ย้ายที่';
       case CameraReportType.speedChanged:
         return '⚡ รายงานการเปลี่ยนจำกัดความเร็ว';
       case CameraReportType.verification:
@@ -369,8 +367,6 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         return 'รายงานกล้องใหม่';
       case CameraReportType.removedCamera:
         return 'รายงานกล้องถูกถอด';
-      case CameraReportType.movedCamera:
-        return 'รายงานกล้องย้ายที่';
       case CameraReportType.speedChanged:
         return 'รายงานเปลี่ยนความเร็ว';
       case CameraReportType.verification:

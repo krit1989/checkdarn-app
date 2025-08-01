@@ -106,7 +106,6 @@ class CameraReport {
 enum CameraReportType {
   newCamera, // รายงานกล้องใหม่
   removedCamera, // รายงานกล้องที่ถูกถอด
-  movedCamera, // รายงานกล้องที่ย้ายที่
   speedChanged, // รายงานการเปลี่ยนจำกัดความเร็ว
   verification, // ยืนยันกล้องที่มีอยู่
 }

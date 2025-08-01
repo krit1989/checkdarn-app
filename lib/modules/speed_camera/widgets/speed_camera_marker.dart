@@ -5,11 +5,13 @@ import '../models/speed_camera_model.dart';
 class SpeedCameraMarker extends StatelessWidget {
   final SpeedCamera camera;
   final VoidCallback? onTap;
+  final bool isSelected;
 
   const SpeedCameraMarker({
     Key? key,
     required this.camera,
     this.onTap,
+    this.isSelected = false,
   }) : super(key: key);
 
   // สีสำหรับแยกตามความเร็ว
@@ -52,60 +54,59 @@ class SpeedCameraMarker extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 50,
-        height: 50,
+        width: 60,
+        height: 60,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             // วงกลมใหญ่ (พื้นหลังสี) - สีเดียวตามความเร็ว
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: _getCameraColor(),
-                shape: BoxShape.circle,
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-
-            // ไอคอนกล้องด้านหน้าพื้นสี - ตำแหน่งตรงกลางของวงกลม
             Positioned(
-              left: 0,
-              top: 0,
-              width: 40,
-              height: 40,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(
-                      2), // เพิ่ม padding เพื่อให้เห็นชัดขึ้น
+              left: 10,
+              top: 10,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color:
+                      isSelected ? const Color(0xFF1158F2) : _getCameraColor(),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
                   child: SvgPicture.asset(
                     'assets/icons/speed_camera_screen/speed camera2.svg',
-                    width: 24, // เพิ่มขนาดจาก 22 เป็น 24
-                    height: 24, // เพิ่มขนาดจาก 22 เป็น 24
+                    width: 20,
+                    height: 20,
                     colorFilter: const ColorFilter.mode(
-                      Colors.white, // ไอคอนสีขาว
+                      Colors.white,
                       BlendMode.srcIn,
                     ),
-                    // ถ้าโหลดไฟล์ SVG ไม่ได้ จะแสดงไอคอน fallback
                     placeholderBuilder: (context) => const Icon(
                       Icons.camera_alt,
                       color: Colors.white,
-                      size: 24,
+                      size: 20,
                     ),
                   ),
                 ),
               ),
             ),
+
             // วงกลมเล็ก (แสดงความเร็ว) - ขยับไปทางขวาล่าง พร้อมขอบสีแดง
             Positioned(
-              right: -2,
-              bottom: -2,
+              left:
+                  38, // 10 (left ของวงกลมใหญ่) + 40 (ความกว้างวงกลมใหญ่) - 10 (ครึ่งหนึ่งของวงกลมเล็ก)
+              top:
+                  30, // 10 (top ของวงกลมใหญ่) + 40 (ความสูงวงกลมใหญ่) - 10 (ครึ่งหนึ่งของวงกลมเล็ก)
               child: Container(
                 width: _getBadgeSize(),
                 height: _getBadgeSize(),
