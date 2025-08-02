@@ -27,7 +27,8 @@ class SpeedCameraScreen extends StatefulWidget {
   State<SpeedCameraScreen> createState() => _SpeedCameraScreenState();
 }
 
-class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
+class _SpeedCameraScreenState extends State<SpeedCameraScreen>
+    with WidgetsBindingObserver {
   LatLng currentPosition = const LatLng(13.7563, 100.5018); // Default Bangkok
   late MapController mapController;
   List<SpeedCamera> speedCameras = [];
@@ -117,6 +118,12 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
   DateTime? _firstMovementTime; // เวลาที่เริ่มเคลื่อนไหวครั้งแรก
   double _totalDistanceTraveled = 0.0; // ระยะทางรวมที่เดินทาง
   LatLng? _lastMovementPosition; // ตำแหน่งล่าสุดสำหรับคำนวณระยะทาง
+
+  // Auto-refresh tracking system - ระบบติดตามการรีเฟรชอัตโนมัติ
+  bool _hasJustVoted = false; // ติดตามว่าเพิ่งโหวตเสร็จ
+  DateTime? _lastVotingTime; // เวลาล่าสุดที่โหวต
+  final Duration _votingRefreshWindow =
+      Duration(minutes: 2); // ช่วงเวลาสำหรับรีเฟรชหลังโหวต
   Timer? _loginPromptTimer; // Timer สำหรับเด้งล็อกอินหลังจากเวลาที่กำหนด
   int _appInteractionCount = 0; // จำนวนการโต้ตอบกับแอป (แตะกล้อง, ดูข้อมูล)
 
@@ -159,6 +166,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeSmartMapSystem();
     });
+
+    // เพิ่ม WidgetsBindingObserver สำหรับตรวจจับการกลับมาที่หน้าจอ
+    WidgetsBinding.instance.addObserver(this);
   }
 
   // ==================== SMART SECURITY SYSTEM ====================
@@ -181,6 +191,139 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
     // บันทึกเวลาเริ่มต้น session
     _sessionStartTime = DateTime.now();
+  }
+
+  // ==================== AUTO-REFRESH SYSTEM ====================
+
+  /// ตรวจจับการเปลี่ยนแปลงสถานะแอป สำหรับ Auto-Refresh หลังจากโหวต
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    print('🔄 App lifecycle changed: $state');
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        print('� App resumed - checking for voting refresh needs');
+
+        // ตรวจสอบว่าเพิ่งโหวตเสร็จหรือไม่
+        final shouldRefreshAfterVoting = _hasJustVoted ||
+            (_lastVotingTime != null &&
+                DateTime.now().difference(_lastVotingTime!) <
+                    _votingRefreshWindow);
+
+        if (shouldRefreshAfterVoting) {
+          print(
+              '🗳️ Detected recent voting activity - triggering auto-refresh');
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _refreshSpeedCamerasAfterVoting();
+            }
+          });
+
+          // รีเซ็ตสถานะการโหวต
+          _hasJustVoted = false;
+        } else {
+          print('📱 Regular app resume - performing standard refresh');
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _refreshSpeedCamerasAfterVoting();
+            }
+          });
+        }
+        break;
+      case AppLifecycleState.paused:
+        print('📱 App paused');
+        break;
+      case AppLifecycleState.inactive:
+        print('📱 App inactive');
+        break;
+      case AppLifecycleState.detached:
+        print('📱 App detached');
+        break;
+      case AppLifecycleState.hidden:
+        print('📱 App hidden');
+        break;
+    }
+  }
+
+  /// รีเฟรชข้อมูลกล้องจับความเร็วหลังจากโหวต
+  Future<void> _refreshSpeedCamerasAfterVoting() async {
+    try {
+      print('🔄 === AUTO-REFRESH AFTER VOTING ===');
+      print('🔄 Starting comprehensive camera data refresh...');
+
+      // แสดงแจ้งเตือนว่ากำลังรีเฟรช
+      if (mounted) {
+        _showBadgeAlert(
+          '🔄 กำลังอัปเดตข้อมูลกล้อง...',
+          Colors.blue,
+          2000, // 2 วินาที
+        );
+      }
+
+      // ขั้นตอนที่ 1: รอให้ข้อมูลซิงค์จาก server
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      print('🔄 Step 1: Loading updated speed camera data...');
+
+      // โหลดข้อมูลกล้องใหม่ผ่าน method เดิมที่มี force refresh ในตัว
+      await _loadSpeedCameras();
+
+      // ขั้นตอนที่ 2: ตรวจสอบว่าได้ข้อมูลใหม่หรือไม่
+      print('🔄 Step 2: Verifying updated camera count...');
+      final totalCameras = speedCameras.length;
+      print('✅ Total cameras after refresh: $totalCameras');
+
+      // ขั้นตอนที่ 3: หากมีกล้องชุมชน ให้แสดงข้อมูล
+      final communityCameras = speedCameras
+          .where((camera) =>
+              camera.description?.contains('Community verified') == true ||
+              camera.description?.contains('ชุมชนยืนยัน') == true)
+          .toList();
+
+      if (communityCameras.isNotEmpty) {
+        print(
+            '🏘️ Community verified cameras found: ${communityCameras.length}');
+        for (final camera in communityCameras.take(3)) {
+          print('   - ${camera.roadName} (${camera.description})');
+        }
+      }
+
+      if (mounted) {
+        print('✅ Camera data refreshed successfully');
+        print('✅ Total cameras loaded: ${speedCameras.length}');
+        print('✅ Community cameras: ${communityCameras.length}');
+
+        // แสดงแจ้งเตือนสำเร็จ
+        if (communityCameras.isNotEmpty) {
+          _showBadgeAlert(
+            '🎉 พบกล้องใหม่ ${communityCameras.length} จุด ที่ชุมชนยืนยัน!',
+            Colors.green,
+            5000, // 5 วินาที
+          );
+        } else {
+          _showBadgeAlert(
+            '✅ ข้อมูลกล้องอัปเดตเรียบร้อย',
+            Colors.green,
+            3000, // 3 วินาที
+          );
+        }
+      }
+
+      print('🔄 === AUTO-REFRESH COMPLETED ===');
+    } catch (e) {
+      print('❌ Error refreshing camera data: $e');
+
+      // ถ้าเกิดข้อผิดพลาด ให้แสดงข้อความแจ้งเตือน
+      if (mounted) {
+        _showBadgeAlert(
+          '⚠️ ไม่สามารถอัปเดตข้อมูลได้',
+          Colors.orange,
+          3000, // 3 วินาที
+        );
+      }
+    }
   }
 
   // ==================== SMART LOGIN DETECTION SYSTEM ====================
@@ -820,6 +963,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
   @override
   void dispose() {
+    // ลบ WidgetsBindingObserver
+    WidgetsBinding.instance.removeObserver(this);
+
     _positionSubscription?.cancel();
     _speedUpdateTimer?.cancel();
     _connectionCheckTimer?.cancel();
@@ -1778,7 +1924,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
             options: MapOptions(
               initialCenter: currentPosition,
               initialZoom: 15.0,
-              minZoom: 8.0,
+              minZoom:
+                  5.0, // ลดจาก 8.0 เป็น 5.0 เพื่อให้ซูมออกเห็นทั่วประเทศไทย
               maxZoom: 18.0,
               // ตรวจจับการโต้ตอบของผู้ใช้
               onTap: (tapPosition, point) => _onMapInteraction(),
@@ -1944,9 +2091,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
 
                     // ส่วนขวา - ปุ่มเพิ่มกล้อง (แทนไอคอนกล้อง)
                     GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         _recordAppInteraction(); // บันทึกการโต้ตอบ
-                        Navigator.push(
+
+                        print(
+                            '📱 Navigating to CameraReportScreen for voting/reporting...');
+
+                        // นำทางไปหน้า CameraReportScreen และรับผลลัพธ์
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => CameraReportScreen(
@@ -1955,6 +2107,21 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen> {
                             ),
                           ),
                         );
+
+                        // ตรวจสอบผลลัพธ์ที่กลับมา
+                        if (mounted) {
+                          print('🔄 Returned from CameraReportScreen');
+                          print('🔄 Result: $result');
+
+                          // ไม่ว่าจะมีผลลัพธ์หรือไม่ ให้รีเฟรชข้อมูลกล้องเสมอ
+                          // เพราะอาจมีการโหวตหรือรายงานใหม่
+                          _hasJustVoted = true;
+                          _lastVotingTime = DateTime.now();
+
+                          print(
+                              '🔄 Triggering comprehensive refresh after returning from voting/reporting...');
+                          await _refreshSpeedCamerasAfterVoting();
+                        }
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(8),

@@ -1,14 +1,44 @@
 import '../models/speed_camera_model.dart';
 import 'package:latlong2/latlong.dart';
+import 'camera_report_service.dart'; // เพิ่ม import
 
 class SpeedCameraService {
   // static const String _baseUrl = 'https://data.go.th/api/speed-cameras'; // Mock URL - for future use
 
-  /// ดึงข้อมูลกล้องจับความเร็วทั้งหมด
+  /// ดึงข้อมูลกล้องจับความเร็วทั้งหมด (รวม Mock Data + Community Verified)
   static Future<List<SpeedCamera>> getSpeedCameras() async {
     try {
-      // ในขณะนี้ใช้ Mock Data แทน API จริง
-      return _getMockSpeedCameras();
+      print('🔍 Loading speed cameras from all sources...');
+
+      // 1. โหลด Mock Data (กล้องเดิมที่มีอยู่)
+      final mockCameras = _getMockSpeedCameras();
+      print('📊 Mock cameras loaded: ${mockCameras.length}');
+
+      // 2. โหลด Community Verified Cameras จาก Firebase
+      List<SpeedCamera> communityCameras = [];
+      try {
+        communityCameras = await CameraReportService.getAllSpeedCameras(
+          forceRefresh: true, // FORCE REFRESH เพื่อดูกล้องใหม่
+        );
+        print('🏘️ Community cameras loaded: ${communityCameras.length}');
+
+        // Debug: แสดงรายชื่อกล้อง community
+        for (int i = 0; i < communityCameras.length; i++) {
+          final camera = communityCameras[i];
+          print(
+              '   Community Camera ${i + 1}: ${camera.roadName} (${camera.description})');
+        }
+      } catch (e) {
+        print('❌ Error loading community cameras: $e');
+        // ไม่ต้อง throw error เพื่อให้ mock data ยังใช้งานได้
+      }
+
+      // 3. รวมข้อมูลทั้งหมด
+      final allCameras = [...mockCameras, ...communityCameras];
+      print(
+          '✅ Total cameras loaded: ${allCameras.length} (Mock: ${mockCameras.length}, Community: ${communityCameras.length})');
+
+      return allCameras;
 
       // TODO: เมื่อมี API จริง ให้ใช้โค้ดนี้
       /*
@@ -29,7 +59,7 @@ class SpeedCameraService {
       }
       */
     } catch (e) {
-      print('Error loading speed cameras: $e');
+      print('❌ Error loading speed cameras: $e');
       // ถ้า error ให้ return mock data แทน
       return _getMockSpeedCameras();
     }

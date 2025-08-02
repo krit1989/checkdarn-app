@@ -20,12 +20,36 @@ class SpeedCamera {
   });
 
   factory SpeedCamera.fromJson(Map<String, dynamic> json) {
-    return SpeedCamera(
-      id: json['id'] as String,
-      location: LatLng(
+    LatLng location;
+
+    // รองรับทั้ง format เก่า (latitude/longitude แยก) และ format ใหม่ (location object)
+    if (json['location'] != null) {
+      // Format ใหม่: มี location object (GeoPoint จาก Firestore)
+      final locationData = json['location'];
+      if (locationData is Map<String, dynamic>) {
+        // Location เป็น Map (จาก GeoPoint.toJson())
+        location = LatLng(
+          locationData['latitude'] as double,
+          locationData['longitude'] as double,
+        );
+      } else {
+        // Location เป็น object อื่น - fallback ไป latitude/longitude
+        location = LatLng(
+          json['latitude'] as double,
+          json['longitude'] as double,
+        );
+      }
+    } else {
+      // Format เก่า: latitude/longitude แยกกัน
+      location = LatLng(
         json['latitude'] as double,
         json['longitude'] as double,
-      ),
+      );
+    }
+
+    return SpeedCamera(
+      id: json['id'] as String,
+      location: location,
       speedLimit: json['speedLimit'] as int,
       roadName: json['roadName'] as String,
       type: CameraType.values.firstWhere(
@@ -40,6 +64,11 @@ class SpeedCamera {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'location': {
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+      },
+      // Keep backward compatibility
       'latitude': location.latitude,
       'longitude': location.longitude,
       'speedLimit': speedLimit,

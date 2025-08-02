@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/camera_report_model.dart';
 import '../services/camera_report_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../widgets/location_picker_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 class CameraReportCardWidget extends StatelessWidget {
   final CameraReport report;
@@ -103,7 +105,7 @@ class CameraReportCardWidget extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Road name and location
+            // Road name
             Text(
               report.roadName,
               style: const TextStyle(
@@ -112,16 +114,27 @@ class CameraReportCardWidget extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'ละติจูด: ${report.latitude.toStringAsFixed(6)}, '
-              'ลองจิจูด: ${report.longitude.toStringAsFixed(6)}',
-              style: TextStyle(
-                fontFamily: 'NotoSansThai',
-                fontSize: 12,
-                color: Colors.grey.shade600,
+
+            // Description (if available) - รายละเอียดที่ตั้งและจุดสังเกต
+            if (report.description != null &&
+                report.description!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  report.description!,
+                  style: const TextStyle(
+                    fontFamily: 'NotoSansThai',
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
-            ),
+            ],
 
             // Speed limit (if applicable)
             if (report.type == CameraReportType.newCamera ||
@@ -147,26 +160,49 @@ class CameraReportCardWidget extends StatelessWidget {
               ),
             ],
 
-            // Description (if available)
-            if (report.description != null &&
-                report.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  report.description!,
-                  style: const TextStyle(
-                    fontFamily: 'NotoSansThai',
-                    fontSize: 14,
-                    color: Colors.black87,
+            // View map button - แบบง่าย เฉพาะข้อความ
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LocationPickerScreen(
+                      initialLocation:
+                          LatLng(report.latitude, report.longitude),
+                      title: 'ดูตำแหน่ง: ${report.roadName}',
+                    ),
                   ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Row(
+                  children: [
+                    const Text(
+                      '🗺️',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'ดูแผนที่',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1158F2),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: const Color(0xFF1158F2),
+                      size: 14,
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
 
             // Poster information
             const SizedBox(height: 8),

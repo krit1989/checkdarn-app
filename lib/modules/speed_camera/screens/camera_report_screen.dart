@@ -34,6 +34,10 @@ class _CameraReportScreenState extends State<CameraReportScreen>
   int _dataRefreshKey = 0;
   int _scaffoldRefreshKey = 0; // Key สำหรับ rebuild หน้าจอทั้งหมด
 
+  // Settings for location filter
+  bool _showAllNationwide = true; // เริ่มต้นแสดงทั่วประเทศ
+  double _currentRadius = 1000.0; // รัศมีปัจจุบัน (km)
+
   // GlobalKey สำหรับ RefreshIndicator
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
@@ -51,6 +55,24 @@ class _CameraReportScreenState extends State<CameraReportScreen>
   Future<void> _initializeSmartSecurity() async {
     await SmartSecurityService.initialize();
     SmartSecurityService.setSecurityLevel(SecurityLevel.high);
+  }
+
+  /// Toggle between nationwide and nearby view
+  void _toggleLocationView() {
+    setState(() {
+      _showAllNationwide = !_showAllNationwide;
+      if (_showAllNationwide) {
+        _currentRadius = 1000.0; // ทั่วประเทศ
+        print('🌏 Switched to nationwide view');
+      } else {
+        _currentRadius = 50.0; // พื้นที่ใกล้เคียง
+        print('📍 Switched to nearby view (${_currentRadius}km)');
+      }
+
+      // รีเฟรชข้อมูลด้วยการตั้งค่าใหม่
+      _dataRefreshKey++;
+      _loadData(forceRefresh: true);
+    });
   }
 
   Future<bool> _validateCameraReportActionSimple({
@@ -154,8 +176,10 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         CameraReportService.getPendingReports(
           userLat: widget.initialLocation?.latitude,
           userLng: widget.initialLocation?.longitude,
-          radiusKm: 50.0, // เพิ่มจาก 10km เป็น 50km เพื่อให้ครอบคลุมมากขึ้น
+          radiusKm: _currentRadius, // ใช้รัศมีที่ผู้ใช้เลือก
+          limit: 50, // เพิ่มจำนวนโพสต์ที่แสดง
           forceRefresh: forceRefresh, // ส่ง force refresh flag
+          showAllNationwide: _showAllNationwide, // ใช้การตั้งค่าจากผู้ใช้
         ),
         CameraReportService
             .getUserVotedReports(), // Force server check แล้วใน service
@@ -242,8 +266,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
       print('🔄 === POST-SUBMISSION REFRESH PROCESS ===');
       print('🔄 Step 1: Waiting for server sync...');
 
-      // รอให้ข้อมูลซิงค์กับ server
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // รอให้ข้อมูลซิงค์กับ server นานขึ้น
+      await Future.delayed(const Duration(milliseconds: 2000));
 
       print('🔄 Step 2: Forcing UI rebuild...');
       // รีเฟรชข้อมูลทันที
@@ -252,12 +276,26 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         _scaffoldRefreshKey++;
       });
 
-      print('🔄 Step 3: Force loading new data from server...');
+      print('🔄 Step 3: Force loading new data from server (1st attempt)...');
       // โหลดข้อมูลใหม่พร้อม force refresh
       await _loadData(forceRefresh: true);
 
-      print('🔄 Step 4: Checking pending reports count after refresh...');
+      print('🔄 Step 4: Checking pending reports count after first refresh...');
       print('   _pendingReports.length: ${_pendingReports.length}');
+
+      // ถ้ายังไม่เจอข้อมูลใหม่ ลองรีเฟรชอีกครั้ง
+      if (_pendingReports.isEmpty) {
+        print('🔄 Step 5: No data found, retrying after 2 seconds...');
+        await Future.delayed(const Duration(seconds: 2));
+
+        setState(() {
+          _dataRefreshKey++;
+        });
+
+        await _loadData(forceRefresh: true);
+        print(
+            '🔄 Step 6: After retry - _pendingReports.length: ${_pendingReports.length}');
+      }
 
       if (_pendingReports.isNotEmpty) {
         print('✅ Pending reports found after refresh:');
@@ -267,6 +305,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         }
       } else {
         print('❌ NO pending reports found after refresh!');
+        print('🔍 This might indicate a sync issue or filtering problem');
       }
 
       print('✅ Post-submission refresh completed');
@@ -291,6 +330,19 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         backgroundColor: const Color(0xFF1158F2),
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // ปุ่มสลับโหมดการแสดงผล
+          IconButton(
+            onPressed: _toggleLocationView,
+            icon: Icon(
+              _showAllNationwide ? Icons.location_on : Icons.near_me,
+              color: Colors.white,
+            ),
+            tooltip: _showAllNationwide
+                ? 'เปลี่ยนเป็นดูเฉพาะใกล้เคียง'
+                : 'เปลี่ยนเป็นดูทั่วประเทศ',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -413,12 +465,272 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               );
             },
           ),
+
+          // Debug buttons (ปุ่มทดสอบระบบ)
+          if (AuthService.isLoggedIn) ...[
+            const SizedBox(height: 30),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.build,
+                        color: Colors.orange.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'เครื่องมือทดสอบระบบ',
+                        style: TextStyle(
+                          fontFamily: 'NotoSansThai',
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ปุ่มตรวจสอบระบบ Auto-Verification
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('กำลังตรวจสอบระบบ Auto-Verification...'),
+                            backgroundColor: Colors.blue,
+                          ),
+                        );
+
+                        try {
+                          await CameraReportService
+                              .debugAutoVerificationProcess();
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text('ตรวจสอบเสร็จสิ้น - ดูผลลัพธ์ในคอนโซล'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('เกิดข้อผิดพลาด: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.search, size: 16),
+                      label: const Text(
+                        'ตรวจสอบระบบ Auto-Verification',
+                        style:
+                            TextStyle(fontFamily: 'NotoSansThai', fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ปุ่มสร้างรายงานทดสอบ
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: widget.initialLocation != null
+                          ? () async {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('กำลังสร้างรายงานทดสอบ...'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+
+                              try {
+                                await CameraReportService
+                                    .createTestReportAndVotes(
+                                  latitude: widget.initialLocation!.latitude,
+                                  longitude: widget.initialLocation!.longitude,
+                                  roadName:
+                                      'TEST - ${widget.initialRoadName ?? "ถนนทดสอบ"}',
+                                  speedLimit: 90,
+                                  numberOfUpvotes: 3,
+                                  numberOfDownvotes: 0,
+                                );
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'สร้างรายงานทดสอบเสร็จสิ้น - รีเฟรชแท็บโหวต'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+
+                                // รีเฟรชข้อมูล
+                                await _loadData(forceRefresh: true);
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('เกิดข้อผิดพลาด: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          : null,
+                      icon: const Icon(Icons.add_circle, size: 16),
+                      label: const Text(
+                        'สร้างรายงานทดสอบ (3 โหวต)',
+                        style:
+                            TextStyle(fontFamily: 'NotoSansThai', fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.initialLocation != null
+                            ? Colors.orange
+                            : Colors.grey,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+
+                  if (widget.initialLocation == null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'ต้องมีตำแหน่งเริ่มต้นเพื่อสร้างรายงานทดสอบ',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildVotingTab() {
+    // แสดงข้อมูลการแสดงผล
+    return Column(
+      children: [
+        // Status bar แสดงโหมดการแสดงผล
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color:
+                _showAllNationwide ? Colors.blue.shade50 : Colors.green.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _showAllNationwide
+                  ? Colors.blue.shade200
+                  : Colors.green.shade200,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _showAllNationwide ? Icons.public : Icons.location_on,
+                color: _showAllNationwide
+                    ? Colors.blue.shade700
+                    : Colors.green.shade700,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _showAllNationwide
+                          ? 'แสดงโพสต์จากทั่วประเทศ'
+                          : 'แสดงโพสต์ใกล้เคียง',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontWeight: FontWeight.w600,
+                        color: _showAllNationwide
+                            ? Colors.blue.shade700
+                            : Colors.green.shade700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      _showAllNationwide
+                          ? 'รัศมี: ${_currentRadius.toInt()} กม. • โพสต์ทั้งหมด: ${_pendingReports.length}'
+                          : 'รัศมี: ${_currentRadius.toInt()} กม. • โพสต์ใกล้เคียง: ${_pendingReports.length}',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 12,
+                        color: _showAllNationwide
+                            ? Colors.blue.shade600
+                            : Colors.green.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _toggleLocationView,
+                icon: Icon(
+                  _showAllNationwide ? Icons.near_me : Icons.public,
+                  size: 16,
+                  color: _showAllNationwide
+                      ? Colors.blue.shade700
+                      : Colors.green.shade700,
+                ),
+                label: Text(
+                  _showAllNationwide ? 'ใกล้เคียง' : 'ทั่วประเทศ',
+                  style: TextStyle(
+                    fontFamily: 'NotoSansThai',
+                    fontSize: 12,
+                    color: _showAllNationwide
+                        ? Colors.blue.shade700
+                        : Colors.green.shade700,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // เนื้อหาหลักของแท็บโหวต
+        Expanded(
+          child: _buildVotingContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVotingContent() {
     // ตรวจสอบการล็อกอินก่อน
     if (!AuthService.isLoggedIn) {
       return Center(
@@ -540,109 +852,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               report: report,
               hasVoted: hasVoted,
               onVoteSubmitted: (voteType) async {
-                try {
-                  // Smart Security validation for voting
-                  if (!await _validateCameraReportActionSimple(
-                    action: 'submit_vote',
-                    context: {
-                      'vote_type': voteType.toString(),
-                      'report_id': report.id,
-                      'user_email': AuthService.currentUser?.email,
-                    },
-                  )) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // ตรวจสอบการล็อกอินก่อนโหวต
-                  if (!AuthService.isLoggedIn) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('กรุณาล็อกอินผ่านหน้าแผนที่ก่อนโหวต',
-                            style: TextStyle(fontFamily: 'NotoSansThai')),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // แสดง loading indicator
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            'กำลังโหวต...',
-                            style: const TextStyle(fontFamily: 'NotoSansThai'),
-                          ),
-                        ],
-                      ),
-                      backgroundColor: Colors.blue,
-                      duration: const Duration(
-                          seconds: 5), // จะถูกแทนที่เมื่อโหวตเสร็จ
-                    ),
-                  );
-
-                  await CameraReportService.submitVote(
-                    reportId: report.id,
-                    voteType: voteType,
-                  );
-
-                  // เฉพาะเมื่อโหวตสำเร็จถึงจะอัปเดต state และ refresh
-                  setState(() {
-                    _userVotedReports.add(report.id);
-                  });
-
-                  ScaffoldMessenger.of(context)
-                      .clearSnackBars(); // ลบ loading indicator
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        voteType == VoteType.upvote
-                            ? 'โหวต "มีจริง" เรียบร้อยแล้ว'
-                            : 'โหวต "ไม่มี" เรียบร้อยแล้ว',
-                        style: const TextStyle(fontFamily: 'NotoSansThai'),
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-
-                  // Refresh data เฉพาะเมื่อโหวตสำเร็จ
-                  Future.delayed(const Duration(seconds: 1), _loadData);
-                } catch (e) {
-                  // ลบ loading indicator และแสดง error
-                  ScaffoldMessenger.of(context).clearSnackBars();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'เกิดข้อผิดพลาด: $e',
-                        style: const TextStyle(fontFamily: 'NotoSansThai'),
-                      ),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(
-                          seconds: 4), // แสดงนานขึ้นเพื่อให้ผู้ใช้อ่าน
-                    ),
-                  );
-
-                  // ไม่ต้อง refresh data เมื่อเกิด error เพื่อป้องกันโพสต์หายไป
-                  print(
-                      '❌ Vote failed - not refreshing data to preserve posts');
-                }
+                // ใช้ method แยกสำหรับจัดการ voting
+                await _handleVote(report, voteType);
               },
               onReportDeleted: () async {
                 // Smart Security validation for report deletion
@@ -675,6 +886,163 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         },
       ),
     );
+  }
+
+  // Method แยกสำหรับจัดการ voting
+  Future<void> _handleVote(CameraReport report, VoteType voteType) async {
+    try {
+      // Smart Security validation for voting
+      if (!await _validateCameraReportActionSimple(
+        action: 'submit_vote',
+        context: {
+          'user_email': AuthService.currentUser?.email,
+          'report_id': report.id,
+          'vote_type': voteType.toString(),
+        },
+      )) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // ตรวจสอบการล็อกอินก่อนโหวต
+      if (!AuthService.isLoggedIn) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาล็อกอินผ่านหน้าแผนที่ก่อนโหวต',
+                style: TextStyle(fontFamily: 'NotoSansThai')),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // แสดง loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'กำลังโหวต...',
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blue,
+          duration: const Duration(seconds: 5), // จะถูกแทนที่เมื่อโหวตเสร็จ
+        ),
+      );
+
+      await CameraReportService.submitVote(
+        reportId: report.id,
+        voteType: voteType,
+      );
+
+      // เฉพาะเมื่อโหวตสำเร็จถึงจะอัปเดต state และ refresh
+      setState(() {
+        _userVotedReports.add(report.id);
+      });
+
+      ScaffoldMessenger.of(context).clearSnackBars(); // ลบ loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            voteType == VoteType.upvote
+                ? 'โหวต "มีจริง" เรียบร้อยแล้ว'
+                : 'โหวต "ไม่มี" เรียบร้อยแล้ว',
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh data เฉพาะเมื่อโหวตสำเร็จ
+      Future.delayed(const Duration(seconds: 1), _loadData);
+    } catch (e) {
+      // ลบ loading indicator และแสดง error
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      String errorMessage = 'เกิดข้อผิดพลาด: $e';
+      Color errorColor = Colors.red;
+      bool shouldRetry = false;
+
+      // จัดการ error แยกประเภทแบบละเอียด
+      if (e.toString().contains('คุณได้โหวตรายงานนี้แล้ว')) {
+        // ตรวจสอบว่าเป็น error หลังจากโหวตสำเร็จหรือเปล่า
+        // ถ้า voted reports ยังไม่มี report นี้ แสดงว่าเพิ่งโหวตสำเร็จ
+        if (!_userVotedReports.contains(report.id)) {
+          errorMessage = 'โหวตเรียบร้อยแล้ว!\n(ระบบตรวจสอบว่าคุณได้โหวตแล้ว)';
+          errorColor = Colors.green; // เปลี่ยนเป็นสีเขียวเพื่อบอกว่าสำเร็จ
+          setState(() {
+            _userVotedReports.add(report.id);
+          });
+          // Refresh data เพื่อดูผลการโหวต
+          Future.delayed(
+              const Duration(seconds: 1), () => _loadData(forceRefresh: true));
+        } else {
+          // ถ้า voted reports มี report นี้อยู่แล้ว แสดงว่าโหวตซ้ำจริงๆ
+          errorMessage = 'คุณได้โหวตรายงานนี้แล้ว';
+          errorColor = Colors.orange;
+        }
+      } else if (e.toString().contains('ไม่มีสิทธิ์')) {
+        errorMessage = 'ไม่มีสิทธิ์ในการโหวต\nลองออกจากระบบและล็อกอินใหม่';
+        errorColor = Colors.red;
+        shouldRetry = true;
+      } else if (e.toString().contains('ไม่พบรายงาน')) {
+        errorMessage = 'ไม่พบรายงานนี้ อาจถูกลบไปแล้ว';
+        errorColor = Colors.red;
+        // Refresh data เพื่อลบรายงานที่ไม่มีออกจากรายการ
+        Future.delayed(
+            const Duration(seconds: 1), () => _loadData(forceRefresh: true));
+      } else if (e.toString().contains('ปัญหาการเชื่อมต่อ') ||
+          e.toString().contains('network') ||
+          e.toString().contains('timeout')) {
+        errorMessage = 'ปัญหาการเชื่อมต่อ\nกรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่';
+        errorColor = Colors.amber;
+        shouldRetry = true;
+      } else {
+        errorMessage = 'ไม่สามารถโหวตได้ กรุณาลองใหม่';
+        errorColor = Colors.red;
+        shouldRetry = true;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorMessage,
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
+          ),
+          backgroundColor: errorColor,
+          duration: const Duration(seconds: 5),
+          action: shouldRetry
+              ? SnackBarAction(
+                  label: 'ลองใหม่',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    // Retry voting
+                    _handleVote(report, voteType);
+                  },
+                )
+              : null,
+        ),
+      );
+
+      // ไม่ต้อง refresh data เมื่อเกิด error เพื่อป้องกันโพสต์หายไป
+      print('❌ Vote failed - not refreshing data to preserve posts: $e');
+    }
   }
 
   Widget _buildStatsTab() {
