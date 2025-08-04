@@ -61,9 +61,9 @@ class CameraReportService {
         throw Exception('มีการรายงานการเปลี่ยนความเร็วของกล้องตัวนี้แล้ว');
       }
     } else {
-      // สำหรับ "รายงานกล้องใหม่" - ใช้ระยะรัศมี
-      final nearbyNewCameraReports = await _findNearbyReportsByType(
-          latitude, longitude, 50, CameraReportType.newCamera);
+      // สำหรับ "รายงานกล้องใหม่" - ใช้ระยะรัศมีแบบง่าย (ไม่ต้องการ compound index)
+      final nearbyNewCameraReports = await _findNearbyNewCameraReports(
+          latitude, longitude, 50);
       if (nearbyNewCameraReports.isNotEmpty) {
         throw Exception(
             'มีการรายงานกล้องใหม่ในบริเวณนี้แล้ว โปรดตรวจสอบอีกครั้ง');
@@ -645,29 +645,46 @@ class CameraReportService {
     return Map<String, int>.from(doc.data() ?? {});
   }
 
-  /// Find nearby reports within specified radius (meters) by type
-  static Future<List<CameraReport>> _findNearbyReportsByType(double lat,
-      double lng, double radiusMeters, CameraReportType type) async {
-    // Simple geohash-like approach for nearby search
-    // In production, consider using GeoFlutterFire for better geo queries
-
-    final latRange = radiusMeters / 111000; // rough conversion
+  /// Find nearby NEW camera reports within specified radius (simplified - no compound index required)
+  static Future<List<CameraReport>> _findNearbyNewCameraReports(double lat,
+      double lng, double radiusMeters) async {
+    // Simple approach: Get all newCamera reports and filter by distance in Dart
+    // This avoids complex compound Firestore queries that need special indexes
+    
+    print('🔍 Searching for nearby new camera reports...');
+    print('   Center: ($lat, $lng)');
+    print('   Radius: ${radiusMeters}m');
 
     final snapshot = await _firestore
         .collection(_reportsCollection)
-        .where('type', isEqualTo: type.toString().split('.').last)
-        .where('latitude', isGreaterThan: lat - latRange)
-        .where('latitude', isLessThan: lat + latRange)
-        .where('status', whereIn: ['pending', 'verified']).get();
+        .where('type', isEqualTo: 'newCamera')
+        .where('status', whereIn: ['pending', 'verified']) // Only these 2 statuses
+        .get();
 
-    final reports = snapshot.docs
-        .map((doc) => CameraReport.fromJson(doc.data()))
-        .where((report) {
-      final distance =
-          _calculateDistance(lat, lng, report.latitude, report.longitude);
-      return distance * 1000 <= radiusMeters; // Convert km to meters
-    }).toList();
+    print('📊 Found ${snapshot.docs.length} newCamera reports to check');
 
+    final reports = <CameraReport>[];
+    
+    for (final doc in snapshot.docs) {
+      try {
+        final report = CameraReport.fromJson(doc.data());
+        final distance = _calculateDistance(lat, lng, report.latitude, report.longitude);
+        final distanceInMeters = distance * 1000;
+        
+        print('   Report: ${report.roadName} - Distance: ${distanceInMeters.toStringAsFixed(2)}m');
+        
+        if (distanceInMeters <= radiusMeters) {
+          reports.add(report);
+          print('   ✅ Within radius - added to results');
+        } else {
+          print('   ❌ Too far - skipped');
+        }
+      } catch (e) {
+        print('   ⚠️ Error processing report ${doc.id}: $e');
+      }
+    }
+
+    print('🎯 Found ${reports.length} nearby new camera reports within ${radiusMeters}m');
     return reports;
   }
 
