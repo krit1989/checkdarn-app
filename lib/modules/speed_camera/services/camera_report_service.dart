@@ -342,12 +342,51 @@ class CameraReportService {
 
       // ลดเงื่อนไขจาก 5 votes เป็น 3 votes เพื่อให้ verify เร็วขึ้น
       if (newTotalVotes >= 3) {
-        if (newConfidenceScore >= 0.8) {
+        // ลดเงื่อนไข confidence จาก 0.8 เป็น 0.7 สำหรับ removedCamera
+        final requiredConfidence =
+            report.type == CameraReportType.removedCamera ? 0.7 : 0.8;
+
+        if (newConfidenceScore >= requiredConfidence) {
           newStatus = CameraStatus.verified;
           verifiedAt = DateTime.now();
           verifiedBy = 'auto_system';
           print(
               '✅ Auto-verifying report due to high confidence (${(newConfidenceScore * 100).toStringAsFixed(1)}%) with $newTotalVotes votes');
+
+          // ✨ เพิ่ม: หากเป็นรายงานการลบกล้อง ให้ลบกล้องออกจาก Firebase ทันที
+          if (report.type == CameraReportType.removedCamera) {
+            print('🗑️ === CAMERA REMOVAL TRIGGERED ===');
+            print('Report ID: $reportId');
+            print('Selected Camera ID: ${report.selectedCameraId}');
+
+            try {
+              String? cameraId = report.selectedCameraId;
+
+              if (cameraId != null && cameraId.isNotEmpty) {
+                print('🎯 Deleting camera ID: $cameraId');
+                await _directDeleteCameraWithRetry(cameraId);
+
+                // ตรวจสอบว่าลบจริงหรือไม่
+                final isDeleted = await _verifyCameraDeletion(cameraId);
+                if (isDeleted) {
+                  print('✅ Camera $cameraId deleted and verified successfully');
+                } else {
+                  throw Exception(
+                      'Camera $cameraId still exists after deletion');
+                }
+              } else {
+                print(
+                    '⚠️ No camera ID specified - trying location-based deletion');
+                await _deleteByLocation(report.latitude, report.longitude);
+              }
+            } catch (e) {
+              print('❌ Error deleting camera: $e');
+              // บันทึก error ลงใน collection พิเศษ
+              await _logDeletionError(
+                  reportId, report.selectedCameraId, e.toString());
+              // ไม่ให้ error การลบกล้องมาขัดขวางการอัปเดตสถานะรายงาน
+            }
+          }
         } else if (newConfidenceScore <= 0.2) {
           newStatus = CameraStatus.rejected;
           verifiedAt = DateTime.now();
@@ -696,8 +735,15 @@ class CameraReportService {
         return;
       }
 
+      // จัดการตามประเภทของรายงาน
+      if (report.type == CameraReportType.removedCamera) {
+        print('🗑️ Processing REMOVED CAMERA report');
+        await _handleCameraRemovalReport(report);
+        return;
+      }
+
       if (report.type != CameraReportType.newCamera) {
-        print('❌ Report type is not newCamera: ${report.type}');
+        print('❌ Report type is not supported for promotion: ${report.type}');
         return;
       }
 
@@ -1020,6 +1066,77 @@ class CameraReportService {
     }
   }
 
+  /// ✨ ตรวจสอบว่ากล้องยังมีอยู่หรือไม่ (สำหรับ UI)
+  static Future<bool> checkCameraDeleted(String? cameraId) async {
+    if (cameraId == null || cameraId.isEmpty) return true;
+    return await _verifyCameraDeletion(cameraId);
+  }
+
+  /// 🔧 บังคับลบกล้องที่ verified แล้วทั้งหมด (สำหรับ debugging)
+  static Future<void> forceDeleteVerifiedCameras() async {
+    try {
+      print('🔧 === FORCE DELETE VERIFIED CAMERAS ===');
+
+      // ค้นหา reports ที่ verified แล้วและเป็นประเภท removedCamera
+      final snapshot = await _firestore
+          .collection(_reportsCollection)
+          .where('status', isEqualTo: 'verified')
+          .where('type', isEqualTo: 'removedCamera')
+          .get();
+
+      print('📋 Found ${snapshot.docs.length} verified removal reports');
+
+      int processedCount = 0;
+      int successCount = 0;
+      int errorCount = 0;
+
+      for (final doc in snapshot.docs) {
+        try {
+          final report = CameraReport.fromJson(doc.data());
+          processedCount++;
+
+          print(
+              '🔧 Processing report ${processedCount}/${snapshot.docs.length}:');
+          print('   Report ID: ${report.id}');
+          print('   Camera ID: ${report.selectedCameraId}');
+          print('   Road: ${report.roadName}');
+
+          if (report.selectedCameraId != null &&
+              report.selectedCameraId!.isNotEmpty) {
+            // ตรวจสอบว่ากล้องยังมีอยู่หรือไม่
+            final cameraExists = await _firestore
+                .collection('speed_cameras')
+                .doc(report.selectedCameraId!)
+                .get();
+
+            if (cameraExists.exists) {
+              print('   🗑️ Camera still exists - deleting now...');
+              await _directDeleteCameraWithRetry(report.selectedCameraId!);
+              successCount++;
+              print('   ✅ Camera deleted successfully');
+            } else {
+              print('   ✅ Camera already deleted');
+              successCount++;
+            }
+          } else {
+            print('   ⚠️ No camera ID specified - skipping');
+          }
+        } catch (e) {
+          errorCount++;
+          print('   ❌ Error processing report: $e');
+        }
+      }
+
+      print('🎉 === FORCE DELETE SUMMARY ===');
+      print('   Total processed: $processedCount');
+      print('   Successful: $successCount');
+      print('   Errors: $errorCount');
+    } catch (e) {
+      print('❌ Error in force delete process: $e');
+      rethrow;
+    }
+  }
+
   /// ฟังก์ชันทดสอบสำหรับ Debug Auto-Verification และ Promotion
   static Future<void> debugAutoVerificationProcess() async {
     print('🧪 === DEBUG AUTO-VERIFICATION PROCESS ===');
@@ -1176,6 +1293,577 @@ class CameraReportService {
       print('🧪 === TEST COMPLETE ===');
     } catch (e) {
       print('❌ Test failed: $e');
+    }
+  }
+
+  /// Handle camera removal report (verified removedCamera reports)
+  static Future<void> _handleCameraRemovalReport(CameraReport report) async {
+    try {
+      print('🗑️ === STARTING CAMERA REMOVAL PROCESS ===');
+      print('🔍 Processing removal report: ${report.id}');
+      print('📍 Target camera ID: ${report.selectedCameraId}');
+      print('📍 Report location: (${report.latitude}, ${report.longitude})');
+
+      // Step 1: Get camera ID from report
+      String? cameraId = report.selectedCameraId;
+
+      if (cameraId == null || cameraId.isEmpty) {
+        print(
+            '⚠️ No selectedCameraId provided, attempting location-based search...');
+
+        // Fallback: search for camera by location
+        final nearbyCameras = await getAllSpeedCameras();
+        SpeedCamera? targetCamera;
+        double minDistance = double.infinity;
+
+        for (final camera in nearbyCameras) {
+          final distance = _calculateDistance(
+            report.latitude,
+            report.longitude,
+            camera.location.latitude,
+            camera.location.longitude,
+          );
+          final distanceInMeters = distance * 1000;
+
+          if (distanceInMeters <= 100 && distanceInMeters < minDistance) {
+            minDistance = distanceInMeters;
+            targetCamera = camera;
+          }
+        }
+
+        if (targetCamera != null) {
+          cameraId = targetCamera.id;
+          print(
+              '✅ Found camera by location: ${targetCamera.roadName} (${cameraId}) at ${minDistance.toStringAsFixed(2)}m');
+        } else {
+          print('❌ No camera found within 100m of report location');
+          throw Exception('Cannot identify camera to remove');
+        }
+      }
+
+      // Step 2: Remove the community camera
+      await _removeCommunityCamera(cameraId);
+
+      // Step 3: Update report status with processing information
+      await _firestore.collection(_reportsCollection).doc(report.id).update({
+        'processedAt': FieldValue.serverTimestamp(),
+        'processedBy': 'auto_removal_system',
+        'removedCameraId': cameraId,
+      });
+
+      print('✅ Camera removal report processed successfully');
+
+      // Step 4: Clean up related data to prevent conflicts
+      print('🧹 Step 4: Cleaning up related report and vote data...');
+      await _cleanupRelatedReportData(cameraId, report.id);
+
+      print('🗑️ === CAMERA REMOVAL PROCESS COMPLETE ===');
+    } catch (e) {
+      print('❌ Error processing camera removal report: $e');
+
+      // Log the failure for debugging
+      try {
+        await _firestore.collection('camera_removal_failures').add({
+          'reportId': report.id,
+          'selectedCameraId': report.selectedCameraId,
+          'latitude': report.latitude,
+          'longitude': report.longitude,
+          'error': e.toString(),
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } catch (logError) {
+        print('⚠️ Failed to log removal failure: $logError');
+      }
+
+      rethrow;
+    }
+  }
+
+  /// Remove community camera using Pure ID-Based Deletion with 4-Phase Atomic Protocol
+  static Future<void> _removeCommunityCamera(String cameraId) async {
+    try {
+      print('🗑️ === STARTING COMMUNITY CAMERA DELETION ===');
+      print('🎯 Target Camera ID: $cameraId');
+
+      // Phase 1: ID Validation & Mark for Deletion
+      print('📋 PHASE 1: ID Validation & Mark for Deletion');
+      final exists = await _checkIfCameraExists(cameraId);
+      if (!exists) {
+        print('⚠️ Camera $cameraId does not exist - may already be deleted');
+        return;
+      }
+
+      await _firestore.collection('deleted_cameras').doc(cameraId).set({
+        'cameraId': cameraId,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'deletedBy': 'community_vote_system',
+        'reason': 'community_camera_removal',
+        'method': 'id_based_deletion',
+      });
+      print('✅ Phase 1 complete: Camera marked for deletion');
+
+      // Phase 2: Delete from Speed Cameras Collection
+      print('📋 PHASE 2: Delete from Speed Cameras Collection');
+      await _firestore.collection('speed_cameras').doc(cameraId).delete();
+      print('✅ Phase 2 complete: Camera deleted from main collection');
+
+      // Phase 3: Record Deletion in Audit Trail
+      print('📋 PHASE 3: Record Deletion in Audit Trail');
+      await _firestore.collection('camera_deletion_log').add({
+        'cameraId': cameraId,
+        'deletionTimestamp': FieldValue.serverTimestamp(),
+        'deletionMethod': 'id_based_deletion',
+        'verificationLayers': 3,
+        'success': true,
+      });
+      print('✅ Phase 3 complete: Deletion logged in audit trail');
+
+      // Phase 4: 3-Layer Verification System
+      print('📋 PHASE 4: 3-Layer Verification System');
+      await _performThreeLayerVerification(cameraId);
+      print('✅ Phase 4 complete: 3-Layer verification passed');
+
+      print('🎉 === COMMUNITY CAMERA DELETION COMPLETE ===');
+    } catch (e) {
+      print('❌ Error deleting community camera $cameraId: $e');
+
+      // Log failure for debugging
+      try {
+        await _firestore.collection('camera_deletion_log').add({
+          'cameraId': cameraId,
+          'deletionTimestamp': FieldValue.serverTimestamp(),
+          'deletionMethod': 'id_based_deletion',
+          'success': false,
+          'error': e.toString(),
+        });
+      } catch (logError) {
+        print('⚠️ Failed to log deletion failure: $logError');
+      }
+
+      rethrow;
+    }
+  }
+
+  /// Perform 3-Layer Verification to ensure camera is truly deleted
+  static Future<void> _performThreeLayerVerification(String cameraId) async {
+    print('🔍 Starting 3-Layer Verification for camera $cameraId');
+
+    // Layer 1: Immediate Verification (0 seconds)
+    print('🔍 Layer 1: Immediate Verification');
+    bool layer1Result = await _checkIfCameraExists(cameraId);
+    print('🔍 Layer 1 result: Camera exists = $layer1Result');
+
+    // Layer 2: Delayed Verification (3 seconds)
+    print('🔍 Layer 2: Delayed Verification (waiting 3 seconds...)');
+    await Future.delayed(const Duration(seconds: 3));
+    bool layer2Result = await _checkIfCameraExists(cameraId);
+    print('🔍 Layer 2 result: Camera exists = $layer2Result');
+
+    // Layer 3: Force Deletion if needed
+    if (layer1Result || layer2Result) {
+      print('🔍 Layer 3: Force deletion required');
+      try {
+        await _firestore.collection('speed_cameras').doc(cameraId).delete();
+        print('✅ Layer 3: Force deletion completed');
+
+        // Final check
+        await Future.delayed(const Duration(seconds: 1));
+        bool finalCheck = await _checkIfCameraExists(cameraId);
+        print('🔍 Final verification: Camera exists = $finalCheck');
+
+        if (finalCheck) {
+          throw Exception('Camera still exists after force deletion');
+        }
+      } catch (e) {
+        print('❌ Layer 3: Force deletion failed: $e');
+        throw e;
+      }
+    } else {
+      print(
+          '✅ Layer 3: No force deletion needed - camera successfully removed');
+    }
+
+    print(
+        '🎉 3-Layer Verification Complete: Camera $cameraId successfully deleted');
+  }
+
+  /// Check if camera exists in database
+  static Future<bool> _checkIfCameraExists(String cameraId) async {
+    try {
+      final doc = await _firestore
+          .collection('speed_cameras')
+          .doc(cameraId)
+          .get(const GetOptions(source: Source.server));
+      return doc.exists;
+    } catch (e) {
+      print('⚠️ Error checking camera existence: $e');
+      return false; // Assume doesn't exist if error
+    }
+  }
+
+  /// Clean up related report and vote data after camera deletion/addition
+  /// This prevents conflicts when recreating cameras at the same location
+  static Future<void> _cleanupRelatedReportData(
+      String cameraId, String processedReportId) async {
+    try {
+      print('🧹 === CLEANUP RELATED REPORT DATA ===');
+      print('🎯 Camera ID: $cameraId');
+      print('🎯 Processed Report ID: $processedReportId');
+
+      // Option 1: Move to archive instead of deleting
+      await _archiveProcessedReports(cameraId, processedReportId);
+
+      // Option 2: Clean up votes for processed reports
+      await _cleanupVotesForProcessedReports(cameraId, processedReportId);
+
+      print('✅ Cleanup completed successfully');
+    } catch (e) {
+      print('⚠️ Error during cleanup: $e');
+      // Don't throw - cleanup failure shouldn't fail the main process
+    }
+  }
+
+  /// Archive processed reports instead of deleting them
+  static Future<void> _archiveProcessedReports(
+      String cameraId, String processedReportId) async {
+    try {
+      print('📦 Archiving processed reports for camera: $cameraId');
+
+      // Find reports related to this camera/location
+      final reportQuery = await _firestore
+          .collection(_reportsCollection)
+          .where('selectedCameraId', isEqualTo: cameraId)
+          .get();
+
+      print('📊 Found ${reportQuery.docs.length} reports by cameraId');
+
+      final batch = _firestore.batch();
+      int archivedCount = 0;
+
+      // Archive reports that match camera ID
+      for (final doc in reportQuery.docs) {
+        final reportData = doc.data();
+        if (reportData['status'] == 'verified' || doc.id == processedReportId) {
+          // Move to archived_reports collection
+          final archiveRef =
+              _firestore.collection('archived_camera_reports').doc(doc.id);
+          batch.set(archiveRef, {
+            ...reportData,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'archivedReason': 'camera_processed',
+            'originalCameraId': cameraId,
+          });
+
+          // Delete from main collection
+          batch.delete(doc.reference);
+          archivedCount++;
+        }
+      }
+
+      if (archivedCount > 0) {
+        await batch.commit();
+        print('✅ Archived $archivedCount reports to archived_camera_reports');
+      } else {
+        print('📝 No reports to archive');
+      }
+    } catch (e) {
+      print('⚠️ Error archiving reports: $e');
+    }
+  }
+
+  /// Clean up votes for processed reports
+  static Future<void> _cleanupVotesForProcessedReports(
+      String cameraId, String processedReportId) async {
+    try {
+      print('🗳️ Cleaning up votes for processed camera: $cameraId');
+
+      // Find votes for the processed report
+      final voteQuery = await _firestore
+          .collection('camera_votes')
+          .where('reportId', isEqualTo: processedReportId)
+          .get();
+
+      print('📊 Found ${voteQuery.docs.length} votes for processed report');
+
+      if (voteQuery.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+
+        // Archive votes instead of deleting
+        for (final voteDoc in voteQuery.docs) {
+          final voteData = voteDoc.data();
+
+          // Move to archived_votes collection
+          final archiveRef =
+              _firestore.collection('archived_camera_votes').doc(voteDoc.id);
+          batch.set(archiveRef, {
+            ...voteData,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'archivedReason': 'report_processed',
+            'originalReportId': processedReportId,
+          });
+
+          // Delete from main collection
+          batch.delete(voteDoc.reference);
+        }
+
+        await batch.commit();
+        print(
+            '✅ Archived ${voteQuery.docs.length} votes to archived_camera_votes');
+      } else {
+        print('📝 No votes to clean up');
+      }
+    } catch (e) {
+      print('⚠️ Error cleaning up votes: $e');
+    }
+  }
+
+  /// Clean up reports and votes for a specific location (alternative method)
+  static Future<void> cleanupLocationReports({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 0.1, // 100 meters
+  }) async {
+    try {
+      print('🧹 === CLEANUP REPORTS BY LOCATION ===');
+      print('📍 Location: ($latitude, $longitude)');
+      print('📏 Radius: ${radiusKm * 1000}m');
+
+      // Get all reports and filter by location
+      final allReportsQuery = await _firestore
+          .collection(_reportsCollection)
+          .where('status',
+              isEqualTo: 'verified') // Only cleanup verified reports
+          .get();
+
+      final List<String> reportsToCleanup = [];
+
+      for (final doc in allReportsQuery.docs) {
+        final data = doc.data();
+        final reportLat = data['latitude'] as double?;
+        final reportLng = data['longitude'] as double?;
+
+        if (reportLat != null && reportLng != null) {
+          final distance =
+              _calculateDistance(latitude, longitude, reportLat, reportLng);
+          if (distance <= radiusKm) {
+            reportsToCleanup.add(doc.id);
+          }
+        }
+      }
+
+      print(
+          '📊 Found ${reportsToCleanup.length} verified reports to cleanup in radius');
+
+      // Archive reports and their votes
+      for (final reportId in reportsToCleanup) {
+        await _cleanupRelatedReportData('location_based', reportId);
+      }
+
+      print('✅ Location-based cleanup completed');
+    } catch (e) {
+      print('⚠️ Error in location-based cleanup: $e');
+    }
+  }
+
+  /// ✨ ตรวจสอบว่ากล้องถูกลบจริงหรือไม่
+  static Future<bool> _verifyCameraDeletion(String cameraId) async {
+    try {
+      print('🔍 Verifying camera deletion for ID: $cameraId');
+      final doc =
+          await _firestore.collection('speed_cameras').doc(cameraId).get();
+      final exists = doc.exists;
+      print('📍 Camera $cameraId exists: $exists');
+      return !exists; // return true ถ้าไม่มีกล้อง (ลบสำเร็จ)
+    } catch (e) {
+      print('❌ Error verifying camera deletion: $e');
+      return false; // ถ้าเกิด error ให้ถือว่าลบไม่สำเร็จ
+    }
+  }
+
+  /// ✨ บันทึก error การลบกล้อง
+  static Future<void> _logDeletionError(
+      String reportId, String? cameraId, String error) async {
+    try {
+      await _firestore.collection('camera_deletion_errors').add({
+        'reportId': reportId,
+        'cameraId': cameraId,
+        'error': error,
+        'timestamp': FieldValue.serverTimestamp(),
+        'processedBy': 'auto_verification_system',
+      });
+      print('📝 Deletion error logged successfully');
+    } catch (logError) {
+      print('⚠️ Failed to log deletion error: $logError');
+    }
+  }
+
+  /// ✨ ลบกล้องพร้อมระบบ retry
+  static Future<void> _directDeleteCameraWithRetry(String cameraId,
+      {int maxRetries = 3}) async {
+    print('🔄 Starting camera deletion with retry for ID: $cameraId');
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        print('🔄 Deletion attempt $attempt/$maxRetries for camera $cameraId');
+
+        // ตรวจสอบว่ากล้องยังมีอยู่หรือไม่ก่อนลบ
+        final cameraDoc =
+            await _firestore.collection('speed_cameras').doc(cameraId).get();
+        if (!cameraDoc.exists) {
+          print('✅ Camera $cameraId already deleted (attempt $attempt)');
+          return;
+        }
+
+        // ลบกล้อง
+        await _firestore.collection('speed_cameras').doc(cameraId).delete();
+        print(
+            '🗑️ Delete command sent for camera $cameraId (attempt $attempt)');
+
+        // รอสักครู่แล้วตรวจสอบ
+        await Future.delayed(Duration(seconds: attempt));
+
+        // ตรวจสอบว่าลบจริงหรือไม่
+        final isDeleted = await _verifyCameraDeletion(cameraId);
+        if (isDeleted) {
+          print('✅ Camera $cameraId deleted successfully on attempt $attempt');
+
+          // บันทึก log การลบสำเร็จ
+          await _firestore.collection('camera_deletion_log').add({
+            'cameraId': cameraId,
+            'deletionTimestamp': FieldValue.serverTimestamp(),
+            'deletionMethod': 'auto_verification_with_retry',
+            'deletedBy': 'auto_system',
+            'reason': 'community_removal_vote_verified',
+            'success': true,
+            'attempts': attempt,
+          });
+
+          return;
+        } else {
+          print(
+              '⚠️ Camera $cameraId still exists after deletion attempt $attempt');
+        }
+      } catch (e) {
+        print('❌ Error on deletion attempt $attempt: $e');
+
+        if (attempt == maxRetries) {
+          // บันทึก error log สำหรับความพยายามสุดท้าย
+          await _firestore.collection('camera_deletion_log').add({
+            'cameraId': cameraId,
+            'deletionTimestamp': FieldValue.serverTimestamp(),
+            'deletionMethod': 'auto_verification_with_retry',
+            'success': false,
+            'error': e.toString(),
+            'attempts': attempt,
+            'maxRetries': maxRetries,
+          });
+          rethrow;
+        }
+      }
+
+      if (attempt < maxRetries) {
+        // Exponential backoff
+        final delaySeconds = attempt * 2;
+        print('⏳ Waiting ${delaySeconds}s before retry...');
+        await Future.delayed(Duration(seconds: delaySeconds));
+      }
+    }
+
+    throw Exception(
+        'Failed to delete camera $cameraId after $maxRetries attempts');
+  }
+
+  /// ✨ ลบกล้องออกจาก Firebase โดยตรง (ไม่ยุ่งกับ UI)
+  static Future<void> _directDeleteCamera(String cameraId) async {
+    try {
+      print('🗑️ === DIRECT CAMERA DELETION ===');
+      print('🎯 Target Camera ID: $cameraId');
+
+      // ตรวจสอบว่ากล้องมีอยู่จริงหรือไม่
+      final cameraDoc =
+          await _firestore.collection('speed_cameras').doc(cameraId).get();
+
+      if (!cameraDoc.exists) {
+        print('⚠️ Camera $cameraId does not exist - may already be deleted');
+        return;
+      }
+
+      // ลบกล้องออกจาก speed_cameras collection
+      await _firestore.collection('speed_cameras').doc(cameraId).delete();
+      print('✅ Camera $cameraId deleted from speed_cameras collection');
+
+      // บันทึก log การลบ
+      await _firestore.collection('camera_deletion_log').add({
+        'cameraId': cameraId,
+        'deletionTimestamp': FieldValue.serverTimestamp(),
+        'deletionMethod': 'direct_deletion_after_verification',
+        'deletedBy': 'auto_system',
+        'reason': 'community_removal_vote_verified',
+        'success': true,
+      });
+      print('✅ Deletion logged successfully');
+
+      print('🎉 === DIRECT CAMERA DELETION COMPLETED ===');
+    } catch (e) {
+      print('❌ Error in direct camera deletion: $e');
+
+      // บันทึก error log
+      try {
+        await _firestore.collection('camera_deletion_log').add({
+          'cameraId': cameraId,
+          'deletionTimestamp': FieldValue.serverTimestamp(),
+          'deletionMethod': 'direct_deletion_after_verification',
+          'success': false,
+          'error': e.toString(),
+        });
+      } catch (logError) {
+        print('⚠️ Failed to log deletion error: $logError');
+      }
+
+      rethrow;
+    }
+  }
+
+  /// ✨ ลบกล้องตามตำแหน่งพิกัด (เมื่อไม่มี Camera ID)
+  static Future<void> _deleteByLocation(
+      double latitude, double longitude) async {
+    try {
+      print('🗑️ === LOCATION-BASED CAMERA DELETION ===');
+      print('📍 Target location: ($latitude, $longitude)');
+
+      // ค้นหากล้องในรัศมี 100 เมตร
+      final allCameras = await getAllSpeedCameras();
+      SpeedCamera? targetCamera;
+      double minDistance = double.infinity;
+
+      for (final camera in allCameras) {
+        final distance = _calculateDistance(
+          latitude,
+          longitude,
+          camera.location.latitude,
+          camera.location.longitude,
+        );
+        final distanceInMeters = distance * 1000;
+
+        if (distanceInMeters <= 100 && distanceInMeters < minDistance) {
+          minDistance = distanceInMeters;
+          targetCamera = camera;
+        }
+      }
+
+      if (targetCamera != null) {
+        print(
+            '🎯 Found camera: ${targetCamera.roadName} (${targetCamera.id}) at ${minDistance.toStringAsFixed(2)}m');
+        await _directDeleteCamera(targetCamera.id);
+        print('✅ Location-based deletion completed');
+      } else {
+        print('❌ No camera found within 100m of specified location');
+        throw Exception(
+            'No camera found within 100m of location ($latitude, $longitude)');
+      }
+    } catch (e) {
+      print('❌ Error in location-based deletion: $e');
+      rethrow;
     }
   }
 }

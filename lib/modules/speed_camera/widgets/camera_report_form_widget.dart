@@ -144,6 +144,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       fontFamily: 'NotoSansThai',
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
+                      color: Colors.black, // เปลี่ยนเป็นสีดำ
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -154,6 +155,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                     style: TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontWeight: FontWeight.w500,
+                      color: Colors.black, // เปลี่ยนเป็นสีดำ
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -209,6 +211,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
+                        color: Colors.black, // เปลี่ยนเป็นสีดำ
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -242,7 +245,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
+                          border: Border.all(
+                              color: Colors.black), // เปลี่ยนกรอบเป็นสีดำ
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -250,8 +254,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                             Icon(
                               Icons.add_location,
                               color: _selectedLocation != null
-                                  ? const Color(0xFF1158F2)
-                                  : Colors.grey,
+                                  ? Colors.black // เปลี่ยนเป็นสีดำ
+                                  : Colors.black54, // สีดำอ่อนเมื่อยังไม่เลือก
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -266,8 +270,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                       fontFamily: 'NotoSansThai',
                                       fontSize: 14,
                                       color: _selectedLocation != null
-                                          ? Colors.black87
-                                          : Colors.grey.shade600,
+                                          ? Colors.black // เปลี่ยนเป็นสีดำ
+                                          : Colors
+                                              .black54, // สีดำอ่อนเมื่อยังไม่เลือก
                                       fontWeight: _selectedLocation != null
                                           ? FontWeight.w500
                                           : FontWeight.w400,
@@ -277,28 +282,30 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                     const SizedBox(height: 4),
                                     Text(
                                       'ละติจูด: ${_selectedLocation!.latitude.toStringAsFixed(6)}',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontFamily: 'NotoSansThai',
                                         fontSize: 12,
-                                        color: Colors.grey.shade600,
+                                        color: Colors
+                                            .black54, // สีดำอ่อนสำหรับรายละเอียด
                                       ),
                                     ),
                                     Text(
                                       'ลองจิจูด: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontFamily: 'NotoSansThai',
                                         fontSize: 12,
-                                        color: Colors.grey.shade600,
+                                        color: Colors
+                                            .black54, // สีดำอ่อนสำหรับรายละเอียด
                                       ),
                                     ),
                                   ],
                                 ],
                               ),
                             ),
-                            Icon(
+                            const Icon(
                               Icons.arrow_forward_ios,
                               size: 16,
-                              color: Colors.grey.shade400,
+                              color: Colors.black54, // สีดำอ่อนสำหรับลูกศร
                             ),
                           ],
                         ),
@@ -325,6 +332,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
+                        color: Colors.black, // เปลี่ยนเป็นสีดำ
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -333,7 +341,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
+                          border: Border.all(
+                              color: Colors.black), // เปลี่ยนกรอบเป็นสีดำ
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -341,15 +350,19 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                             const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.black), // เปลี่ยนเป็นสีดำ
+                              ),
                             ),
                             const SizedBox(width: 12),
-                            Text(
+                            const Text(
                               'กำลังโหลดข้อมูลกล้อง...',
                               style: TextStyle(
                                 fontFamily: 'NotoSansThai',
                                 fontSize: 14,
-                                color: Colors.grey.shade600,
+                                color: Colors.black, // เปลี่ยนเป็นสีดำ
                               ),
                             ),
                           ],
@@ -359,21 +372,22 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
+                          border: Border.all(
+                              color: Colors.black), // เปลี่ยนกรอบเป็นสีดำ
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline,
-                                color: Colors.grey.shade600),
+                            const Icon(Icons.info_outline,
+                                color: Colors.black), // เปลี่ยนเป็นสีดำ
                             const SizedBox(width: 12),
-                            Expanded(
+                            const Expanded(
                               child: Text(
                                 'ไม่พบข้อมูลกล้องในระบบ',
                                 style: TextStyle(
                                   fontFamily: 'NotoSansThai',
                                   fontSize: 14,
-                                  color: Colors.grey.shade600,
+                                  color: Colors.black, // เปลี่ยนเป็นสีดำ
                                 ),
                               ),
                             ),
@@ -387,7 +401,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade400),
+                            border: Border.all(
+                                color: Colors.black), // เปลี่ยนกรอบเป็นสีดำ
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Row(
@@ -395,8 +410,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                               Icon(
                                 Icons.map,
                                 color: _selectedExistingCamera != null
-                                    ? const Color(0xFF1158F2)
-                                    : Colors.grey,
+                                    ? Colors.black // เปลี่ยนเป็นสีดำ
+                                    : Colors
+                                        .black54, // สีดำอ่อนเมื่อยังไม่เลือก
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -411,8 +427,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                         fontFamily: 'NotoSansThai',
                                         fontSize: 14,
                                         color: _selectedExistingCamera != null
-                                            ? Colors.black87
-                                            : Colors.grey.shade600,
+                                            ? Colors.black // เปลี่ยนเป็นสีดำ
+                                            : Colors
+                                                .black54, // สีดำอ่อนเมื่อยังไม่เลือก
                                         fontWeight:
                                             _selectedExistingCamera != null
                                                 ? FontWeight.w500
@@ -427,24 +444,27 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                           fontFamily: 'NotoSansThai',
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
+                                          color:
+                                              Colors.black, // เปลี่ยนเป็นสีดำ
                                         ),
                                       ),
                                       Text(
                                         '${_selectedExistingCamera!.speedLimit} km/h • ${_selectedExistingCamera!.location.latitude.toStringAsFixed(4)}, ${_selectedExistingCamera!.location.longitude.toStringAsFixed(4)}',
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontFamily: 'NotoSansThai',
                                           fontSize: 11,
-                                          color: Colors.grey.shade600,
+                                          color: Colors
+                                              .black54, // สีดำอ่อนสำหรับรายละเอียด
                                         ),
                                       ),
                                     ],
                                   ],
                                 ),
                               ),
-                              Icon(
+                              const Icon(
                                 Icons.arrow_forward_ios,
                                 size: 16,
-                                color: Colors.grey.shade400,
+                                color: Colors.black54, // สีดำอ่อนสำหรับลูกศร
                               ),
                             ],
                           ),
@@ -474,17 +494,57 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   // Road name
                   TextFormField(
                     controller: _roadNameController,
-                    readOnly: _selectedType != CameraReportType.newCamera,
+                    readOnly: _selectedType == CameraReportType.removedCamera ||
+                        _selectedType == CameraReportType.speedChanged,
                     decoration: InputDecoration(
                       labelText: 'ชื่อถนน',
-                      labelStyle: const TextStyle(fontFamily: 'NotoSansThai'),
-                      border: const OutlineInputBorder(),
+                      labelStyle: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        color: (_selectedType ==
+                                    CameraReportType.removedCamera ||
+                                _selectedType == CameraReportType.speedChanged)
+                            ? Colors.grey.shade600
+                            : Colors.black, // เปลี่ยนเป็นสีดำ
+                      ),
+                      border: const OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Colors.black), // เปลี่ยนกรอบเป็นสีดำ
+                      ),
+                      enabledBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Colors.black), // เปลี่ยนกรอบเป็นสีดำ
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: (_selectedType ==
+                                      CameraReportType.removedCamera ||
+                                  _selectedType ==
+                                      CameraReportType.speedChanged)
+                              ? Colors.grey.shade400 // ยังคงเป็นสีเทาเมื่อล็อค
+                              : Colors.black, // เปลี่ยนเป็นสีดำเมื่อโฟกัส
+                        ),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
-                      filled: _selectedType != CameraReportType.newCamera,
-                      fillColor: _selectedType != CameraReportType.newCamera
+                      filled: _selectedType == CameraReportType.removedCamera ||
+                          _selectedType == CameraReportType.speedChanged,
+                      fillColor: (_selectedType ==
+                                  CameraReportType.removedCamera ||
+                              _selectedType == CameraReportType.speedChanged)
                           ? Colors.grey.shade100
                           : null,
+                      suffixIcon: (_selectedType ==
+                                  CameraReportType.removedCamera ||
+                              _selectedType == CameraReportType.speedChanged)
+                          ? Icon(Icons.lock_outline,
+                              color: Colors.grey.shade600)
+                          : null,
+                    ),
+                    style: TextStyle(
+                      color: (_selectedType == CameraReportType.removedCamera ||
+                              _selectedType == CameraReportType.speedChanged)
+                          ? Colors.grey.shade600
+                          : Colors.black,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {

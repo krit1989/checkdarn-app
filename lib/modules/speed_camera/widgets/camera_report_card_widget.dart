@@ -285,16 +285,18 @@ class CameraReportCardWidget extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Voting buttons
-            if (!hasVoted && report.status == CameraStatus.pending) ...[
+            if (!hasVoted &&
+                !_isReportOwner() &&
+                report.status == CameraStatus.pending) ...[
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => onVoteSubmitted(VoteType.upvote),
                       icon: const Icon(Icons.thumb_up, size: 18),
-                      label: const Text(
-                        'มีจริง',
-                        style: TextStyle(fontFamily: 'NotoSansThai'),
+                      label: Text(
+                        _getUpvoteButtonText(),
+                        style: const TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
@@ -311,9 +313,9 @@ class CameraReportCardWidget extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () => onVoteSubmitted(VoteType.downvote),
                       icon: const Icon(Icons.thumb_down, size: 18),
-                      label: const Text(
-                        'ไม่มี',
-                        style: TextStyle(fontFamily: 'NotoSansThai'),
+                      label: Text(
+                        _getDownvoteButtonText(),
+                        style: const TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -326,6 +328,33 @@ class CameraReportCardWidget extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ] else if (_isReportOwner() &&
+                report.status == CameraStatus.pending) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      color: Colors.amber.shade700,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'รายงานของคุณ - รอการโหวตจากชุมชน',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ] else if (hasVoted) ...[
               Container(
@@ -392,6 +421,33 @@ class CameraReportCardWidget extends StatelessWidget {
     return currentUser != null &&
         currentUser.uid == report.reportedBy &&
         report.status == CameraStatus.pending;
+  }
+
+  // ตรวจสอบว่าเป็นเจ้าของรายงานหรือไม่
+  bool _isReportOwner() {
+    final currentUser = AuthService.currentUser;
+    return currentUser != null && currentUser.uid == report.reportedBy;
+  }
+
+  // เลือกข้อความปุ่มโหวตที่เหมาะสมกับประเภทการรายงาน
+  String _getUpvoteButtonText() {
+    switch (report.type) {
+      case CameraReportType.newCamera:
+        return 'มีจริง';
+      case CameraReportType.removedCamera:
+      case CameraReportType.speedChanged:
+        return 'จริง';
+    }
+  }
+
+  String _getDownvoteButtonText() {
+    switch (report.type) {
+      case CameraReportType.newCamera:
+        return 'ไม่มี';
+      case CameraReportType.removedCamera:
+      case CameraReportType.speedChanged:
+        return 'ไม่จริง';
+    }
   }
 
   // แสดง dialog ยืนยันการลบ

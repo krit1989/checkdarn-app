@@ -414,7 +414,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   '• รายงานกล้องใหม่ที่คุณพบเจอ\n'
                   '• รายงานกล้องที่ถูกถอดออก\n'
                   '• รายงานการเปลี่ยนจำกัดความเร็ว\n'
-                  '• ข้อมูลจะถูกตรวจสอบโดยชุมชน',
+                  '• ข้อมูลจะถูกตรวจสอบโดยชุมชน\n'
+                  '• คุณไม่สามารถโหวตรายงานของตัวเองได้',
                   style: TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 14,
@@ -542,6 +543,54 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ปุ่มบังคับลบกล้อง Verified
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('กำลังบังคับลบกล้อง Verified...'),
+                            backgroundColor: Colors.purple,
+                          ),
+                        );
+
+                        try {
+                          await CameraReportService
+                              .forceDeleteVerifiedCameras();
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'บังคับลบกล้อง Verified เสร็จสิ้น - ดูผลลัพธ์ในคอนโซล'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('เกิดข้อผิดพลาด: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.delete_forever, size: 16),
+                      label: const Text(
+                        'บังคับลบกล้อง Verified',
+                        style:
+                            TextStyle(fontFamily: 'NotoSansThai', fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),

@@ -56,8 +56,35 @@ service cloud.firestore {
       // อ่านได้ทุกคน
       allow read: if true;
       
-      // แก้ไขได้เฉพาะ admin หรือระบบ
-      allow write: if false; // จะถูกจัดการโดย Cloud Functions
+      // สร้างและแก้ไขได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับระบบ auto-verification)
+      allow create, update: if request.auth != null;
+      
+      // ลบได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับการลบกล้องที่ถูก verified removal)
+      allow delete: if request.auth != null;
+    }
+    
+    // ========== Camera Deletion Log Collection ==========
+    match /camera_deletion_log/{logId} {
+      // อ่านได้ทุกคน (สำหรับ debugging)
+      allow read: if true;
+      
+      // เขียนได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับ logging ระบบ)
+      allow create: if request.auth != null;
+      
+      // ไม่อนุญาตให้แก้ไขหรือลบ log
+      allow update, delete: if false;
+    }
+    
+    // ========== Camera Deletion Errors Collection ==========
+    match /camera_deletion_errors/{errorId} {
+      // อ่านได้ทุกคน (สำหรับ debugging)
+      allow read: if true;
+      
+      // เขียนได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับ error logging)
+      allow create: if request.auth != null;
+      
+      // ไม่อนุญาตให้แก้ไขหรือลบ error log
+      allow update, delete: if false;
     }
     
     // ========== Helper Functions ==========
