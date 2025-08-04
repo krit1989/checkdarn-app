@@ -539,8 +539,6 @@ class CameraReportCardWidget extends StatelessWidget {
         return '❌ กล้องถูกถอด';
       case CameraReportType.speedChanged:
         return '⚡ เปลี่ยนความเร็ว';
-      case CameraReportType.verification:
-        return '✅ ยืนยันกล้อง';
     }
   }
 
@@ -552,8 +550,6 @@ class CameraReportCardWidget extends StatelessWidget {
         return Colors.red;
       case CameraReportType.speedChanged:
         return Colors.purple;
-      case CameraReportType.verification:
-        return Colors.blue;
     }
   }
 

@@ -76,7 +76,7 @@ service cloud.firestore {
              && data.speedLimit > 0 && data.speedLimit <= 200
              && data.reportedBy is string
              && data.reportedAt is timestamp
-             && data.type in ['newCamera', 'removedCamera', 'movedCamera', 'speedChanged', 'verification'];
+             && data.type in ['newCamera', 'removedCamera', 'movedCamera', 'speedChanged'];
     }
     
     // ตรวจสอบการอัปเดต Camera Report

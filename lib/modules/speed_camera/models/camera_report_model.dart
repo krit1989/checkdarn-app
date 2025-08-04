@@ -10,6 +10,7 @@ class CameraReport {
   final String? description;
   final String? imageUrl;
   final List<String> tags; // ['new', 'moved', 'removed', 'speed_changed']
+  final String? selectedCameraId; // ID ของกล้องที่เลือกจากแผนที่
 
   // Verification data
   final int upvotes;
@@ -31,6 +32,7 @@ class CameraReport {
     this.description,
     this.imageUrl,
     this.tags = const [],
+    this.selectedCameraId, // เพิ่ม
     this.upvotes = 0,
     this.downvotes = 0,
     this.confidenceScore = 0.0,
@@ -55,6 +57,7 @@ class CameraReport {
       description: json['description'],
       imageUrl: json['imageUrl'],
       tags: List<String>.from(json['tags'] ?? []),
+      selectedCameraId: json['selectedCameraId'], // เพิ่ม
       upvotes: json['upvotes'] ?? 0,
       downvotes: json['downvotes'] ?? 0,
       confidenceScore: (json['confidenceScore'] ?? 0.0).toDouble(),
@@ -82,6 +85,7 @@ class CameraReport {
       'description': description,
       'imageUrl': imageUrl,
       'tags': tags,
+      'selectedCameraId': selectedCameraId, // เพิ่ม
       'upvotes': upvotes,
       'downvotes': downvotes,
       'confidenceScore': confidenceScore,
@@ -107,7 +111,6 @@ enum CameraReportType {
   newCamera, // รายงานกล้องใหม่
   removedCamera, // รายงานกล้องที่ถูกถอด
   speedChanged, // รายงานการเปลี่ยนจำกัดความเร็ว
-  verification, // ยืนยันกล้องที่มีอยู่
 }
 
 enum CameraStatus {

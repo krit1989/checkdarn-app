@@ -24,14 +24,33 @@ class CameraReportService {
     String? description,
     String? imageUrl,
     List<String> tags = const [],
+    String? selectedCameraId, // เพิ่มสำหรับการเลือกกล้องจากแผนที่
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    // Check for duplicate reports within 50m
-    final nearbyReports = await _findNearbyReports(latitude, longitude, 50);
-    if (nearbyReports.isNotEmpty) {
-      throw Exception('มีการรายงานในบริเวณนี้แล้ว โปรดตรวจสอบอีกครั้ง');
+    // ✨ ตรวจสอบ duplicate แบบชาญฉลาด
+    if (type == CameraReportType.removedCamera) {
+      // สำหรับ "รายงานกล้องถูกถอน" - ตรวจสอบ Camera ID ที่แน่นอน
+      if (selectedCameraId == null) {
+        throw Exception('กรุณาเลือกกล้องที่ต้องการรายงานจากแผนที่');
+      }
+
+      final existingRemovalReports = await _firestore
+          .collection(_reportsCollection)
+          .where('type', isEqualTo: 'removedCamera')
+          .where('selectedCameraId', isEqualTo: selectedCameraId)
+          .where('status', whereIn: ['pending', 'verified']).get();
+
+      if (existingRemovalReports.docs.isNotEmpty) {
+        throw Exception('มีการรายงานกล้องตัวนี้ถูกถอดแล้ว');
+      }
+    } else {
+      // สำหรับประเภทอื่นๆ - ใช้ระยะรัศมี
+      final nearbyReports = await _findNearbyReports(latitude, longitude, 50);
+      if (nearbyReports.isNotEmpty) {
+        throw Exception('มีการรายงานในบริเวณนี้แล้ว โปรดตรวจสอบอีกครั้ง');
+      }
     }
 
     final reportId = _firestore.collection(_reportsCollection).doc().id;
@@ -47,6 +66,7 @@ class CameraReportService {
       description: description,
       imageUrl: imageUrl,
       tags: tags,
+      selectedCameraId: selectedCameraId, // เพิ่ม
     );
 
     await _firestore

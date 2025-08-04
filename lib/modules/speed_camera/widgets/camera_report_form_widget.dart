@@ -7,7 +7,7 @@ import '../services/camera_report_service.dart';
 import '../services/speed_camera_service.dart';
 import '../models/camera_report_model.dart';
 import '../models/speed_camera_model.dart';
-import 'camera_selection_map_screen.dart';
+import 'camera_selection_map_widget.dart'; // ใช้ widget ใหม่
 
 class CameraReportFormWidget extends StatefulWidget {
   final LatLng? initialLocation;
@@ -34,11 +34,38 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
   int _selectedSpeedLimit = 90;
   bool _isSubmitting = false;
   LatLng? _selectedLocation;
+  String? _selectedCameraId; // เพิ่ม Camera ID ที่เลือก
 
   // สำหรับการเลือกกล้องที่มีอยู่ในระบบ
   List<SpeedCamera> _existingCameras = [];
   SpeedCamera? _selectedExistingCamera;
   bool _isLoadingCameras = false;
+
+  // ✨ เพิ่มฟังก์ชันเลือกกล้องจากแผนที่
+  Future<void> _selectCameraFromMap() async {
+    final result = await Navigator.push<SpeedCamera>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CameraSelectionMapWidget(
+          initialCenter: _selectedLocation,
+          selectedCamera: _selectedExistingCamera,
+          onCameraSelected: (camera) {
+            // Callback สำหรับแสดงข้อมูลใน UI ของแผนที่
+          },
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedExistingCamera = result;
+        _selectedLocation = result.location;
+        _selectedCameraId = result.id; // เก็บ Camera ID ที่เลือก
+        _roadNameController.text = result.roadName;
+        _selectedSpeedLimit = result.speedLimit;
+      });
+    }
+  }
 
   final List<int> _speedLimits = [30, 50, 60, 80, 90, 100, 120];
 
@@ -156,11 +183,13 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         if (_selectedType != CameraReportType.newCamera) {
                           _selectedLocation = null;
                           _selectedExistingCamera = null;
+                          _selectedCameraId = null; // รีเซ็ต Camera ID
                         }
                         // ถ้าเปลี่ยนเป็น newCamera ให้ clear existing camera และชื่อถนน
                         if (_selectedType == CameraReportType.newCamera) {
                           _selectedExistingCamera = null;
                           _selectedLocation = null;
+                          _selectedCameraId = null; // รีเซ็ต Camera ID
                           _roadNameController
                               .clear(); // Clear ชื่อถนนเพื่อให้เริ่มใหม่
                           _selectedSpeedLimit =
@@ -352,29 +381,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         ),
                       ),
                     ] else ...[
-                      // เลือกกล้องจากแผนที่แทน dropdown
+                      // ✨ เลือกกล้องจากแผนที่แบบใหม่
                       InkWell(
-                        onTap: () async {
-                          final result = await Navigator.push<SpeedCamera>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CameraSelectionMapScreen(
-                                existingCameras: _existingCameras,
-                                selectedCamera: _selectedExistingCamera,
-                                title: 'เลือกกล้องที่ต้องการรายงาน',
-                              ),
-                            ),
-                          );
-
-                          if (result != null) {
-                            setState(() {
-                              _selectedExistingCamera = result;
-                              _selectedLocation = result.location;
-                              _roadNameController.text = result.roadName;
-                              _selectedSpeedLimit = result.speedLimit;
-                            });
-                          }
-                        },
+                        onTap: _selectCameraFromMap,
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -487,16 +496,13 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
 
                   const SizedBox(height: 16),
 
-                  // Speed limit (for new camera, speed changed, and verification)
+                  // Speed limit (for new camera and speed changed)
                   if (_selectedType == CameraReportType.newCamera ||
-                      _selectedType == CameraReportType.speedChanged ||
-                      _selectedType == CameraReportType.verification) ...[
+                      _selectedType == CameraReportType.speedChanged) ...[
                     Text(
                       _selectedType == CameraReportType.speedChanged
                           ? 'จำกัดความเร็วใหม่ (km/h)'
-                          : _selectedType == CameraReportType.verification
-                              ? 'จำกัดความเร็วปัจจุบัน (km/h)'
-                              : 'จำกัดความเร็ว (km/h)',
+                          : 'จำกัดความเร็ว (km/h)',
                       style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
@@ -505,15 +511,10 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int>(
                       initialValue: _selectedSpeedLimit,
-                      decoration: InputDecoration(
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        filled: _selectedType == CameraReportType.verification,
-                        fillColor:
-                            _selectedType == CameraReportType.verification
-                                ? Colors.grey.shade100
-                                : null,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       items: _speedLimits.map((speed) {
                         return DropdownMenuItem(
@@ -524,13 +525,11 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                           ),
                         );
                       }).toList(),
-                      onChanged: _selectedType == CameraReportType.verification
-                          ? null // ไม่ให้แก้ไขถ้าเป็น verification
-                          : (value) {
-                              setState(() {
-                                _selectedSpeedLimit = value!;
-                              });
-                            },
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedSpeedLimit = value!;
+                        });
+                      },
                     ),
 
                     // แสดงข้อมูลเพิ่มเติมสำหรับ speedChanged
@@ -647,8 +646,6 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         return '❌ รายงานกล้องที่ถูกถอน';
       case CameraReportType.speedChanged:
         return '⚡ รายงานการเปลี่ยนจำกัดความเร็ว';
-      case CameraReportType.verification:
-        return '✅ ยืนยันกล้องที่มีอยู่';
     }
   }
 
@@ -660,8 +657,6 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         return 'รายงานกล้องที่ถูกถอน';
       case CameraReportType.speedChanged:
         return 'รายงานเปลี่ยนความเร็ว';
-      case CameraReportType.verification:
-        return 'ยืนยันกล้อง';
     }
   }
 
@@ -718,6 +713,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
+        selectedCameraId: _selectedCameraId, // ส่ง Camera ID ที่เลือก
       );
 
       // Reset form
@@ -727,6 +723,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
       setState(() {
         _selectedLocation = null;
         _selectedExistingCamera = null;
+        _selectedCameraId = null; // รีเซ็ต Camera ID
         _selectedType = CameraReportType.newCamera;
         _selectedSpeedLimit = 90;
       });

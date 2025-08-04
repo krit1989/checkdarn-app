@@ -356,8 +356,6 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         return '❌ รายงานกล้องที่ถูกถอด';
       case CameraReportType.speedChanged:
         return '⚡ รายงานการเปลี่ยนจำกัดความเร็ว';
-      case CameraReportType.verification:
-        return '✅ ยืนยันกล้องที่มีอยู่';
     }
   }
 
@@ -369,8 +367,6 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
         return 'รายงานกล้องถูกถอด';
       case CameraReportType.speedChanged:
         return 'รายงานเปลี่ยนความเร็ว';
-      case CameraReportType.verification:
-        return 'ยืนยันกล้อง';
     }
   }
 
