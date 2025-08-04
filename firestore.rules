@@ -81,7 +81,21 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // 🔔 Notification Posts - อ่านได้ทุกคน สร้างได้เฉพาะ login
+    // � กฎสำหรับ speed limit changes - ประวัติการเปลี่ยนความเร็ว
+    match /speed_limit_changes/{changeId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ
+    }
+    
+    // ❌ กฎสำหรับ speed update errors - ข้อผิดพลาดการอัปเดตความเร็ว
+    match /speed_update_errors/{errorId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ
+    }
+    
+    // �🔔 Notification Posts - อ่านได้ทุกคน สร้างได้เฉพาะ login
     match /notification_posts/{postId} {
       allow read: if true;
       allow create: if request.auth != null;

@@ -105,6 +105,12 @@ class CameraReport {
 
   bool get isHighConfidence => confidenceScore >= 0.7 && totalVotes >= 5;
   bool get needsMoreVotes => totalVotes < 3;
+
+  // เพิ่มเมธอดตรวจสอบว่าต้องการอัปเดตความเร็วหรือไม่
+  bool get needsSpeedUpdate =>
+      type == CameraReportType.speedChanged &&
+      isVerified &&
+      selectedCameraId != null;
 }
 
 enum CameraReportType {

@@ -9,11 +9,14 @@ import '../services/geocoding_service.dart';
 class LocationPickerScreen extends StatefulWidget {
   final LatLng? initialLocation;
   final String title;
+  final bool
+      autoLocateToCurrentPosition; // เพิ่ม parameter สำหรับเด้งไปหาตำแหน่งปัจจุบัน
 
   const LocationPickerScreen({
     super.key,
     this.initialLocation,
     this.title = 'เลือกตำแหน่ง',
+    this.autoLocateToCurrentPosition = false, // ค่าเริ่มต้นเป็น false
   });
 
   @override
@@ -49,7 +52,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
     // Move to initial location after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _moveToLocation(_selectedLocation);
+      if (widget.autoLocateToCurrentPosition) {
+        // เด้งไปหาตำแหน่งปัจจุบันเลย
+        _getCurrentLocation();
+      } else {
+        // ใช้ตำแหน่งเริ่มต้นตามปกติ
+        _moveToLocation(_selectedLocation);
+      }
     });
   }
 

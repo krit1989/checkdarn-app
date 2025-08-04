@@ -249,6 +249,7 @@ class _ReportScreenState extends State<ReportScreen> {
         builder: (context) => LocationPickerScreen(
           initialLocation:
               initialLocation, // ส่งตำแหน่งปัจจุบันหรือตำแหน่งที่เลือกไว้แล้ว
+          autoLocateToCurrentPosition: true, // เด้งไปหาตำแหน่งปัจจุบันเลย
         ),
       ),
     );

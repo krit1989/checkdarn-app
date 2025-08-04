@@ -34,6 +34,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
   int _selectedSpeedLimit = 90;
   bool _isSubmitting = false;
   LatLng? _selectedLocation;
+  LocationInfo? _selectedLocationInfo; // เพิ่มข้อมูลสถานที่
   String? _selectedCameraId; // เพิ่ม Camera ID ที่เลือก
 
   // สำหรับการเลือกกล้องที่มีอยู่ในระบบ
@@ -184,6 +185,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         // ถ้าเปลี่ยนจาก newCamera เป็น type อื่น ให้ clear location
                         if (_selectedType != CameraReportType.newCamera) {
                           _selectedLocation = null;
+                          _selectedLocationInfo = null; // Clear ข้อมูลสถานที่
                           _selectedExistingCamera = null;
                           _selectedCameraId = null; // รีเซ็ต Camera ID
                         }
@@ -191,6 +193,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         if (_selectedType == CameraReportType.newCamera) {
                           _selectedExistingCamera = null;
                           _selectedLocation = null;
+                          _selectedLocationInfo = null; // Clear ข้อมูลสถานที่
                           _selectedCameraId = null; // รีเซ็ต Camera ID
                           _roadNameController
                               .clear(); // Clear ชื่อถนนเพื่อให้เริ่มใหม่
@@ -224,6 +227,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                             builder: (context) => LocationPickerScreen(
                               initialLocation: _selectedLocation,
                               title: 'เลือกตำแหน่งกล้องใหม่',
+                              autoLocateToCurrentPosition:
+                                  true, // เด้งไปหาตำแหน่งปัจจุบันเลย
                             ),
                           ),
                         );
@@ -231,6 +236,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                         if (result != null) {
                           setState(() {
                             _selectedLocation = result['location'] as LatLng;
+                            // ดึงข้อมูลสถานที่จาก locationInfo
+                            _selectedLocationInfo =
+                                result['locationInfo'] as LocationInfo?;
                             // ดึงชื่อถนนจาก locationInfo
                             final locationInfo =
                                 result['locationInfo'] as LocationInfo?;
@@ -281,19 +289,21 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                   if (_selectedLocation != null) ...[
                                     const SizedBox(height: 4),
                                     Text(
-                                      'ละติจูด: ${_selectedLocation!.latitude.toStringAsFixed(6)}',
+                                      _selectedLocationInfo?.shortAddress ??
+                                          'ไม่พบข้อมูลสถานที่',
                                       style: const TextStyle(
                                         fontFamily: 'NotoSansThai',
-                                        fontSize: 12,
-                                        color: Colors
-                                            .black54, // สีดำอ่อนสำหรับรายละเอียด
+                                        fontSize: 13,
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
+                                    const SizedBox(height: 2),
                                     Text(
-                                      'ลองจิจูด: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
+                                      'ละติจูด: ${_selectedLocation!.latitude.toStringAsFixed(6)}, ลองจิจูด: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
                                       style: const TextStyle(
                                         fontFamily: 'NotoSansThai',
-                                        fontSize: 12,
+                                        fontSize: 11,
                                         color: Colors
                                             .black54, // สีดำอ่อนสำหรับรายละเอียด
                                       ),
@@ -782,6 +792,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
       _descriptionController.clear();
       setState(() {
         _selectedLocation = null;
+        _selectedLocationInfo = null; // Clear ข้อมูลสถานที่
         _selectedExistingCamera = null;
         _selectedCameraId = null; // รีเซ็ต Camera ID
         _selectedType = CameraReportType.newCamera;
