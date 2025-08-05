@@ -110,11 +110,15 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
 
   Future<void> _loadCameras() async {
     try {
-      final cameras = await SpeedCameraService.getSpeedCameras();
+      // โหลดเฉพาะกล้องที่ active เท่านั้น (ไม่แสดงกล้องที่รอโหวต)
+      final activeCameras = await SpeedCameraService.getSpeedCameras();
+
       setState(() {
-        _cameras = cameras;
+        _cameras = activeCameras;
         _isLoading = false;
       });
+
+      print('📊 Loaded ${activeCameras.length} active cameras');
     } catch (e) {
       print('Error loading cameras: $e');
       setState(() {

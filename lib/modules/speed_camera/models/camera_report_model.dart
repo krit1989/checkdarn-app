@@ -104,7 +104,17 @@ class CameraReport {
   double get approvalRatio => totalVotes > 0 ? upvotes / totalVotes : 0.0;
 
   bool get isHighConfidence => confidenceScore >= 0.7 && totalVotes >= 5;
-  bool get needsMoreVotes => totalVotes < 3;
+  bool get needsMoreVotes => totalVotes < 3; // ต้องมีอย่างน้อย 3 votes
+
+  // เพิ่มเมธอดตรวจสอบว่ากล้องนี้มี ID หรือยัง
+  bool get hasCameraId =>
+      selectedCameraId != null && selectedCameraId!.isNotEmpty;
+
+  // เพิ่มเมธอดตรวจสอบว่ากล้องนี้พร้อมแสดงในแผนที่หรือไม่
+  bool get shouldShowInMap {
+    return (type == CameraReportType.newCamera && hasCameraId) ||
+        (type == CameraReportType.speedChanged && hasCameraId);
+  }
 
   // เพิ่มเมธอดตรวจสอบว่าต้องการอัปเดตความเร็วหรือไม่
   bool get needsSpeedUpdate =>

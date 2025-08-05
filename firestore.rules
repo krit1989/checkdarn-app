@@ -46,6 +46,20 @@ service cloud.firestore {
       allow delete: if request.auth != null;  // อนุญาตให้ลบได้สำหรับผู้ล็อกอิน (สำหรับระบบ auto-deletion)
     }
     
+    // ✅ กฎสำหรับ camera promotion success - บันทึกการสร้างกล้องสำเร็จ
+    match /camera_promotion_success/{logId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // ผู้ล็อกอินสามารถสร้าง success log ได้
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ success log
+    }
+    
+    // ❌ กฎสำหรับ camera promotion errors - บันทึกข้อผิดพลาดการสร้างกล้อง
+    match /camera_promotion_errors/{errorId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // ผู้ล็อกอินสามารถสร้าง error log ได้
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ error log
+    }
+    
     // 📝 กฎสำหรับ camera deletion log - ประวัติการลบกล้อง
     match /camera_deletion_log/{logId} {
       allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
@@ -81,7 +95,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // � กฎสำหรับ speed limit changes - ประวัติการเปลี่ยนความเร็ว
+    // 🏃 กฎสำหรับ speed limit changes - ประวัติการเปลี่ยนความเร็ว
     match /speed_limit_changes/{changeId} {
       allow read: if true;  // เปิดให้อ่านได้ทุกคน
       allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
@@ -95,7 +109,7 @@ service cloud.firestore {
       allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ
     }
     
-    // �🔔 Notification Posts - อ่านได้ทุกคน สร้างได้เฉพาะ login
+    // 🔔 Notification Posts - อ่านได้ทุกคน สร้างได้เฉพาะ login
     match /notification_posts/{postId} {
       allow read: if true;
       allow create: if request.auth != null;

@@ -34,27 +34,19 @@ class CameraReportService {
     if (type == CameraReportType.newCamera) {
       cameraId = _firestore.collection('speed_cameras').doc().id;
       print('🆕 Generated new camera ID: $cameraId');
-
-      // ตรวจสอบว่า ID ไม่เป็น null หรือ empty
-      if (cameraId.isEmpty) {
-        throw Exception('Failed to generate camera ID');
-      }
-    } else {
-      // สำหรับ removedCamera และ speedChanged ใช้ selectedCameraId ที่ส่งมา
-      cameraId = selectedCameraId;
     }
 
     // ✨ ตรวจสอบ duplicate แบบชาญฉลาด
     if (type == CameraReportType.removedCamera) {
       // สำหรับ "รายงานกล้องถูกถอน" - ตรวจสอบ Camera ID ที่แน่นอน
-      if (cameraId == null) {
+      if (selectedCameraId == null) {
         throw Exception('กรุณาเลือกกล้องที่ต้องการรายงานจากแผนที่');
       }
 
       final existingRemovalReports = await _firestore
           .collection(_reportsCollection)
           .where('type', isEqualTo: 'removedCamera')
-          .where('selectedCameraId', isEqualTo: cameraId)
+          .where('selectedCameraId', isEqualTo: selectedCameraId)
           .where('status', whereIn: ['pending', 'verified']).get();
 
       if (existingRemovalReports.docs.isNotEmpty) {
@@ -62,14 +54,14 @@ class CameraReportService {
       }
     } else if (type == CameraReportType.speedChanged) {
       // สำหรับ "รายงานการเปลี่ยนความเร็ว" - ตรวจสอบ Camera ID ที่แน่นอน
-      if (cameraId == null) {
+      if (selectedCameraId == null) {
         throw Exception('กรุณาเลือกกล้องที่ต้องการรายงานจากแผนที่');
       }
 
       final existingSpeedChangeReports = await _firestore
           .collection(_reportsCollection)
           .where('type', isEqualTo: 'speedChanged')
-          .where('selectedCameraId', isEqualTo: cameraId)
+          .where('selectedCameraId', isEqualTo: selectedCameraId)
           .where('status', whereIn: ['pending', 'verified']).get();
 
       if (existingSpeedChangeReports.docs.isNotEmpty) {
@@ -98,7 +90,9 @@ class CameraReportService {
       description: description,
       imageUrl: imageUrl,
       tags: tags,
-      selectedCameraId: cameraId, // ใช้ cameraId ที่สร้างใหม่หรือที่ส่งมา
+      selectedCameraId: type == CameraReportType.newCamera
+          ? cameraId
+          : selectedCameraId, // ใช้ Camera ID ที่สร้างใหม่สำหรับกล้องใหม่
     );
 
     await _firestore
@@ -110,11 +104,16 @@ class CameraReportService {
     print('📊 Report details:');
     print('   Status: ${report.status}');
     print('   Type: ${report.type}');
-    print('   Selected Camera ID: ${report.selectedCameraId}');
     print('   Latitude: ${report.latitude}');
     print('   Longitude: ${report.longitude}');
     print('   Reported by: ${report.reportedBy}');
     print('   Reported at: ${report.reportedAt}');
+    print('   Camera ID: ${report.selectedCameraId}');
+
+    // รายงานกล้องใหม่จะไม่สร้างกล้องทันที
+    // รอให้มีการโหวตครบ 3 คนก่อน ระบบจึงจะสร้างกล้องผ่าน auto-promotion
+    print(
+        '📋 Camera will be created after receiving 3+ votes and verification');
 
     // Verify the document was saved correctly
     try {
@@ -259,35 +258,9 @@ class CameraReportService {
           try {
             await _promoteToMainDatabase(reportId);
             print('✅ Promotion completed successfully');
-
-            // ✨ Check if this was a new camera report and ensure it was created
-            final promotedDoc = await _firestore
-                .collection(_reportsCollection)
-                .doc(reportId)
-                .get(const GetOptions(source: Source.server));
-
-            if (promotedDoc.exists) {
-              final promotedReport = CameraReport.fromJson(promotedDoc.data()!);
-              if (promotedReport.type == CameraReportType.newCamera) {
-                print(
-                    '📊 Verifying new camera was created in speed_cameras collection...');
-                // Add additional verification if needed
-              }
-            }
           } catch (e) {
             print('❌ Error during promotion: $e');
-            // Log the error to a dedicated collection for debugging
-            try {
-              await _firestore.collection('camera_promotion_errors').add({
-                'reportId': reportId,
-                'error': e.toString(),
-                'timestamp': FieldValue.serverTimestamp(),
-                'userId': user.uid,
-              });
-            } catch (logError) {
-              print('❌ Failed to log promotion error: $logError');
-            }
-            // Don't fail the vote
+            // Log the error but don't fail the vote
           }
         } else {
           print('⏳ Report not yet auto-verified - skipping promotion');
@@ -362,81 +335,84 @@ class CameraReportService {
   static Future<void> _updateReportVoteCounts(
       String reportId, VoteType voteType) async {
     try {
-      print('📊 Getting report document for vote count update...');
       final reportRef = _firestore.collection(_reportsCollection).doc(reportId);
-      final reportDoc = await reportRef
-          .get(const GetOptions(source: Source.server)); // Force server read
+      final reportDoc = await reportRef.get(const GetOptions(source: Source.server));
 
-      if (!reportDoc.exists) {
-        throw Exception('Report not found');
-      }
+      if (!reportDoc.exists) throw Exception('Report not found');
 
       final report = CameraReport.fromJson(reportDoc.data()!);
-      print(
-          '📄 Current report - Upvotes: ${report.upvotes}, Downvotes: ${report.downvotes}');
-
-      // Update vote counts
-      final newUpvotes =
-          voteType == VoteType.upvote ? report.upvotes + 1 : report.upvotes;
-      final newDownvotes = voteType == VoteType.downvote
-          ? report.downvotes + 1
-          : report.downvotes;
+      final newUpvotes = voteType == VoteType.upvote ? report.upvotes + 1 : report.upvotes;
+      final newDownvotes = voteType == VoteType.downvote ? report.downvotes + 1 : report.downvotes;
       final newTotalVotes = newUpvotes + newDownvotes;
-      final newConfidenceScore =
-          newTotalVotes > 0 ? newUpvotes / newTotalVotes : 0.0;
+      final newConfidenceScore = newTotalVotes > 0 ? newUpvotes / newTotalVotes : 0.0;
 
-      print(
-          '📊 New counts - Upvotes: $newUpvotes, Downvotes: $newDownvotes, Confidence: ${(newConfidenceScore * 100).toStringAsFixed(1)}%');
+      print('📊 Vote Count Update: Upvotes: $newUpvotes, Downvotes: $newDownvotes, Total: $newTotalVotes, Confidence: ${(newConfidenceScore * 100).toStringAsFixed(1)}%');
 
-      // Auto-verify if confidence is high enough
-      CameraStatus newStatus = report.status;
-      DateTime? verifiedAt;
-      String? verifiedBy;
-
-      print('🎯 Auto-verification check:');
-      print('   Total votes: $newTotalVotes (need >= 3 for auto-verify)');
-      print('   Confidence: ${(newConfidenceScore * 100).toStringAsFixed(1)}%');
-      print('   Current status: ${report.status}');
-      print('   Report type: ${report.type}');
-
-      // ลดเงื่อนไขจาก 5 votes เป็น 3 votes เพื่อให้ verify เร็วขึ้น
+      // Auto-verify logic
       if (newTotalVotes >= 3) {
-        // สำหรับ speedChanged ใช้เงื่อนไขพิเศษ
+        final updateData = {
+          'upvotes': newUpvotes,
+          'downvotes': newDownvotes,
+          'confidenceScore': newConfidenceScore,
+        };
+
+        // สำหรับ newCamera
+        if (report.type == CameraReportType.newCamera && newConfidenceScore >= 0.7) {
+          updateData['status'] = 'verified';
+          updateData['verifiedAt'] = FieldValue.serverTimestamp();
+          updateData['verifiedBy'] = 'auto_system';
+
+          await reportRef.update(updateData);
+          print('✅ Report verified - attempting to promote to main database');
+          await _promoteToMainDatabase(reportId); // เรียกสร้างกล้องทันทีหลัง verify
+          return;
+        }
+
+        // สำหรับ speedChanged
         if (report.type == CameraReportType.speedChanged) {
           if (newConfidenceScore >= 0.7) {
-            // ลดเกณฑ์ความมั่นใจเหลือ 70%
-            newStatus = CameraStatus.verified;
-            verifiedAt = DateTime.now();
-            verifiedBy = 'auto_system';
-            print('✅ Auto-verifying speed change report');
-
-            // อัปเดตความเร็วในกล้องหลัก
+            updateData['status'] = 'verified';
+            updateData['verifiedAt'] = FieldValue.serverTimestamp();
+            updateData['verifiedBy'] = 'auto_system';
+            
+            await reportRef.update(updateData);
+            print('✅ Speed change report verified');
             await _updateCameraSpeedLimit(report);
+            return;
           } else if (newConfidenceScore <= 0.3) {
-            newStatus = CameraStatus.rejected;
-            verifiedAt = DateTime.now();
-            verifiedBy = 'auto_system';
-            print('❌ Auto-rejecting speed change report');
+            updateData['status'] = 'rejected';
+            updateData['verifiedAt'] = FieldValue.serverTimestamp();
+            updateData['verifiedBy'] = 'auto_system';
           }
-        } else {
-          // Logic เดิมสำหรับประเภทรายงานอื่นๆ
-          // ลดเงื่อนไข confidence จาก 0.8 เป็น 0.7 สำหรับ removedCamera
-          final requiredConfidence =
-              report.type == CameraReportType.removedCamera ? 0.7 : 0.8;
+        }
 
-          if (newConfidenceScore >= requiredConfidence) {
-            newStatus = CameraStatus.verified;
-            verifiedAt = DateTime.now();
-            verifiedBy = 'auto_system';
-            print(
-                '✅ Auto-verifying report due to high confidence (${(newConfidenceScore * 100).toStringAsFixed(1)}%) with $newTotalVotes votes');
+        // สำหรับ removedCamera
+        if (report.type == CameraReportType.removedCamera && newConfidenceScore >= 0.7) {
+          updateData['status'] = 'verified';
+          updateData['verifiedAt'] = FieldValue.serverTimestamp();
+          updateData['verifiedBy'] = 'auto_system';
 
-            // ✨ เพิ่ม: หากเป็นรายงานกล้องใหม่ที่ผ่านการตรวจสอบ ให้สร้างกล้องใน speed_cameras collection
-            if (report.type == CameraReportType.newCamera) {
-              print('🆕 === NEW CAMERA PROMOTION TRIGGERED ===');
-              print('Report ID: $reportId');
-              print('Camera will be created after report update');
-            }
+          await reportRef.update(updateData);
+          print('✅ Camera removal report verified');
+          await _handleCameraRemovalReport(report);
+          return;
+        }
+
+        // อัปเดตข้อมูลปกติ
+        await reportRef.update(updateData);
+      } else {
+        // อัปเดตเฉพาะ vote counts
+        await reportRef.update({
+          'upvotes': newUpvotes,
+          'downvotes': newDownvotes,
+          'confidenceScore': newConfidenceScore,
+        });
+      }
+    } catch (e) {
+      print('❌ Error updating vote counts: $e');
+      rethrow;
+    }
+  }
 
             // ✨ เพิ่ม: หากเป็นรายงานการลบกล้อง ให้ลบกล้องออกจาก Firebase ทันที
             if (report.type == CameraReportType.removedCamera) {
@@ -824,13 +800,6 @@ class CameraReportService {
 
       if (!doc.exists) {
         print('❌ Report $reportId not found - cannot promote');
-        // Log this error
-        await _firestore.collection('camera_promotion_errors').add({
-          'reportId': reportId,
-          'error': 'Report not found',
-          'timestamp': FieldValue.serverTimestamp(),
-          'stage': 'document_lookup',
-        });
         return;
       }
 
@@ -844,30 +813,17 @@ class CameraReportService {
       print('   Location: (${report.latitude}, ${report.longitude})');
       print('   Confidence: ${report.confidenceScore}');
       print('   Speed Limit: ${report.speedLimit}');
+      print('   Camera ID: ${report.selectedCameraId}');
+      print('   Total Votes: ${report.totalVotes}');
 
       // ตรวจสอบเงื่อนไขการเลื่อนขั้น
       if (report.status != CameraStatus.verified) {
         print('❌ Report status is not verified: ${report.status}');
-        await _firestore.collection('camera_promotion_errors').add({
-          'reportId': reportId,
-          'error': 'Report status is not verified: ${report.status}',
-          'timestamp': FieldValue.serverTimestamp(),
-          'stage': 'status_check',
-          'reportData': report.toJson(),
-        });
         return;
       }
 
-      // เช็คว่า verifiedBy เป็น auto_system หรือไม่
       if (report.verifiedBy != 'auto_system') {
-        print('❌ Report was not auto-verified by system: ${report.verifiedBy}');
-        await _firestore.collection('camera_promotion_errors').add({
-          'reportId': reportId,
-          'error': 'Report was not auto-verified: ${report.verifiedBy}',
-          'timestamp': FieldValue.serverTimestamp(),
-          'stage': 'verification_check',
-          'reportData': report.toJson(),
-        });
+        print('❌ Report not verified by auto system: ${report.verifiedBy}');
         return;
       }
 
@@ -878,48 +834,24 @@ class CameraReportService {
         return;
       }
 
-      if (report.type != CameraReportType.newCamera) {
-        print('❌ Report type is not supported for promotion: ${report.type}');
-        await _firestore.collection('camera_promotion_errors').add({
-          'reportId': reportId,
-          'error': 'Unsupported report type for promotion: ${report.type}',
-          'timestamp': FieldValue.serverTimestamp(),
-          'stage': 'type_check',
-          'reportData': report.toJson(),
-        });
+      if (report.type == CameraReportType.speedChanged) {
+        print('⚡ Processing SPEED CHANGED report');
+        await _updateCameraSpeedLimit(report);
         return;
       }
 
-      print('✅ Report meets basic promotion criteria');
+      if (report.type != CameraReportType.newCamera) {
+        print('❌ Report type is not newCamera: ${report.type}');
+        return;
+      }
 
-      // ตรวจสอบว่า selectedCameraId ไม่เป็น null สำหรับ newCamera
-      if (report.type == CameraReportType.newCamera) {
-        if (report.selectedCameraId == null ||
-            report.selectedCameraId!.isEmpty) {
-          print(
-              '❌ Missing camera ID for new camera report - generating fallback ID');
+      print('🏗️ Creating new camera from verified report...');
 
-          // สร้าง Camera ID ใหม่หากไม่มี (fallback)
-          final newCameraId = _firestore.collection('speed_cameras').doc().id;
-          await doc.reference.update({
-            'selectedCameraId': newCameraId,
-          });
-
-          print('🆕 Generated fallback Camera ID: $newCameraId');
-
-          // อ่านข้อมูลใหม่หลังจากอัปเดต
-          final updatedDoc =
-              await doc.reference.get(const GetOptions(source: Source.server));
-          if (updatedDoc.exists) {
-            final updatedReport = CameraReport.fromJson(updatedDoc.data()!);
-            return _promoteToMainDatabase(updatedReport.id); // เรียกตัวเองใหม่
-          } else {
-            print('❌ Failed to update report with new camera ID');
-            return;
-          }
-        }
-
-        print('✅ Camera ID verified: ${report.selectedCameraId}');
+      // ตรวจสอบว่ามีการโหวตเพียงพอหรือไม่ (ต้องมีอย่างน้อย 3 votes)
+      if (report.totalVotes < 3) {
+        print(
+            '❌ Not enough votes for camera creation: ${report.totalVotes} votes (need at least 3)');
+        return;
       }
 
       // ตรวจสอบว่ามีกล้องซ้ำในรัศมี 100 เมตรหรือไม่
@@ -963,23 +895,33 @@ class CameraReportService {
 
       print('✅ No duplicate cameras found - proceeding with promotion');
 
-      // ใช้ selectedCameraId ที่มีอยู่แล้วในรายงาน
-      final cameraId = report.selectedCameraId!;
-      print('🏗️ Creating camera with pre-generated ID: $cameraId');
+      // ใช้ Camera ID ที่สร้างไว้ตั้งแต่ตอนรายงาน
+      final cameraId = report.selectedCameraId;
+      if (cameraId == null || cameraId.isEmpty) {
+        print('❌ No camera ID found in report - cannot create camera');
+        return;
+      }
+
+      print('🏗️ Creating new camera with ID: $cameraId');
 
       final speedCamera = SpeedCamera(
         id: cameraId,
-        location:
-            LatLng(report.latitude, report.longitude), // Use latlong2 LatLng
+        location: LatLng(report.latitude, report.longitude),
         speedLimit: report.speedLimit,
         roadName: report.roadName,
-        type: CameraType.fixed, // Default to fixed
+        type: CameraType.fixed,
         isActive: true,
         description:
-            'Community verified camera (${report.confidenceScore.toStringAsFixed(2)} confidence)',
+            'Community verified camera (${report.confidenceScore.toStringAsFixed(2)} confidence, ${report.totalVotes} votes)',
       );
 
-      final cameraData = speedCamera.toJson();
+      final cameraData = {
+        ...speedCamera.toJson(),
+        'verifiedAt': FieldValue.serverTimestamp(),
+        'sourceReportId': report.id,
+        'createdFromCommunityReport': true,
+      };
+
       print('📝 Camera data to save:');
       print('   ID: ${speedCamera.id}');
       print('   Road: ${speedCamera.roadName}');
@@ -994,23 +936,8 @@ class CameraReportService {
       print('💾 Saving camera to Firebase...');
       await _firestore
           .collection('speed_cameras')
-          .doc(cameraId) // ใช้ cameraId ที่มีอยู่แล้ว
+          .doc(cameraId)
           .set(cameraData);
-
-      // Log successful promotion
-      await _firestore.collection('camera_promotion_success').add({
-        'reportId': reportId,
-        'cameraId': cameraId,
-        'roadName': report.roadName,
-        'location': {
-          'latitude': report.latitude,
-          'longitude': report.longitude,
-        },
-        'speedLimit': report.speedLimit,
-        'confidence': report.confidenceScore,
-        'timestamp': FieldValue.serverTimestamp(),
-        'promotedBy': 'auto_system',
-      });
 
       print(
           '🎉 Successfully promoted report $reportId to main database as camera $cameraId');
@@ -1484,6 +1411,18 @@ class CameraReportService {
     }
   }
 
+  /// Public method to manually trigger promotion for debugging
+  static Future<void> debugPromoteReport(String reportId) async {
+    print('🧪 === DEBUG PROMOTION FOR REPORT $reportId ===');
+    try {
+      await _promoteToMainDatabase(reportId);
+      print('✅ Debug promotion completed for $reportId');
+    } catch (e) {
+      print('❌ Debug promotion failed for $reportId: $e');
+      rethrow;
+    }
+  }
+
   /// Handle camera removal report (verified removedCamera reports)
   static Future<void> _handleCameraRemovalReport(CameraReport report) async {
     try {
@@ -1530,9 +1469,13 @@ class CameraReportService {
       }
 
       // Step 2: Remove the community camera
-      await _removeCommunityCamera(cameraId);
+      await _directDeleteCameraWithRetry(cameraId);
 
-      // Step 3: Update report status with processing information
+      // Step 3: Clean up related data
+      print('🧹 Step 3: Cleaning up related report and vote data...');
+      await _cleanupRelatedDataAfterRemoval(cameraId, report.id);
+
+      // Step 4: Update report status with processing information
       await _firestore.collection(_reportsCollection).doc(report.id).update({
         'processedAt': FieldValue.serverTimestamp(),
         'processedBy': 'auto_removal_system',
@@ -1540,11 +1483,6 @@ class CameraReportService {
       });
 
       print('✅ Camera removal report processed successfully');
-
-      // Step 4: Clean up related data to prevent conflicts
-      print('🧹 Step 4: Cleaning up related report and vote data...');
-      await _cleanupRelatedReportData(cameraId, report.id);
-
       print('🗑️ === CAMERA REMOVAL PROCESS COMPLETE ===');
     } catch (e) {
       print('❌ Error processing camera removal report: $e');
@@ -1567,125 +1505,108 @@ class CameraReportService {
     }
   }
 
-  /// Remove community camera using Pure ID-Based Deletion with 4-Phase Atomic Protocol
-  static Future<void> _removeCommunityCamera(String cameraId) async {
+  /// ลบข้อมูลที่เกี่ยวข้องทั้งหมดหลังจากลบกล้อง
+  static Future<void> _cleanupRelatedDataAfterRemoval(
+      String cameraId, String reportId) async {
     try {
-      print('🗑️ === STARTING COMMUNITY CAMERA DELETION ===');
-      print('🎯 Target Camera ID: $cameraId');
+      print('🧹 Cleaning up related data for camera $cameraId');
 
-      // Phase 1: ID Validation & Mark for Deletion
-      print('📋 PHASE 1: ID Validation & Mark for Deletion');
-      final exists = await _checkIfCameraExists(cameraId);
-      if (!exists) {
-        print('⚠️ Camera $cameraId does not exist - may already be deleted');
-        return;
-      }
+      // 1. หารายงานอื่นๆ ที่เกี่ยวข้องกับกล้องนี้
+      final relatedReportsQuery = await _firestore
+          .collection(_reportsCollection)
+          .where('selectedCameraId', isEqualTo: cameraId)
+          .get();
 
-      await _firestore.collection('deleted_cameras').doc(cameraId).set({
-        'cameraId': cameraId,
-        'deletedAt': FieldValue.serverTimestamp(),
-        'deletedBy': 'community_vote_system',
-        'reason': 'community_camera_removal',
-        'method': 'id_based_deletion',
-      });
-      print('✅ Phase 1 complete: Camera marked for deletion');
+      print('📊 Found ${relatedReportsQuery.docs.length} related reports');
 
-      // Phase 2: Delete from Speed Cameras Collection
-      print('📋 PHASE 2: Delete from Speed Cameras Collection');
-      await _firestore.collection('speed_cameras').doc(cameraId).delete();
-      print('✅ Phase 2 complete: Camera deleted from main collection');
+      final batch = _firestore.batch();
+      int archivedReports = 0;
+      int deletedVotes = 0;
 
-      // Phase 3: Record Deletion in Audit Trail
-      print('📋 PHASE 3: Record Deletion in Audit Trail');
-      await _firestore.collection('camera_deletion_log').add({
-        'cameraId': cameraId,
-        'deletionTimestamp': FieldValue.serverTimestamp(),
-        'deletionMethod': 'id_based_deletion',
-        'verificationLayers': 3,
-        'success': true,
-      });
-      print('✅ Phase 3 complete: Deletion logged in audit trail');
+      // 2. Archive รายงานที่เกี่ยวข้อง
+      for (final doc in relatedReportsQuery.docs) {
+        final reportData = doc.data();
 
-      // Phase 4: 3-Layer Verification System
-      print('📋 PHASE 4: 3-Layer Verification System');
-      await _performThreeLayerVerification(cameraId);
-      print('✅ Phase 4 complete: 3-Layer verification passed');
-
-      print('🎉 === COMMUNITY CAMERA DELETION COMPLETE ===');
-    } catch (e) {
-      print('❌ Error deleting community camera $cameraId: $e');
-
-      // Log failure for debugging
-      try {
-        await _firestore.collection('camera_deletion_log').add({
-          'cameraId': cameraId,
-          'deletionTimestamp': FieldValue.serverTimestamp(),
-          'deletionMethod': 'id_based_deletion',
-          'success': false,
-          'error': e.toString(),
+        // Archive to archived_camera_reports collection
+        final archiveRef =
+            _firestore.collection('archived_camera_reports').doc(doc.id);
+        batch.set(archiveRef, {
+          ...reportData,
+          'archivedAt': FieldValue.serverTimestamp(),
+          'archivedReason': 'camera_removed',
+          'originalCameraId': cameraId,
         });
-      } catch (logError) {
-        print('⚠️ Failed to log deletion failure: $logError');
-      }
 
-      rethrow;
-    }
-  }
+        // Delete from main collection
+        batch.delete(doc.reference);
+        archivedReports++;
 
-  /// Perform 3-Layer Verification to ensure camera is truly deleted
-  static Future<void> _performThreeLayerVerification(String cameraId) async {
-    print('🔍 Starting 3-Layer Verification for camera $cameraId');
+        // 3. หาและ archive โหวตของรายงานนี้
+        final votesQuery = await _firestore
+            .collection(_votesCollection)
+            .where('reportId', isEqualTo: doc.id)
+            .get();
 
-    // Layer 1: Immediate Verification (0 seconds)
-    print('🔍 Layer 1: Immediate Verification');
-    bool layer1Result = await _checkIfCameraExists(cameraId);
-    print('🔍 Layer 1 result: Camera exists = $layer1Result');
+        for (final voteDoc in votesQuery.docs) {
+          final voteData = voteDoc.data();
 
-    // Layer 2: Delayed Verification (3 seconds)
-    print('🔍 Layer 2: Delayed Verification (waiting 3 seconds...)');
-    await Future.delayed(const Duration(seconds: 3));
-    bool layer2Result = await _checkIfCameraExists(cameraId);
-    print('🔍 Layer 2 result: Camera exists = $layer2Result');
+          // Archive vote
+          final voteArchiveRef =
+              _firestore.collection('archived_camera_votes').doc(voteDoc.id);
+          batch.set(voteArchiveRef, {
+            ...voteData,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'archivedReason': 'camera_removed',
+            'originalReportId': doc.id,
+          });
 
-    // Layer 3: Force Deletion if needed
-    if (layer1Result || layer2Result) {
-      print('🔍 Layer 3: Force deletion required');
-      try {
-        await _firestore.collection('speed_cameras').doc(cameraId).delete();
-        print('✅ Layer 3: Force deletion completed');
-
-        // Final check
-        await Future.delayed(const Duration(seconds: 1));
-        bool finalCheck = await _checkIfCameraExists(cameraId);
-        print('🔍 Final verification: Camera exists = $finalCheck');
-
-        if (finalCheck) {
-          throw Exception('Camera still exists after force deletion');
+          // Delete original vote
+          batch.delete(voteDoc.reference);
+          deletedVotes++;
         }
-      } catch (e) {
-        print('❌ Layer 3: Force deletion failed: $e');
-        throw e;
       }
-    } else {
-      print(
-          '✅ Layer 3: No force deletion needed - camera successfully removed');
-    }
 
-    print(
-        '🎉 3-Layer Verification Complete: Camera $cameraId successfully deleted');
+      // 4. ลบประวัติการเปลี่ยนความเร็ว
+      final speedChangesQuery = await _firestore
+          .collection('speed_limit_changes')
+          .where('cameraId', isEqualTo: cameraId)
+          .get();
+
+      for (final doc in speedChangesQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+
+      print('✅ Archived $archivedReports reports and $deletedVotes votes');
+      print('✅ Deleted ${speedChangesQuery.docs.length} speed limit changes');
+
+      // 5. Archive ข้อมูลการลบกล้อง
+      await _archiveRemovedCameraData(cameraId, reportId);
+
+      print('✅ Cleanup completed successfully');
+    } catch (e) {
+      print('⚠️ Error during cleanup: $e');
+      // ไม่ throw error เพื่อไม่ให้ขัดขวางกระบวนการหลัก
+    }
   }
 
-  /// Check if camera exists in database
-  static Future<bool> _checkIfCameraExists(String cameraId) async {
+  /// Archive ข้อมูลการลบกล้อง
+  static Future<void> _archiveRemovedCameraData(
+      String cameraId, String reportId) async {
     try {
-      final doc = await _firestore
-          .collection('speed_cameras')
-          .doc(cameraId)
-          .get(const GetOptions(source: Source.server));
-      return doc.exists;
+      final archiveData = {
+        'cameraId': cameraId,
+        'reportId': reportId,
+        'archivedAt': FieldValue.serverTimestamp(),
+        'reason': 'camera_removed_by_community',
+        'removedBy': 'auto_system',
+      };
+
+      await _firestore.collection('archived_removed_cameras').add(archiveData);
+      print('📦 Archived removed camera data');
     } catch (e) {
-      print('⚠️ Error checking camera existence: $e');
-      return false; // Assume doesn't exist if error
+      print('⚠️ Failed to archive removed camera data: $e');
     }
   }
 
@@ -2120,175 +2041,6 @@ class CameraReportService {
       print('📝 Speed update error logged');
     } catch (e) {
       print('⚠️ Failed to log speed update error: $e');
-    }
-  }
-
-  /// Debug: Manually promote a specific verified report
-  static Future<void> debugPromoteVerifiedReport(String reportId) async {
-    try {
-      print('🔧 DEBUG: Manually promoting report $reportId');
-
-      // Check if report exists and is verified
-      final doc = await _firestore
-          .collection(_reportsCollection)
-          .doc(reportId)
-          .get(const GetOptions(source: Source.server));
-
-      if (!doc.exists) {
-        print('❌ Report $reportId not found');
-        return;
-      }
-
-      final report = CameraReport.fromJson(doc.data()!);
-      print('📊 Report status: ${report.status}');
-      print('📊 Report type: ${report.type}');
-      print('📊 Verified by: ${report.verifiedBy}');
-      print('📊 Confidence: ${report.confidenceScore}');
-      print('📊 Selected Camera ID: ${report.selectedCameraId}');
-
-      if (report.status == CameraStatus.verified &&
-          report.type == CameraReportType.newCamera) {
-        // ถ้าไม่มี selectedCameraId ให้สร้างใหม่
-        if (report.selectedCameraId == null ||
-            report.selectedCameraId!.isEmpty) {
-          print('⚠️ No selectedCameraId found - generating new one');
-          final newCameraId = _firestore.collection('speed_cameras').doc().id;
-
-          await doc.reference.update({
-            'selectedCameraId': newCameraId,
-          });
-
-          print('🆕 Updated report with new Camera ID: $newCameraId');
-        }
-
-        print('✅ Report is verified new camera - proceeding with promotion');
-        await _promoteToMainDatabase(reportId);
-        print('🎉 Manual promotion completed');
-      } else {
-        print('❌ Report does not meet promotion criteria');
-        print('   Status: ${report.status} (need: verified)');
-        print('   Type: ${report.type} (need: newCamera)');
-      }
-    } catch (e) {
-      print('❌ Error in manual promotion: $e');
-      rethrow;
-    }
-  }
-
-  /// Debug: Check if camera exists in speed_cameras collection
-  static Future<bool> debugCheckCameraExists(String cameraId) async {
-    try {
-      print('🔍 Checking if camera exists: $cameraId');
-
-      final doc = await _firestore
-          .collection('speed_cameras')
-          .doc(cameraId)
-          .get(const GetOptions(source: Source.server));
-
-      final exists = doc.exists;
-      print('📊 Camera $cameraId exists: $exists');
-
-      if (exists) {
-        final data = doc.data()!;
-        print('📍 Camera details:');
-        print('   Road: ${data['roadName']}');
-        print('   Speed Limit: ${data['speedLimit']}');
-        print('   Is Active: ${data['isActive']}');
-        print('   Location: (${data['latitude']}, ${data['longitude']})');
-      }
-
-      return exists;
-    } catch (e) {
-      print('❌ Error checking camera existence: $e');
-      return false;
-    }
-  }
-
-  /// Debug: Get all verified reports that haven't been promoted yet
-  static Future<List<CameraReport>> getUnpromotedVerifiedReports() async {
-    try {
-      print('🔍 Finding unpromoted verified reports...');
-
-      final snapshot = await _firestore
-          .collection(_reportsCollection)
-          .where('status', isEqualTo: 'verified')
-          .where('type', isEqualTo: 'newCamera')
-          .get(const GetOptions(source: Source.server));
-
-      final reports = snapshot.docs
-          .map((doc) => CameraReport.fromJson(doc.data()))
-          .toList();
-
-      print('📊 Found ${reports.length} verified new camera reports');
-
-      // Check which ones haven't been promoted by looking for success logs
-      final unpromotedReports = <CameraReport>[];
-
-      for (final report in reports) {
-        final successLogs = await _firestore
-            .collection('camera_promotion_success')
-            .where('reportId', isEqualTo: report.id)
-            .limit(1)
-            .get();
-
-        if (successLogs.docs.isEmpty) {
-          print('⚠️ Report ${report.id} (${report.roadName}) not promoted yet');
-          unpromotedReports.add(report);
-        } else {
-          print('✅ Report ${report.id} (${report.roadName}) already promoted');
-        }
-      }
-
-      print('🎯 Found ${unpromotedReports.length} unpromoted verified reports');
-      return unpromotedReports;
-    } catch (e) {
-      print('❌ Error finding unpromoted reports: $e');
-      return [];
-    }
-  }
-
-  /// Debug: Test Firebase permissions by creating a test camera
-  static Future<void> testCreateCamera(String testCameraId) async {
-    try {
-      print('🧪 Testing camera creation with ID: $testCameraId');
-
-      final testCameraData = {
-        'id': testCameraId,
-        'roadName': 'TEST_ROAD_${DateTime.now().millisecondsSinceEpoch}',
-        'latitude': 13.420000,
-        'longitude': 101.093000,
-        'speedLimit': 90,
-        'type': 'fixed',
-        'isActive': true,
-        'description': 'TEST CAMERA - PERMISSIONS CHECK',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'verifiedBy': 'permission_test',
-        'confidence': 1.0,
-        'lastReportedAt': FieldValue.serverTimestamp(),
-        'reportCount': 1,
-      };
-
-      print('📝 Attempting to create test camera...');
-
-      await _firestore
-          .collection('speed_cameras')
-          .doc(testCameraId)
-          .set(testCameraData);
-
-      print('✅ Test camera created successfully!');
-
-      // Clean up the test camera
-      print('🧹 Cleaning up test camera...');
-      await _firestore.collection('speed_cameras').doc(testCameraId).delete();
-
-      print('✅ Test camera cleaned up successfully!');
-    } catch (e) {
-      print('❌ Failed to create test camera: $e');
-      print('   Error type: ${e.runtimeType}');
-      print('   Current user: ${_auth.currentUser?.uid}');
-      print('   User email: ${_auth.currentUser?.email}');
-      rethrow;
     }
   }
 }
