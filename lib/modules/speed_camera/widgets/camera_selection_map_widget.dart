@@ -48,9 +48,38 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
     });
   }
 
+  /// สร้าง ID แบบ masked สำหรับการแสดงผล
+  String _getMaskedId(String id) {
+    if (id.isEmpty) return 'ไม่ระบุ';
+
+    // ถ้าเป็น ID สั้นๆ (เหมือน uuid ตัดมา) แสดงเป็น pattern
+    if (id.length <= 6) {
+      return '${id.substring(0, 2).toUpperCase()}••••';
+    }
+
+    // ถ้าเป็น ID ยาว แสดงแค่ตัวแรกกับตัวสุดท้าย
+    if (id.length >= 8) {
+      return '${id.substring(0, 3).toUpperCase()}•••${id.substring(id.length - 2).toUpperCase()}';
+    }
+
+    // กรณีอื่นๆ
+    return '${id.substring(0, 2).toUpperCase()}•••••';
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
-      // แสดง loading
+      // ถ้ามี initialCenter ใช้เลย ไม่ต้องขอ location
+      if (widget.initialCenter != null) {
+        setState(() {
+          _center = widget.initialCenter!;
+        });
+        if (mounted) {
+          _mapController.move(_center, 14.0);
+        }
+        return;
+      }
+
+      // แสดง loading อย่างไม่รบกวน
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -60,6 +89,7 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
           ),
           duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.blue,
         ),
       );
 
@@ -68,14 +98,16 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
         final newPermission = await Geolocator.requestPermission();
         if (newPermission == LocationPermission.denied ||
             newPermission == LocationPermission.deniedForever) {
-          throw Exception('ไม่อนุญาตให้เข้าถึงตำแหน่ง');
+          // ใช้ตำแหน่ง default แทนการแสดง error
+          _useFallbackLocation();
+          return;
         }
       }
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: Duration(seconds: 8), // ลดเวลารอ
         ),
       );
 
@@ -85,26 +117,43 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
 
       if (mounted) {
         // เด้งมาที่ตำแหน่งตัวเองทันที
-        _mapController.move(_center, 14.0); // ลดลงจาก 16.0
-      }
-    } catch (e) {
-      print('Error getting location: $e');
-
-      if (mounted) {
+        _mapController.move(_center, 14.0);
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
-              'ไม่สามารถหาตำแหน่งได้: ${e.toString()}',
-              style: const TextStyle(fontFamily: 'NotoSansThai'),
+              'พบตำแหน่งปัจจุบันแล้ว',
+              style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 1),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-            margin: const EdgeInsets.only(bottom: 200, left: 16, right: 16),
+            backgroundColor: Colors.green,
           ),
         );
       }
+    } catch (e) {
+      print('Location error (will use fallback): $e');
+      _useFallbackLocation();
+    }
+  }
+
+  /// ใช้ตำแหน่ง fallback เมื่อไม่สามารถหาตำแหน่งปัจจุบันได้
+  void _useFallbackLocation() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'แสดงแผนที่กรุงเทพฯ (ค้นหากล้องได้ปกติ)',
+            style: TextStyle(fontFamily: 'NotoSansThai'),
+          ),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // ใช้ตำแหน่งกรุงเทพฯ เป็นค่า default
+      _mapController.move(_center, 12.0); // ซูมออกหน่อยให้เห็นภาพรวม
     }
   }
 
@@ -143,9 +192,90 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
     widget.onCameraSelected(camera);
   }
 
-  // ไปยังตำแหน่งปัจจุบันของผู้ใช้
-  void _goToMyLocation() {
-    _mapController.move(_center, 15.0);
+  // ไปยังตำแหน่งปัจจุบันของผู้ใช้และขอ permission ใหม่หากจำเป็น
+  Future<void> _goToMyLocation() async {
+    try {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'กำลังค้นหาตำแหน่งปัจจุบัน...',
+            style: TextStyle(fontFamily: 'NotoSansThai'),
+          ),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        final newPermission = await Geolocator.requestPermission();
+        if (newPermission == LocationPermission.denied ||
+            newPermission == LocationPermission.deniedForever) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'กรุณาอนุญาตการเข้าถึงตำแหน่งในการตั้งค่าแอป',
+                style: TextStyle(fontFamily: 'NotoSansThai'),
+              ),
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final newLocation = LatLng(position.latitude, position.longitude);
+
+      setState(() {
+        _center = newLocation;
+      });
+
+      if (mounted) {
+        _mapController.move(_center, 14.0);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'พบตำแหน่งปัจจุบันแล้ว!',
+              style: TextStyle(fontFamily: 'NotoSansThai'),
+            ),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error getting current location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ไม่สามารถหาตำแหน่งได้ ใช้แผนที่ค้นหากล้องแทน',
+              style: TextStyle(fontFamily: 'NotoSansThai'),
+            ),
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.orange,
+          ),
+        );
+        // ย้ายไปตำแหน่ง default แทน
+        _mapController.move(_center, 12.0);
+      }
+    }
   }
 
   @override
@@ -242,7 +372,7 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'ID: ${_selectedCamera!.id}',
+                    'รหัส: ${_getMaskedId(_selectedCamera!.id)}',
                     style: TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 12,

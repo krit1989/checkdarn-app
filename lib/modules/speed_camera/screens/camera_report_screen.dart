@@ -50,6 +50,50 @@ class _CameraReportScreenState extends State<CameraReportScreen>
     _previousLoginState = AuthService.isLoggedIn;
     WidgetsBinding.instance.addObserver(this);
     _loadData();
+
+    // ทำความสะอาดข้อมูล verified เก่าเมื่อเปิดแอป
+    _performInitialCleanup();
+
+    // เรียก cleanup system เมื่อเปิดแอป
+    CameraReportService.initializeCleanup();
+  }
+
+  /// ทำความสะอาดข้อมูล verified เก่าเมื่อเปิดแอปครั้งแรก
+  /// ✅ ระบบ auto-removal ใหม่จะลบ verified reports อัตโนมัติใน submitVote แล้ว
+  Future<void> _performInitialCleanup() async {
+    print('ℹ️ Auto-removal system is now integrated into voting process');
+    print('✅ Verified reports will be automatically removed after 3 votes');
+  }
+
+  /// 🧹 Manual cleanup for verified/rejected reports
+  Future<void> _manualCleanupVerifiedReports() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('กำลังทำความสะอาด verified reports...'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      await CameraReportService.cleanupVerifiedReports();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ทำความสะอาดเรียบร้อยแล้ว!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh data
+      await _loadData(forceRefresh: true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาด: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _initializeSmartSecurity() async {
@@ -165,6 +209,12 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           });
         }
         return;
+      }
+
+      // ระบบ auto-removal ใหม่จะจัดการใน submitVote แล้ว ไม่ต้อง cleanup ตรงนี้
+      if (forceRefresh) {
+        print(
+            'ℹ️ Force refresh - auto-removal will handle verified reports in voting');
       }
 
       print('🗺️ USER LOCATION DEBUG:');
@@ -331,6 +381,15 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          // ปุ่มทำความสะอาด verified reports
+          IconButton(
+            onPressed: _manualCleanupVerifiedReports,
+            icon: const Icon(
+              Icons.cleaning_services,
+              color: Colors.white,
+            ),
+            tooltip: 'ลบข้อมูล verified ที่ค้างอยู่',
+          ),
           // ปุ่มสลับโหมดการแสดงผล
           IconButton(
             onPressed: _toggleLocationView,
@@ -412,9 +471,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                 const SizedBox(height: 8),
                 const Text(
                   '• รายงานกล้องใหม่ที่คุณพบเจอ\n'
-                  '• รายงานกล้องที่ถูกถอดออก\n'
                   '• รายงานการเปลี่ยนจำกัดความเร็ว\n'
                   '• ข้อมูลจะถูกตรวจสอบโดยชุมชน\n'
+                  '• เมื่อได้รับการยืนยัน ระบบจะดำเนินการอัตโนมัติ\n'
                   '• คุณไม่สามารถโหวตรายงานของตัวเองได้',
                   style: TextStyle(
                     fontFamily: 'NotoSansThai',

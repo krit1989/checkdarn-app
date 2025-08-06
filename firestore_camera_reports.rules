@@ -14,16 +14,16 @@ service cloud.firestore {
                     && request.auth.uid == resource.data.reportedBy
                     && isValidCameraReport(request.resource.data);
       
-      // แก้ไขได้เฉพาะเจ้าของรายงาน (ในกรณีที่ยังเป็น pending)
+      // แก้ไขได้เฉพาะเจ้าของรายงาน (ในกรณีที่ยังเป็น pending) หรือระบบ auto-verification
       allow update: if request.auth != null
-                    && request.auth.uid == resource.data.reportedBy
-                    && resource.data.status == 'pending'
-                    && isValidCameraReportUpdate(request.resource.data);
+                    && (request.auth.uid == resource.data.reportedBy
+                        || resource.data.status == 'pending');
       
-      // ลบได้เฉพาะเจ้าของรายงาน (ในกรณีที่ยังเป็น pending)
+      // ลบได้เฉพาะเจ้าของรายงาน (ในกรณีที่ยังเป็น pending) หรือระบบ auto-removal
       allow delete: if request.auth != null
-                    && request.auth.uid == resource.data.reportedBy
-                    && resource.data.status == 'pending';
+                    && (request.auth.uid == resource.data.reportedBy
+                        || (resource.data.status == 'verified' 
+                            && resource.data.type == 'removedCamera'));
     }
     
     // ========== Camera Votes Collection ==========
@@ -61,6 +61,81 @@ service cloud.firestore {
       
       // ลบได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับการลบกล้องที่ถูก verified removal)
       allow delete: if request.auth != null;
+    }
+    
+    // ========== Speed Limit Changes Collection ==========
+    match /speed_limit_changes/{changeId} {
+      // อ่านได้ทุกคน
+      allow read: if true;
+      
+      // สร้างได้เฉพาะผู้ใช้ที่ login แล้ว
+      allow create: if request.auth != null;
+      
+      // ลบได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับระบบ auto-removal)
+      allow delete: if request.auth != null;
+      
+      // ไม่อนุญาตให้แก้ไข
+      allow update: if false;
+    }
+    
+    // ========== Camera Statistics Collection ==========
+    match /camera_statistics/{statId} {
+      // อ่านได้ทุกคน
+      allow read: if true;
+      
+      // สร้างและแก้ไขได้เฉพาะผู้ใช้ที่ login แล้ว
+      allow create, update: if request.auth != null;
+      
+      // ลบได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับระบบ auto-removal)
+      allow delete: if request.auth != null;
+    }
+    
+    // ========== Camera Verifications Collection ==========
+    match /camera_verifications/{verificationId} {
+      // อ่านได้ทุกคน
+      allow read: if true;
+      
+      // สร้างและแก้ไขได้เฉพาะผู้ใช้ที่ login แล้ว
+      allow create, update: if request.auth != null;
+      
+      // ลบได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับระบบ auto-removal)
+      allow delete: if request.auth != null;
+    }
+    
+    // ========== Deleted Cameras Collection ==========
+    match /deleted_cameras/{cameraId} {
+      // อ่านได้ทุกคน (สำหรับ debugging)
+      allow read: if true;
+      
+      // เขียนได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับ marking deletion)
+      allow create: if request.auth != null;
+      
+      // ไม่อนุญาตให้แก้ไขหรือลบ
+      allow update, delete: if false;
+    }
+    
+    // ========== Archived Camera Reports Collection ==========
+    match /archived_camera_reports/{reportId} {
+      // อ่านได้ทุกคน (สำหรับ historical data)
+      allow read: if true;
+      
+      // เขียนได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับ archiving)
+      allow create: if request.auth != null;
+      
+      // ไม่อนุญาตให้แก้ไขหรือลบ archive
+      allow update, delete: if false;
+    }
+    
+    // ========== Camera Removal Failures Collection ==========
+    match /camera_removal_failures/{failureId} {
+      // อ่านได้ทุกคน (สำหรับ debugging)
+      allow read: if true;
+      
+      // เขียนได้เฉพาะผู้ใช้ที่ login แล้ว (สำหรับ error logging)
+      allow create: if request.auth != null;
+      
+      // ไม่อนุญาตให้แก้ไขหรือลบ error log
+      allow update, delete: if false;
     }
     
     // ========== Camera Deletion Log Collection ==========

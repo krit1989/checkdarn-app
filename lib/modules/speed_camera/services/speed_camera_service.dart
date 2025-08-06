@@ -167,6 +167,29 @@ class SpeedCameraService {
         .toList();
   }
 
+  /// ดึงกล้องตาม ID
+  static Future<SpeedCamera?> getCameraById(String cameraId) async {
+    try {
+      print('🔍 Getting camera by ID: $cameraId');
+
+      // ดึงกล้องทั้งหมดแล้วหากล้องที่ตรงตาม ID
+      final cameras = await CameraReportService.getAllSpeedCameras();
+
+      for (final camera in cameras) {
+        if (camera.id == cameraId) {
+          print('✅ Found camera: ${camera.roadName}');
+          return camera;
+        }
+      }
+
+      print('❌ Camera not found with ID: $cameraId');
+      return null;
+    } catch (e) {
+      print('❌ Error getting camera by ID: $e');
+      return null;
+    }
+  }
+
   /// ตรวจสอบว่ากล้องยังใช้งานได้หรือไม่
   static Future<bool> isCameraActive(String cameraId) async {
     // สำหรับ Community cameras ให้ตรวจสอบจาก Firebase

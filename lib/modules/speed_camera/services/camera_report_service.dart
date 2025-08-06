@@ -399,96 +399,147 @@ class CameraReportService {
       print('   Current status: ${report.status}');
       print('   Report type: ${report.type}');
 
-      // ลดเงื่อนไขจาก 5 votes เป็น 3 votes เพื่อให้ verify เร็วขึ้น
-      if (newTotalVotes >= 3) {
-        // สำหรับ speedChanged ใช้เงื่อนไขพิเศษ
-        if (report.type == CameraReportType.speedChanged) {
-          if (newConfidenceScore >= 0.7) {
-            // ลดเกณฑ์ความมั่นใจเหลือ 70%
+      // 🎯 ระบบโหวตใหม่: ฝั่งไหนถึง 3 คนก่อน ฝั่งนั้นชนะ
+      print('🗳️ === VOTE CHECK SYSTEM ===');
+      print('Current upvotes: $newUpvotes');
+      print('Current downvotes: $newDownvotes');
+      print('Report type: ${report.type}');
+
+      // ตรวจสอบว่าฝั่งไหนถึง 3 votes ก่อน
+      if (newUpvotes >= 3 || newDownvotes >= 3) {
+        if (newUpvotes >= 3 && newUpvotes > newDownvotes) {
+          // ฝั่งเห็นด้วยถึง 3 ก่อน → VERIFIED
+          newStatus = CameraStatus.verified;
+          verifiedAt = DateTime.now();
+          verifiedBy = 'auto_system';
+          print(
+              '✅ VERIFIED: Upvotes reached 3 first ($newUpvotes vs $newDownvotes)');
+        } else if (newDownvotes >= 3 && newDownvotes > newUpvotes) {
+          // ฝั่งไม่เห็นด้วยถึง 3 ก่อน → REJECTED
+          newStatus = CameraStatus.rejected;
+          verifiedAt = DateTime.now();
+          verifiedBy = 'auto_system';
+          print(
+              '❌ REJECTED: Downvotes reached 3 first ($newDownvotes vs $newUpvotes)');
+        } else if (newUpvotes >= 3 &&
+            newDownvotes >= 3 &&
+            newUpvotes == newDownvotes) {
+          // เสมอกัน 3-3 ให้ดูจาก confidence
+          if (newConfidenceScore >= 0.5) {
             newStatus = CameraStatus.verified;
             verifiedAt = DateTime.now();
             verifiedBy = 'auto_system';
-            print('✅ Auto-verifying speed change report');
-
-            // อัปเดตความเร็วในกล้องหลัก
-            await _updateCameraSpeedLimit(report);
-          } else if (newConfidenceScore <= 0.3) {
-            newStatus = CameraStatus.rejected;
-            verifiedAt = DateTime.now();
-            verifiedBy = 'auto_system';
-            print('❌ Auto-rejecting speed change report');
-          }
-        } else {
-          // Logic เดิมสำหรับประเภทรายงานอื่นๆ
-          // ลดเงื่อนไข confidence จาก 0.8 เป็น 0.7 สำหรับ removedCamera
-          final requiredConfidence =
-              report.type == CameraReportType.removedCamera ? 0.7 : 0.8;
-
-          if (newConfidenceScore >= requiredConfidence) {
-            newStatus = CameraStatus.verified;
-            verifiedAt = DateTime.now();
-            verifiedBy = 'auto_system';
-            print(
-                '✅ Auto-verifying report due to high confidence (${(newConfidenceScore * 100).toStringAsFixed(1)}%) with $newTotalVotes votes');
-
-            // ✨ เพิ่ม: หากเป็นรายงานกล้องใหม่ที่ผ่านการตรวจสอบ ให้สร้างกล้องใน speed_cameras collection
-            if (report.type == CameraReportType.newCamera) {
-              print('🆕 === NEW CAMERA PROMOTION TRIGGERED ===');
-              print('Report ID: $reportId');
-              print('Camera will be created after report update');
-            }
-
-            // ✨ เพิ่ม: หากเป็นรายงานการลบกล้อง ให้ลบกล้องออกจาก Firebase ทันที
-            if (report.type == CameraReportType.removedCamera) {
-              print('🗑️ === CAMERA REMOVAL TRIGGERED ===');
-              print('Report ID: $reportId');
-              print('Selected Camera ID: ${report.selectedCameraId}');
-
-              try {
-                String? cameraId = report.selectedCameraId;
-
-                if (cameraId != null && cameraId.isNotEmpty) {
-                  print('🎯 Deleting camera ID: $cameraId');
-                  await _directDeleteCameraWithRetry(cameraId);
-
-                  // ตรวจสอบว่าลบจริงหรือไม่
-                  final isDeleted = await _verifyCameraDeletion(cameraId);
-                  if (isDeleted) {
-                    print(
-                        '✅ Camera $cameraId deleted and verified successfully');
-                  } else {
-                    throw Exception(
-                        'Camera $cameraId still exists after deletion');
-                  }
-                } else {
-                  print(
-                      '⚠️ No camera ID specified - trying location-based deletion');
-                  await _deleteByLocation(report.latitude, report.longitude);
-                }
-              } catch (e) {
-                print('❌ Error deleting camera: $e');
-                // บันทึก error ลงใน collection พิเศษ
-                await _logDeletionError(
-                    reportId, report.selectedCameraId, e.toString());
-                // ไม่ให้ error การลบกล้องมาขัดขวางการอัปเดตสถานะรายงาน
-              }
-            }
-          } else if (newConfidenceScore <= 0.2) {
-            newStatus = CameraStatus.rejected;
-            verifiedAt = DateTime.now();
-            verifiedBy = 'auto_system';
-            print(
-                '❌ Auto-rejecting report due to low confidence (${(newConfidenceScore * 100).toStringAsFixed(1)}%) with $newTotalVotes votes');
+            print('✅ VERIFIED: Tied 3-3, decided by confidence >= 50%');
           } else {
+            newStatus = CameraStatus.rejected;
+            verifiedAt = DateTime.now();
+            verifiedBy = 'auto_system';
+            print('❌ REJECTED: Tied 3-3, decided by confidence < 50%');
+          }
+        }
+
+        // ✨ เพิ่ม: หากเป็นรายงานกล้องใหม่ที่ผ่านการตรวจสอบ ให้สร้างกล้องใน speed_cameras collection
+        if (newStatus == CameraStatus.verified &&
+            report.type == CameraReportType.newCamera) {
+          print('🆕 === NEW CAMERA PROMOTION TRIGGERED ===');
+          print('Report ID: $reportId');
+          print('Camera will be created after report update');
+        }
+
+        // ✨ เพิ่ม: หากเป็นรายงานการลบกล้อง ให้ลบกล้องออกจาก Firebase ทันที
+        if (newStatus == CameraStatus.verified &&
+            report.type == CameraReportType.removedCamera) {
+          print('🗑️ === CAMERA REMOVAL TRIGGERED ===');
+          print('Report ID: $reportId');
+          print('Selected Camera ID: ${report.selectedCameraId}');
+
+          try {
+            String? cameraId = report.selectedCameraId;
+
+            if (cameraId != null && cameraId.isNotEmpty) {
+              print('🎯 Deleting camera ID: $cameraId');
+              await _directDeleteCameraWithRetry(cameraId);
+
+              // ตรวจสอบว่าลบจริงหรือไม่
+              final isDeleted = await _verifyCameraDeletion(cameraId);
+              if (isDeleted) {
+                print('✅ Camera $cameraId deleted and verified successfully');
+              } else {
+                throw Exception('Camera $cameraId still exists after deletion');
+              }
+            } else {
+              print(
+                  '⚠️ No camera ID specified - trying location-based deletion');
+              await _deleteByLocation(report.latitude, report.longitude);
+            }
+          } catch (e) {
+            print('❌ Error deleting camera: $e');
+            // บันทึก error ลงใน collection พิเศษ
+            await _logDeletionError(
+                reportId, report.selectedCameraId, e.toString());
+            // ไม่ให้ error การลบกล้องมาขัดขวางการอัปเดตสถานะรายงาน
+          }
+        }
+
+        // 🔄 อัปเดตความเร็วสำหรับ speedChanged
+        if (newStatus == CameraStatus.verified &&
+            report.type == CameraReportType.speedChanged) {
+          print('🔄 === SPEED LIMIT UPDATE TRIGGERED ===');
+          await _updateCameraSpeedLimit(report);
+        }
+
+        // 🚀 AUTO-REMOVAL: ลบรายงานที่ verified/rejected ออกจาก collection ทันที
+        if (newStatus == CameraStatus.verified ||
+            newStatus == CameraStatus.rejected) {
+          print('🚀 === AUTO-REMOVAL TRIGGERED ===');
+          print('Report ID: $reportId, Status: $newStatus');
+
+          try {
+            // บันทึกข้อมูลก่อนลบ
+            await _firestore.collection('verified_reports_removal_log').add({
+              'originalReportId': reportId,
+              'reportData': {
+                'upvotes': newUpvotes,
+                'downvotes': newDownvotes,
+                'status': newStatus.toString().split('.').last,
+                'type': report.type.toString().split('.').last,
+                'roadName': report.roadName,
+                'latitude': report.latitude,
+                'longitude': report.longitude,
+                'reportedBy': report.reportedBy,
+                'verifiedAt': verifiedAt?.toIso8601String(),
+                'verifiedBy': verifiedBy,
+                'finalUpvotes': newUpvotes,
+                'finalDownvotes': newDownvotes,
+                'finalConfidenceScore': newConfidenceScore,
+              },
+              'removedAt': FieldValue.serverTimestamp(),
+              'removedBy': 'auto_voting_system_v2',
+              'autoRemovalReason': newStatus == CameraStatus.verified
+                  ? 'upvotes_reached_3_first'
+                  : 'downvotes_reached_3_first',
+            });
+            print('✅ Report logged to removal log');
+
+            // ลบรายงานออกจาก main collection ทันที
+            await reportRef.delete();
             print(
-                '⏳ Report still pending - confidence ${(newConfidenceScore * 100).toStringAsFixed(1)}% (need >= 80% or <= 20%)');
+                '✅ AUTO-REMOVAL: Report $reportId successfully removed from main collection');
+
+            return; // ออกจาก function เพราะรายงานถูกลบแล้ว
+          } catch (e) {
+            print('❌ AUTO-REMOVAL ERROR: $e');
+            // ถ้าลบไม่สำเร็จ ให้อัปเดตปกติแทน (fallback)
+            print('⚠️ Falling back to normal update due to auto-removal error');
           }
         }
       } else {
-        print('⏳ Not enough votes yet for auto-verification');
+        print('⏳ Not enough votes yet (need 3 upvotes OR 3 downvotes)');
+        print('   Current: $newUpvotes upvotes, $newDownvotes downvotes');
       }
 
-      // Update report ด้วย merge: true เพื่อป้องกันการเขียนทับ
+      // อัปเดตรายงานปกติ (เฉพาะกรณีที่ไม่ถูกลบด้วย auto-removal)
+      print('🔄 Updating report with new vote counts (not removed)...');
       final updateData = {
         'upvotes': newUpvotes,
         'downvotes': newDownvotes,
@@ -498,10 +549,9 @@ class CameraReportService {
         if (verifiedBy != null) 'verifiedBy': verifiedBy,
       };
 
-      print('🔄 Updating report with new vote counts...');
-      print('📊 Update data: $updateData');
       await reportRef.update(updateData);
-      print('✅ Report vote counts updated successfully');
+      print(
+          '✅ Report vote counts updated successfully (preserved in collection)');
 
       // ตรวจสอบว่าอัปเดตสำเร็จหรือไม่
       final updatedDoc =
@@ -1907,6 +1957,9 @@ class CameraReportService {
         print(
             '🗑️ Delete command sent for camera $cameraId (attempt $attempt)');
 
+        // 🧹 ลบ speed_limit_changes ที่เกี่ยวข้องกับกล้องนี้
+        await _deleteSpeedLimitChanges(cameraId);
+
         // รอสักครู่แล้วตรวจสอบ
         await Future.delayed(Duration(seconds: attempt));
 
@@ -1979,6 +2032,9 @@ class CameraReportService {
       // ลบกล้องออกจาก speed_cameras collection
       await _firestore.collection('speed_cameras').doc(cameraId).delete();
       print('✅ Camera $cameraId deleted from speed_cameras collection');
+
+      // 🧹 ลบ speed_limit_changes ที่เกี่ยวข้องกับกล้องนี้
+      await _deleteSpeedLimitChanges(cameraId);
 
       // บันทึก log การลบ
       await _firestore.collection('camera_deletion_log').add({
@@ -2289,6 +2345,171 @@ class CameraReportService {
       print('   Current user: ${_auth.currentUser?.uid}');
       print('   User email: ${_auth.currentUser?.email}');
       rethrow;
+    }
+  }
+
+  /// 🧹 Clean up verified/rejected reports that weren't auto-removed
+  static Future<void> cleanupVerifiedReports() async {
+    try {
+      print('🧹 === CLEANUP VERIFIED REPORTS START ===');
+
+      // ค้นหารายงานที่ verified แล้วแต่ยังไม่ถูกลบ
+      final verifiedSnapshot = await _firestore
+          .collection(_reportsCollection)
+          .where('status', isEqualTo: 'verified')
+          .get();
+
+      // ค้นหารายงานที่ rejected แล้วแต่ยังไม่ถูกลบ
+      final rejectedSnapshot = await _firestore
+          .collection(_reportsCollection)
+          .where('status', isEqualTo: 'rejected')
+          .get();
+
+      final totalReports =
+          verifiedSnapshot.docs.length + rejectedSnapshot.docs.length;
+      print(
+          '📊 Found $totalReports reports to cleanup (${verifiedSnapshot.docs.length} verified, ${rejectedSnapshot.docs.length} rejected)');
+
+      int processedCount = 0;
+      int deletedCount = 0;
+
+      // Process verified reports
+      for (final doc in verifiedSnapshot.docs) {
+        try {
+          final report = CameraReport.fromJson(doc.data());
+          processedCount++;
+
+          // บันทึกลง log ก่อนลบ
+          await _firestore.collection('verified_reports_removal_log').add({
+            'originalReportId': report.id,
+            'reportData': {
+              'upvotes': report.upvotes,
+              'downvotes': report.downvotes,
+              'status': report.status.toString(),
+              'type': report.type.toString(),
+              'roadName': report.roadName,
+              'latitude': report.latitude,
+              'longitude': report.longitude,
+              'reportedBy': report.reportedBy,
+              'verifiedAt': report.verifiedAt?.toIso8601String(),
+              'verifiedBy': report.verifiedBy,
+            },
+            'removedAt': FieldValue.serverTimestamp(),
+            'removedBy': 'cleanup_system',
+            'cleanupReason': 'verified_report_not_auto_removed',
+          });
+
+          // ลบรายงาน
+          await doc.reference.delete();
+          deletedCount++;
+          print('✅ Deleted verified report: ${report.id}');
+        } catch (e) {
+          print('❌ Error processing verified report ${doc.id}: $e');
+        }
+      }
+
+      // Process rejected reports
+      for (final doc in rejectedSnapshot.docs) {
+        try {
+          final report = CameraReport.fromJson(doc.data());
+          processedCount++;
+
+          // บันทึกลง log ก่อนลบ
+          await _firestore.collection('verified_reports_removal_log').add({
+            'originalReportId': report.id,
+            'reportData': {
+              'upvotes': report.upvotes,
+              'downvotes': report.downvotes,
+              'status': report.status.toString(),
+              'type': report.type.toString(),
+              'roadName': report.roadName,
+              'latitude': report.latitude,
+              'longitude': report.longitude,
+              'reportedBy': report.reportedBy,
+              'verifiedAt': report.verifiedAt?.toIso8601String(),
+              'verifiedBy': report.verifiedBy,
+            },
+            'removedAt': FieldValue.serverTimestamp(),
+            'removedBy': 'cleanup_system',
+            'cleanupReason': 'rejected_report_not_auto_removed',
+          });
+
+          // ลบรายงาน
+          await doc.reference.delete();
+          deletedCount++;
+          print('✅ Deleted rejected report: ${report.id}');
+        } catch (e) {
+          print('❌ Error processing rejected report ${doc.id}: $e');
+        }
+      }
+
+      print('🎉 === CLEANUP SUMMARY ===');
+      print('   Total processed: $processedCount');
+      print('   Successfully deleted: $deletedCount');
+      print('   Cleanup completed successfully!');
+    } catch (e) {
+      print('❌ Error in verified reports cleanup: $e');
+      throw Exception('Failed to cleanup verified reports: ${e.toString()}');
+    }
+  }
+
+  /// Initialize cleanup on app start
+  static Future<void> initializeCleanup() async {
+    try {
+      print('🚀 Initializing cleanup system...');
+      await cleanupVerifiedReports();
+      print('✅ Cleanup system initialized successfully');
+    } catch (e) {
+      print('❌ Error initializing cleanup: $e');
+      // Don't throw error to prevent app from crashing
+    }
+  }
+
+  /// 🧹 ลบ speed_limit_changes ที่เกี่ยวข้องกับกล้องที่ถูกลบ
+  static Future<void> _deleteSpeedLimitChanges(String cameraId) async {
+    try {
+      print('🧹 === CLEANING UP SPEED LIMIT CHANGES ===');
+      print('Camera ID: $cameraId');
+
+      // ค้นหา speed_limit_changes ที่เกี่ยวข้องกับกล้องนี้
+      final speedChangesSnapshot = await _firestore
+          .collection('speed_limit_changes')
+          .where('cameraId', isEqualTo: cameraId)
+          .get();
+
+      print(
+          '📊 Found ${speedChangesSnapshot.docs.length} speed limit changes to delete');
+
+      int deletedCount = 0;
+      for (final doc in speedChangesSnapshot.docs) {
+        try {
+          final changeData = doc.data();
+
+          // บันทึกข้อมูลก่อนลบ
+          await _firestore.collection('deleted_speed_limit_changes_log').add({
+            'originalChangeId': doc.id,
+            'cameraId': cameraId,
+            'changeData': changeData,
+            'deletedAt': FieldValue.serverTimestamp(),
+            'deletedBy': 'camera_removal_system',
+            'deletionReason': 'camera_deleted',
+          });
+
+          // ลบ speed limit change
+          await doc.reference.delete();
+          deletedCount++;
+          print('✅ Deleted speed limit change: ${doc.id}');
+        } catch (e) {
+          print('❌ Error deleting speed limit change ${doc.id}: $e');
+        }
+      }
+
+      print('🎉 Speed limit changes cleanup completed');
+      print('   Total processed: ${speedChangesSnapshot.docs.length}');
+      print('   Successfully deleted: $deletedCount');
+    } catch (e) {
+      print('❌ Error cleaning up speed limit changes for camera $cameraId: $e');
+      // ไม่ throw error เพราะไม่อยากให้การลบกล้องล้มเหลวเพราะ speed changes
     }
   }
 }

@@ -3,8 +3,10 @@ import '../models/camera_report_model.dart';
 import '../services/camera_report_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../widgets/location_picker_screen.dart';
+import 'single_camera_map_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:math' as math;
 
 class CameraReportCardWidget extends StatelessWidget {
   final CameraReport report;
@@ -26,23 +28,11 @@ class CameraReportCardWidget extends StatelessWidget {
 
     // ถ้าเป็นผู้ใช้ปัจจุบัน
     if (currentUser != null && currentUser.uid == report.reportedBy) {
-      return AuthService.getMaskedDisplayName();
+      return 'รายงานของฉัน';
     }
 
-    // ถ้าเป็นคนอื่น - mask userId
-    final userId = report.reportedBy;
-    if (userId.isEmpty || userId == 'anonymous') {
-      return 'ผู้ใช้ไม่ระบุชื่อ';
-    }
-
-    // Mask userId ให้สวยงาม
-    if (userId.length <= 4) {
-      return userId; // ถ้าสั้นเกินไป ไม่ต้อง mask
-    } else if (userId.length <= 8) {
-      return '${userId.substring(0, 4)}****';
-    } else {
-      return '${userId.substring(0, 4)}${'*' * (userId.length - 4)}';
-    }
+    // สำหรับคนอื่น ไม่แสดงชื่อเลย เพื่อความเป็นส่วนตัว
+    return 'สมาชิกในชุมชน';
   }
 
   @override
@@ -164,16 +154,35 @@ class CameraReportCardWidget extends StatelessWidget {
             const SizedBox(height: 8),
             InkWell(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LocationPickerScreen(
-                      initialLocation:
-                          LatLng(report.latitude, report.longitude),
-                      title: 'ดูตำแหน่ง: ${report.roadName}',
+                // เช็คว่าเป็นรายงานที่เกี่ยวข้องกับกล้องที่มีอยู่หรือไม่
+                if ((report.type == CameraReportType.removedCamera ||
+                        report.type == CameraReportType.speedChanged) &&
+                    report.selectedCameraId != null) {
+                  // แสดงแผนที่กล้องตัวเดียว
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SingleCameraMapScreen(
+                        cameraId: report.selectedCameraId!,
+                        title: 'ดูแผนที่',
+                        fallbackLocation:
+                            LatLng(report.latitude, report.longitude),
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  // แสดงแผนที่แบบธรรมดา (สำหรับรายงานกล้องใหม่)
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LocationPickerScreen(
+                        initialLocation:
+                            LatLng(report.latitude, report.longitude),
+                        title: 'ดูตำแหน่ง: ${report.roadName}',
+                      ),
+                    ),
+                  );
+                }
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -184,9 +193,15 @@ class CameraReportCardWidget extends StatelessWidget {
                       style: TextStyle(fontSize: 16),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'ดูแผนที่',
-                      style: TextStyle(
+                    Text(
+                      // แสดงข้อความที่เหมาะสมกับประเภทรายงาน
+                      (report.type == CameraReportType.removedCamera ||
+                                  report.type ==
+                                      CameraReportType.speedChanged) &&
+                              report.selectedCameraId != null
+                          ? 'ดูกล้องในแผนที่'
+                          : 'ดูแผนที่',
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -227,58 +242,132 @@ class CameraReportCardWidget extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Voting stats
+            // Voting stats with new race-to-3 system
             Row(
               children: [
+                // Upvotes
                 Icon(
                   Icons.thumb_up,
                   size: 16,
-                  color: Colors.green,
+                  color: report.hasUpvoteWin
+                      ? Colors.green.shade700
+                      : Colors.green,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   '${report.upvotes}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'NotoSansThai',
-                    fontWeight: FontWeight.w500,
-                    color: Colors.green,
+                    fontWeight:
+                        report.hasUpvoteWin ? FontWeight.bold : FontWeight.w500,
+                    color: report.hasUpvoteWin
+                        ? Colors.green.shade700
+                        : Colors.green,
                   ),
                 ),
+                if (report.hasUpvoteWin) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'ชนะ',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 16),
+
+                // Downvotes
                 Icon(
                   Icons.thumb_down,
                   size: 16,
-                  color: Colors.red,
+                  color:
+                      report.hasDownvoteWin ? Colors.red.shade700 : Colors.red,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   '${report.downvotes}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'NotoSansThai',
-                    fontWeight: FontWeight.w500,
-                    color: Colors.red,
+                    fontWeight: report.hasDownvoteWin
+                        ? FontWeight.bold
+                        : FontWeight.w500,
+                    color: report.hasDownvoteWin
+                        ? Colors.red.shade700
+                        : Colors.red,
                   ),
                 ),
-                const SizedBox(width: 16),
-                // Confidence indicator
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _getConfidenceColor(report.confidenceScore)
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'ความมั่นใจ: ${(report.confidenceScore * 100).toInt()}%',
-                    style: TextStyle(
-                      fontFamily: 'NotoSansThai',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: _getConfidenceColor(report.confidenceScore),
+                if (report.hasDownvoteWin) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'ชนะ',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red.shade700,
+                      ),
                     ),
                   ),
-                ),
+                ],
+
+                const Spacer(),
+
+                // Status indicator for new system
+                if (report.hasTieAt3) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'เสมอ 3-3',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.amber.shade700,
+                      ),
+                    ),
+                  ),
+                ] else if (report.needsMoreVotes) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'ต้องการ ${3 - math.max(report.upvotes, report.downvotes)} โหวต',
+                      style: TextStyle(
+                        fontFamily: 'NotoSansThai',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
 
@@ -607,12 +696,6 @@ class CameraReportCardWidget extends StatelessWidget {
       case CameraReportType.speedChanged:
         return Colors.purple;
     }
-  }
-
-  Color _getConfidenceColor(double confidence) {
-    if (confidence >= 0.8) return Colors.green;
-    if (confidence >= 0.6) return Colors.orange;
-    return Colors.red;
   }
 
   Color _getStatusColor(CameraStatus status) {

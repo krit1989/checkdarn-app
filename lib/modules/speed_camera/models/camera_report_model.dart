@@ -103,8 +103,15 @@ class CameraReport {
   int get totalVotes => upvotes + downvotes;
   double get approvalRatio => totalVotes > 0 ? upvotes / totalVotes : 0.0;
 
-  bool get isHighConfidence => confidenceScore >= 0.7 && totalVotes >= 5;
-  bool get needsMoreVotes => totalVotes < 3; // ต้องมีอย่างน้อย 3 votes
+  // 🆕 NEW VOTING SYSTEM: Race-to-3 logic
+  bool get hasUpvoteWin => upvotes >= 3 && upvotes > downvotes;
+  bool get hasDownvoteWin => downvotes >= 3 && downvotes > upvotes;
+  bool get hasTieAt3 => upvotes == 3 && downvotes == 3;
+  bool get isDecisive => hasUpvoteWin || hasDownvoteWin || hasTieAt3;
+
+  bool get isHighConfidence =>
+      confidenceScore >= 0.5 && isDecisive; // Updated for new system
+  bool get needsMoreVotes => !isDecisive; // Changed from < 3 to !isDecisive
 
   // เพิ่มเมธอดตรวจสอบว่ากล้องนี้มี ID หรือยัง
   bool get hasCameraId =>

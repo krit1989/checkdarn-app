@@ -19,9 +19,12 @@ service cloud.firestore {
       allow read: if true;  // เปิดให้อ่านได้ทุกคน (ไม่ต้องล็อกอิน)
       allow create: if request.auth != null;
       allow update: if request.auth != null;  // เปิดให้อัปเดตได้ทั้งหมดสำหรับผู้ล็อกอิน
-      allow delete: if request.auth != null && 
-                     request.auth.uid == resource.data.reportedBy &&
-                     resource.data.status == 'pending';
+      allow delete: if request.auth != null && (
+        // เจ้าของสามารถลบได้ถ้า status เป็น pending
+        (request.auth.uid == resource.data.reportedBy && resource.data.status == 'pending') ||
+        // ระบบสามารถลบรายงาน verified/rejected ได้ (สำหรับ auto-removal)
+        (resource.data.status == 'verified' || resource.data.status == 'rejected')
+      );
     }
     
     // 🗳️ กฎสำหรับ camera votes - โหวตสำหรับกล้อง (ปรับปรุงใหม่)
@@ -43,7 +46,14 @@ service cloud.firestore {
       allow read: if true;  // เปิดให้อ่านได้ทุกคน
       allow create: if request.auth != null;  // ผู้ล็อกอินสามารถสร้างกล้องใหม่ได้ (จากระบบ auto-verification)
       allow update: if request.auth != null;  // อัปเดตได้สำหรับผู้ล็อกอิน
-      allow delete: if request.auth != null;  // อนุญาตให้ลบได้สำหรับผู้ล็อกอิน (สำหรับระบบ auto-deletion)
+      allow delete: if request.auth != null && (
+        // อนุญาตให้ลบโดยระบบหรือ admin
+        request.auth.token.isAdmin == true ||
+        // หรือเมื่อมีฟิลด์ markedForDeletion เป็น true (จากระบบ auto-deletion)
+        resource.data.markedForDeletion == true ||
+        // หรือผู้ใช้ล็อกอินปกติ (สำหรับการลบด้วยมือ)
+        request.auth != null
+      );
     }
     
     // ✅ กฎสำหรับ camera promotion success - บันทึกการสร้างกล้องสำเร็จ
@@ -99,7 +109,8 @@ service cloud.firestore {
     match /speed_limit_changes/{changeId} {
       allow read: if true;  // เปิดให้อ่านได้ทุกคน
       allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
-      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ
+      allow update: if false;  // ไม่อนุญาตให้แก้ไข
+      allow delete: if request.auth != null;  // อนุญาตให้ลบได้ (สำหรับ camera removal)
     }
     
     // ❌ กฎสำหรับ speed update errors - ข้อผิดพลาดการอัปเดตความเร็ว
@@ -120,6 +131,92 @@ service cloud.firestore {
     match /notification_stats/{statId} {
       allow read: if request.auth != null;
       allow create, update, delete: if false;
+    }
+    
+    // ✅ กฎสำหรับ verified reports removal log - บันทึกการลบรายงานที่ยืนยันแล้ว
+    match /verified_reports_removal_log/{logId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ auto-removal
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ log
+    }
+    
+    // 🗑️ กฎสำหรับ camera verifications - การยืนยันกล้อง
+    match /camera_verifications/{verificationId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update: if request.auth != null;  // อัปเดตได้เฉพาะระบบ
+      allow delete: if request.auth != null;  // ลบได้เฉพาะระบบ (สำหรับ complete removal)
+    }
+    
+    // 📊 กฎสำหรับ camera statistics - สถิติการใช้งานกล้อง
+    match /camera_statistics/{statisticId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update: if request.auth != null;  // อัปเดตได้เฉพาะระบบ
+      allow delete: if request.auth != null;  // ลบได้เฉพาะระบบ (สำหรับ complete removal)
+    }
+    
+    // 📦 กฎสำหรับ archived camera reports - รายงานที่ถูกเก็บถาวร
+    match /archived_camera_reports/{reportId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบข้อมูลเก็บถาวร
+    }
+    
+    // 🗳️ กฎสำหรับ archived camera votes - โหวตที่ถูกเก็บถาวร
+    match /archived_camera_votes/{voteId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบข้อมูลเก็บถาวร
+    }
+    
+    // 🗑️ กฎสำหรับ deleted cameras - ประวัติกล้องที่ถูกลบ
+    match /deleted_cameras/{cameraId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบประวัติ
+    }
+    
+    // ❌ กฎสำหรับ camera removal failures - ประวัติ errors การลบกล้อง
+    match /camera_removal_failures/{errorId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ error log
+    }
+    
+    // 🧹 กฎสำหรับ camera cleanup log - ประวัติการทำความสะอาดข้อมูลกล้อง
+    match /camera_cleanup_log/{logId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ cleanup log
+    }
+    
+    // ❌ กฎสำหรับ camera cleanup errors - ประวัติ errors การทำความสะอาดกล้อง
+    match /camera_cleanup_errors/{errorId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ error log
+    }
+    
+    // 🔍 กฎสำหรับ orphaned data cleanup log - ประวัติการทำความสะอาดข้อมูลค้าง
+    match /orphaned_data_cleanup_log/{logId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ cleanup log
+    }
+    
+    // ❌ กฎสำหรับ orphaned data cleanup errors - ประวัติ errors การทำความสะอาดข้อมูลค้าง
+    match /orphaned_data_cleanup_errors/{errorId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ error log
+    }
+    
+    // 🏃 กฎสำหรับ deleted speed limit changes log - ประวัติการลบ speed limit changes
+    match /deleted_speed_limit_changes_log/{logId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ log
     }
   }
 }
