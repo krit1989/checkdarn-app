@@ -90,97 +90,106 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
     return AnimatedBuilder(
       animation: Listenable.merge([_rotationController, _pulseController]),
       builder: (context, child) {
-        return Container(
-          width: 120,
-          height: 120,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // วงแหวนพื้นหลัง
-              CustomPaint(
-                size: const Size(120, 120),
-                painter: SpeedRingPainter(
-                  progress: 1.0,
-                  color: Colors.grey.withValues(alpha: 0.2),
-                  strokeWidth: 8,
-                ),
-              ),
-
-              // วงแหวนความเร็ว (หมุนเมื่อเคลื่อนที่)
-              Transform.rotate(
-                angle: widget.isMoving
-                    ? _rotationController.value * 2 * math.pi
-                    : 0,
-                child: CustomPaint(
-                  size: const Size(120, 120),
-                  painter: SpeedRingPainter(
-                    progress: progress,
-                    color: speedColor,
-                    strokeWidth: 8,
-                    hasGlow: widget.isMoving,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // วงแหวนพื้นหลัง
+                  CustomPaint(
+                    size: const Size(120, 120),
+                    painter: SpeedRingPainter(
+                      progress: 1.0,
+                      color: Colors.grey.withValues(alpha: 0.2),
+                      strokeWidth: 8,
+                    ),
                   ),
-                ),
-              ),
 
-              // ตัวเลขความเร็วกลางจอ ทรงกลมพอดีกับวงใน
-              Center(
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0088FE),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // ความเร็วปัจจุบัน
-                      Text(
-                        '${widget.currentSpeed.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontFamily: 'NotoSansThai',
-                          height: 1.0, // ลด line height
-                        ),
-                      ),
-                      // หน่วย - ไม่มี spacing และลด line height
-                      const Text(
-                        'km/h',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white70,
-                          fontFamily: 'NotoSansThai',
-                          height: 1.0, // ลด line height
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // จำกัดความเร็ว (หากมี)
-              if (widget.speedLimit != null)
-                Positioned(
-                  bottom: 15,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: Text(
-                      'จำกัด ${widget.speedLimit!.toInt()}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.orange,
-                        fontFamily: 'NotoSansThai',
-                        fontWeight: FontWeight.w600,
+                  // วงแหวนความเร็ว (หมุนเมื่อเคลื่อนที่)
+                  Transform.rotate(
+                    angle: widget.isMoving
+                        ? _rotationController.value * 2 * math.pi
+                        : 0,
+                    child: CustomPaint(
+                      size: const Size(120, 120),
+                      painter: SpeedRingPainter(
+                        progress: progress,
+                        color: speedColor,
+                        strokeWidth: 8,
+                        hasGlow: widget.isMoving,
                       ),
                     ),
                   ),
+
+                  // ตัวเลขความเร็วกลางจอ ทรงกลมพอดีกับวงใน
+                  Center(
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0088FE),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // ความเร็วปัจจุบัน
+                          Text(
+                            '${widget.currentSpeed.toInt()}',
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontFamily: 'NotoSansThai',
+                              height: 1.0, // ลด line height
+                            ),
+                          ),
+                          // หน่วย - ไม่มี spacing และลด line height
+                          const Text(
+                            'km/h',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                              fontFamily: 'NotoSansThai',
+                              height: 1.0, // ลด line height
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // จำกัดความเร็ว (หากมี) - ย้ายออกมาด้านล่างวงกลม
+            if (widget.speedLimit != null) ...[
+              const SizedBox(height: 8), // เพิ่มระยะห่าง
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius:
+                      BorderRadius.circular(6), // ลดความโค้งจาก 12 เป็น 6
+                  border: Border.all(color: Colors.orange, width: 1),
                 ),
+                child: Text(
+                  'จำกัด ${widget.speedLimit!.toInt()}',
+                  style: const TextStyle(
+                    fontSize: 14, // เพิ่มขนาดจาก 10 เป็น 14
+                    color: Colors.orange,
+                    fontFamily: 'NotoSansThai',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
-          ),
+          ],
         );
       },
     );
