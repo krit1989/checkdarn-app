@@ -4,7 +4,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,7 +22,6 @@ import '../widgets/location_button.dart';
 import '../widgets/comment_bottom_sheet.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
-import '../modules/speed_camera/screens/speed_camera_screen.dart';
 
 // Enum สำหรับประเภท Navigation Bar
 enum NavigationBarType {
@@ -2885,57 +2883,6 @@ class _MapScreenState extends State<MapScreen>
               icon: Icons.my_location,
               tooltip: 'กลับมาตำแหน่งจริงของฉัน',
               iconColor: const Color(0xFF4673E5),
-            ),
-          ),
-
-          // ปุ่มสวิตช์ไปหน้าความเร็ว (Speed Camera) - ปรับให้ฉลาดตาม Navigation Bar
-          Positioned(
-            right: 16,
-            bottom: _calculateSmartButtonPosition(
-                0), // ใช้ตำแหน่งฐาน 0 สำหรับปุ่มล่าง
-            child: Tooltip(
-              message: 'ไปหน้ากล้องจับความเร็ว',
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SpeedCameraScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      padding: const EdgeInsets.all(12),
-                      child: SvgPicture.asset(
-                        'assets/icons/speed_camera_screen/speed camera2.svg',
-                        width: 24,
-                        height: 24,
-                        colorFilter: const ColorFilter.mode(
-                          Color(0xFF4673E5),
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
 

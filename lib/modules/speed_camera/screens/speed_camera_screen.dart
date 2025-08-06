@@ -44,7 +44,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
   // Badge Alert System - ระบบแจ้งเตือนใน Badge
   String _badgeText = 'กล้องจับความเร็ว';
-  Color _badgeColor = const Color(0xFFFFC107); // กลับไปใช้สีเหลืองเดิม
+  Color _badgeColor =
+      const Color(0xFFFFC107); // เปลี่ยนกลับเป็นสีเหลืองแบบเดิม (สีหลักของแอพ)
   Timer? _badgeResetTimer;
 
   StreamSubscription<Position>? _positionSubscription;
@@ -257,8 +258,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       // แสดงแจ้งเตือนว่ากำลังรีเฟรช
       if (mounted) {
         _showBadgeAlert(
-          '🔄 กำลังอัปเดตข้อมูลกล้อง...',
-          Colors.blue,
+          'กำลังอัปเดตข้อมูลกล้อง...',
+          Colors.green,
           2000, // 2 วินาที
         );
       }
@@ -761,7 +762,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     if (mounted) {
       _showBadgeAlert(
         '🔒 ระบบตรวจพบการใช้งานผิดปกติ',
-        Colors.red,
+        Colors.orange,
         10000, // 10 วินาที
       );
     }
@@ -1578,7 +1579,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       // แสดงแจ้งเตือนใน Badge
       _showBadgeAlert(
         '⚠️ อยู่ใกล้กล้อง โปรดลดความเร็ว',
-        Colors.red,
+        Colors.orange,
         5000, // 5 วินาที
       );
     } else {
@@ -1776,7 +1777,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // แสดงแจ้งเตือนใน Badge
     _showBadgeAlert(
       badgeMessage,
-      Colors.red,
+      Colors.orange,
       5000, // 5 วินาที
     );
   }
@@ -1823,7 +1824,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       if (mounted) {
         setState(() {
           _badgeText = 'กล้องจับความเร็ว';
-          _badgeColor = const Color(0xFFFFC107); // กลับเป็นสีเหลืองเดิม
+          _badgeColor =
+              const Color(0xFFFFC107); // กลับเป็นสีเหลืองแบบเดิม (สีหลักของแอพ)
         });
       }
     });
@@ -1834,7 +1836,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       SnackBar(
         content:
             Text(message, style: const TextStyle(fontFamily: 'NotoSansThai')),
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.orange,
         duration: const Duration(seconds: 5),
       ),
     );
@@ -2042,8 +2044,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
                             height: 20,
                             colorFilter: ColorFilter.mode(
                               _soundManager.isSoundEnabled
-                                  ? Colors.black
-                                  : Colors.grey.shade600, // สีเทาเมื่อปิด
+                                  ? Colors.black // เปลี่ยนเป็นสีดำ
+                                  : Colors.black54, // สีดำอ่อนเมื่อปิด
                               BlendMode.srcIn,
                             ),
                           ),
@@ -2077,7 +2079,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
                           key: ValueKey(
                               _badgeText), // สำคัญสำหรับ AnimatedSwitcher
                           style: const TextStyle(
-                            color: Colors.black,
+                            color: Colors.black, // เปลี่ยนเป็นสีดำ
                             fontFamily: 'NotoSansThai',
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -2127,11 +2129,11 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
                       child: Padding(
                         padding: const EdgeInsets.all(8),
                         child: SvgPicture.asset(
-                          'assets/icons/speed_camera_screen/add speed camera.svg',
+                          'assets/icons/speed_camera_screen/add.svg',
                           width: 20,
                           height: 20,
                           colorFilter: const ColorFilter.mode(
-                            Colors.black,
+                            Colors.black, // เปลี่ยนเป็นสีดำ
                             BlendMode.srcIn,
                           ),
                         ),

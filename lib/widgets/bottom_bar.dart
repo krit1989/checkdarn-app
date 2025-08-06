@@ -4,6 +4,7 @@ import '../models/event_model.dart';
 import '../screens/report_screen.dart';
 import '../screens/list_screen.dart';
 import '../screens/emergency_contacts.dart';
+import '../modules/speed_camera/screens/speed_camera_screen.dart';
 
 class BottomBar extends StatelessWidget {
   final List<EventCategory> selectedCategories;
@@ -34,7 +35,7 @@ class BottomBar extends StatelessWidget {
       padding: const EdgeInsets.only(
         left: 12,
         right: 12,
-        top: 8,
+        top: 4, // ลดจาก 8 เป็น 4
         bottom: 1, // ลด padding ด้านล่างให้ชิดขอบมากที่สุด
       ),
       decoration: const BoxDecoration(
@@ -66,6 +67,8 @@ class BottomBar extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // เพิ่ม SizedBox เพื่อให้ปุ่มขยับลงมาแนวเดียวกับตัวหนังสือของปุ่มกลาง
+                      const SizedBox(height: 8),
                       Container(
                         width: 40, // ลดจาก 44 เป็น 40
                         height: 24, // ลดจาก 26 เป็น 24
@@ -122,6 +125,8 @@ class BottomBar extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // เพิ่ม SizedBox เพื่อให้ปุ่มขยับลงมาแนวเดียวกับตัวหนังสือของปุ่มกลาง
+                      const SizedBox(height: 8),
                       Container(
                         width: 40, // ปรับให้พอดีกับ 5 ปุ่ม
                         height: 24, // ปรับให้พอดีกับ 5 ปุ่ม
@@ -191,19 +196,19 @@ class BottomBar extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 40, // ปรับให้พอดีกับ 5 ปุ่ม
-                        height: 24, // ปรับให้พอดีกับ 5 ปุ่ม
+                        width: 50, // เพิ่มจาก 40 เป็น 50 (+25%)
+                        height: 32, // เพิ่มจาก 24 เป็น 32 (+33%)
                         decoration: BoxDecoration(
                           color: Colors.grey.shade200,
                           borderRadius:
-                              BorderRadius.circular(12), // ปรับตาม width ใหม่
+                              BorderRadius.circular(16), // ปรับตาม width ใหม่
                         ),
                         child: Center(
                           child: SizedBox(
-                            width: 22, // ปรับให้พอดีกับ 5 ปุ่ม
-                            height: 22, // ปรับให้พอดีกับ 5 ปุ่ม
+                            width: 34, // เพิ่มจาก 28 เป็น 34 (+21%)
+                            height: 34, // เพิ่มจาก 28 เป็น 34 (+21%)
                             child: SvgPicture.asset(
-                              'assets/icons/bottom_bar/siren.svg',
+                              'assets/icons/bottom_bar/add.svg',
                               colorFilter: const ColorFilter.mode(
                                 Colors.red,
                                 BlendMode.srcIn,
@@ -253,6 +258,8 @@ class BottomBar extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // เพิ่ม SizedBox เพื่อให้ปุ่มขยับลงมาแนวเดียวกับตัวหนังสือของปุ่มกลาง
+                      const SizedBox(height: 8),
                       Container(
                         width: 40, // ปรับให้พอดีกับ 5 ปุ่ม
                         height: 24, // ปรับให้พอดีกับ 5 ปุ่ม
@@ -278,6 +285,71 @@ class BottomBar extends StatelessWidget {
                       const SizedBox(height: 2),
                       const Text(
                         'ใกล้ฉัน',
+                        style: TextStyle(
+                          fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF424743),
+                          fontFamily: 'NotoSansThai',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ปุ่มกล้องจับความเร็ว (ขวาสุด)
+          Flexible(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SpeedCameraScreen(),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                splashColor: const Color(0xFFC3E7FF).withValues(alpha: 0.3),
+                highlightColor: const Color(0xFFC3E7FF).withValues(alpha: 0.1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6.0, vertical: 3.0), // ลดความสูงของปุ่ม
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // เพิ่ม SizedBox เพื่อให้ปุ่มขยับลงมาแนวเดียวกับตัวหนังสือของปุ่มกลาง
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 40, // ปรับให้พอดีกับ 5 ปุ่ม
+                        height: 24, // ปรับให้พอดีกับ 5 ปุ่ม
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius:
+                              BorderRadius.circular(12), // ปรับตาม width ใหม่
+                        ),
+                        child: Center(
+                          child: SizedBox(
+                            width: 22, // ปรับให้พอดีกับ 5 ปุ่ม
+                            height: 22, // ปรับให้พอดีกับ 5 ปุ่ม
+                            child: SvgPicture.asset(
+                              'assets/icons/speed_camera_screen/speed camera2.svg',
+                              colorFilter: const ColorFilter.mode(
+                                Colors.red,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'กล้อง',
                         style: TextStyle(
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
