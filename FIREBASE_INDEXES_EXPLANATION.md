@@ -10,7 +10,7 @@ Fields: timestamp (descending)
 Index ID: CICAqJim14AK (ถ้ามี status + timestamp)
 ```
 **ใช้สำหรับ:** 
-- `list_screen.dart` - โหลดโพสต์ 48 ชั่วโมงล่าสุด
+- `list_screen.dart` - โหลดโพสต์ 24 ชั่วโมงล่าสุด
 - Query: `.where('timestamp', isGreaterThan: ...).orderBy('timestamp', descending: true)`
 
 #### 2. **Index สำหรับกรองตามหมวดหมู่**

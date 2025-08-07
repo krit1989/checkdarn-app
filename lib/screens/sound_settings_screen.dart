@@ -18,6 +18,14 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
     super.initState();
     _selectedSoundType = _soundManager.currentSoundType;
     _isSoundEnabled = _soundManager.isSoundEnabled;
+
+    // ถ้าค่าปัจจุบันเป็น beep หรือ warning ให้เปลี่ยนเป็น tts อัตโนมัติ
+    if (_selectedSoundType == AlertSoundType.beep ||
+        _selectedSoundType == AlertSoundType.warning) {
+      _selectedSoundType = AlertSoundType.tts;
+      // บันทึกการเปลี่ยนแปลงลง SoundManager
+      _soundManager.setSoundType(AlertSoundType.tts);
+    }
   }
 
   @override
@@ -93,8 +101,12 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
 
             const SizedBox(height: 12),
 
-            // เปลี่ยนจาก Expanded เป็น Column เพื่อให้ scroll ได้ทั้งหน้า
-            ...AlertSoundType.values.map((soundType) {
+            // แสดงเฉพาะตัวเลือกที่อนุญาต (ไม่มี beep และ warning)
+            ...AlertSoundType.values
+                .where((soundType) =>
+                    soundType != AlertSoundType.beep &&
+                    soundType != AlertSoundType.warning)
+                .map((soundType) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
@@ -166,9 +178,8 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '• เสียงพูด: เหมาะสำหรับการขับขี่ยาว ให้ข้อมูลละเอียด\n'
-                      '• เสียงบี๊บ/ระฆัง: เหมาะสำหรับการขับขี่ในเมือง สั้นกระชับ\n'
-                      '• เสียงเตือนภัย: เหมาะสำหรับเส้นทางเสี่ยง แจ้งเตือนชัดเจน',
+                      '• เสียงพูด: อ่านข้อความเป็นเสียงพูดภาษาไทย ให้ข้อมูลละเอียดและชัดเจน\n'
+                      '• ปิดเสียง: ไม่มีเสียงแจ้งเตือน เหมาะสำหรับสถานที่เงียบ',
                       style: TextStyle(fontFamily: 'NotoSansThai'),
                     ),
                   ],
@@ -186,11 +197,11 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
       case AlertSoundType.none:
         return 'ไม่มีเสียงแจ้งเตือน เงียบสนิท';
       case AlertSoundType.beep:
-        return 'เสียงบี๊บสั้นๆ เรียบง่าย';
+        return 'เสียงบี๊บสั้นๆ (เลิกใช้แล้ว)';
       case AlertSoundType.warning:
-        return 'เสียงเตือนภัยแบบไซเรน';
+        return 'เสียงเตือนภัยแบบไซเรน (เลิกใช้แล้ว)';
       case AlertSoundType.tts:
-        return 'อ่านข้อความเป็นเสียงพูดภาษาไทย';
+        return 'อ่านข้อความเป็นเสียงพูดภาษาไทย - แนะนำ';
     }
   }
 

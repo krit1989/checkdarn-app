@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../routes/app_routes.dart';
-import '../utils/constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,23 +13,35 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
 
+    // ซ่อน status bar
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+
     _animationController = AnimationController(
-      duration: AppConstants.longAnimation,
+      duration: const Duration(milliseconds: 1500), // เพิ่มเวลา animation
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+      CurvedAnimation(
+          parent: _animationController,
+          curve: const Interval(0.0, 0.6, curve: Curves.easeOut)),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _animationController,
+          curve: const Interval(0.2, 0.8, curve: Curves.elasticOut)),
     );
 
     _animationController.forward();
 
-    // Navigate to map screen after delay
+    // Navigate to map screen after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         AppRoutes.pushReplacement(context, AppRoutes.map);
@@ -39,6 +51,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    // คืนค่า status bar เมื่อออกจากหน้านี้
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _animationController.dispose();
     super.dispose();
   }
@@ -46,78 +60,156 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App logo
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.security, // ไอคอนดูปลอดภัยกว่า
-                    size: 60,
-                    color: AppColors.primary,
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // App name
-                const Text(
-                  'CheckDarn',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                // App subtitle
-                const Text(
-                  'เช็กด่าน',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // App slogan
-                const Text(
-                  'รู้ก่อน ปลอดภัยก่อน',
-                  style: TextStyle(fontSize: 14, color: Colors.white60),
-                ),
-
-                const SizedBox(height: 50),
-
-                // Loading indicator
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ],
-            ),
+      backgroundColor: const Color(0xFFFFC107), // สีเหลืองเดิม
+      body: Container(
+        // ลบ SafeArea เพื่อให้เต็มจอ
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFC107), // เหลืองสว่าง
+              Color(0xFFFFB300), // เหลืองเข้มนิดหน่อย
+            ],
           ),
+        ),
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return FadeTransition(
+              opacity: _fadeAnimation,
+              child: Transform.scale(
+                scale: _scaleAnimation.value,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(flex: 2),
+
+                    // App logo with shadow - ใช้รูปโลโก้จริง
+                    Container(
+                      width: 100, // เปลี่ยนให้ตรงกับหน้า login
+                      height: 100, // เปลี่ยนให้ตรงกับหน้า login
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.circular(24), // ตรงกับหน้า login
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black
+                                .withValues(alpha: 0.15), // ตรงกับหน้า login
+                            blurRadius: 20, // ตรงกับหน้า login
+                            offset: const Offset(0, 8), // ตรงกับหน้า login
+                            spreadRadius: 0, // ลบ spreadRadius
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius:
+                            BorderRadius.circular(24), // ตรงกับหน้า login
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          width: 100, // เปลี่ยนให้ตรงกับหน้า login
+                          height: 100, // เปลี่ยนให้ตรงกับหน้า login
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback ถ้าโหลดรูปไม่ได้
+                            return const Icon(
+                              Icons.location_on,
+                              size: 50, // ตรงกับหน้า login
+                              color: Color(0xFF4285F4),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32), // ลดจาก 40
+
+                    // App name with better typography
+                    const Text(
+                      'ยินดีต้อนรับ',
+                      style: TextStyle(
+                        fontSize:
+                            36, // ลดจาก 42 ให้ตรงกับ "CheckDarn" ในหน้า login
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87, // สีเดิม
+                        fontFamily: 'NotoSansThai',
+                        letterSpacing: 1.5, // ลดจาก 2
+                        shadows: [
+                          Shadow(
+                            color: Colors.black12,
+                            offset: Offset(1, 1), // ลดจาก 2,2
+                            blurRadius: 3, // ลดจาก 4
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 8), // ลดจาก 12
+
+                    // App subtitle
+                    const Text(
+                      'CheckDarn',
+                      style: TextStyle(
+                        fontSize: 18, // ลดจาก 20
+                        color: Colors.black54, // สีเดิม
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8, // ลดจาก 1
+                      ),
+                    ),
+
+                    const SizedBox(height: 24), // ลดจาก 30
+
+                    // App slogan with better design
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10), // ลดจาก 24,12
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(20), // ลดจาก 25
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black
+                                .withValues(alpha: 0.08), // ลดจาก 0.1
+                            blurRadius: 8, // ลดจาก 10
+                            offset: const Offset(0, 4), // ลดจาก 5
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        '"รู้ก่อน รอดก่อน ปลอดภัยก่อน"',
+                        style: TextStyle(
+                          fontSize: 14, // ลดจาก 16
+                          color: Colors.black87, // สีเดิม
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'NotoSansThai',
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                    const Spacer(flex: 3),
+
+                    // Bottom text without loading
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 40), // ลดจาก 50
+                      child: Text(
+                        'เวอร์ชัน 1.0',
+                        style: TextStyle(
+                          fontSize: 12, // ลดจาก 14
+                          color: Colors.black.withValues(alpha: 0.6), // สีเดิม
+                          fontFamily: 'NotoSansThai',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

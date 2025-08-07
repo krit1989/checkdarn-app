@@ -3,24 +3,34 @@ import 'package:flutter/foundation.dart'; // สำหรับ kIsWeb
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
-import 'screens/map_screen.dart';
+import 'routes/app_routes.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
 import 'services/cleanup_service.dart';
 import 'services/enhanced_cache_service.dart';
-import 'services/secure_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
+  // เก็บแค่ Firebase core initialization - จำเป็นต้องมี
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🚀 เปิด Local Persistence เพื่อเพิ่มความเร็ว (Platform-specific)
+  // เริ่มแอพทันที - ย้ายงานหนักไปทำทีหลัง
+  runApp(const MyApp());
+
+  // ทำงานหนักหลังจากแอพเริ่มแล้ว (ไม่บล็อค UI)
+  _initializeBackgroundServices();
+}
+
+/// ย้ายงานหนักมาทำเป็น background หลังแอพเริ่มแล้ว
+void _initializeBackgroundServices() async {
+  // รอให้แอพเริ่มต้นเสร็จก่อน
+  await Future.delayed(const Duration(milliseconds: 500));
+
   try {
-    // สำหรับ Web ใช้ enablePersistence, สำหรับ Mobile ใช้ Settings
+    // 🚀 เปิด Local Persistence เพื่อเพิ่มความเร็ว (Platform-specific)
     if (kIsWeb) {
       await FirebaseFirestore.instance.enablePersistence(
         const PersistenceSettings(synchronizeTabs: true),
@@ -30,35 +40,28 @@ void main() async {
       // สำหรับ Mobile จะตั้งค่าใน Settings ด้านล่าง
       print('✅ Firebase persistence will be set via Settings for Mobile');
     }
+
+    // ตั้งค่า Firestore settings สำหรับประสิทธิภาพที่ดีขึ้น
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // เพิ่ม cache
+    );
+
+    // Initialize services แบบ background
+    await AuthService.initialize();
+    await EnhancedCacheService.initialize();
+    await FirebaseService.initializeAndMigrate();
+
+    // 🚀 เริ่ม Smart Prefetch System
+    _startSmartPrefetch();
+
+    // 🧹 เริ่มระบบลบโพสต์อัตโนมัติ (ทุก 24 ชั่วโมง)
+    CleanupService.startAutoCleanup();
+
+    print('✅ Background services initialized successfully!');
   } catch (e) {
-    print('⚠️ Firebase persistence setup note: $e');
+    print('⚠️ Background services initialization error: $e');
   }
-
-  // ตั้งค่า Firestore settings สำหรับประสิทธิภาพที่ดีขึ้น
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // เพิ่ม cache
-
-    // 🔌 Connection Pool Limiting - จำกัดการเชื่อมต่อ
-    // ช่วยลด load เมื่อมีผู้ใช้เยอะ
-  );
-
-  // Initialize AuthService
-  await AuthService.initialize();
-
-  // Initialize Enhanced Cache Service
-  await EnhancedCacheService.initialize();
-
-  // Migrate existing data to TTL และเพิ่ม expireAt field
-  await FirebaseService.initializeAndMigrate();
-
-  // 🚀 เพิ่ม Smart Prefetch System
-  _startSmartPrefetch();
-
-  // 🧹 เริ่มระบบลบโพสต์อัตโนมัติ (ทุก 48 ชั่วโมง)
-  CleanupService.startAutoCleanup();
-
-  runApp(const MyApp());
 }
 
 /// 🚀 Smart Prefetch System - โหลดข้อมูลล่วงหน้าแบบฉลาด
@@ -81,7 +84,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'Sarabun',
       ),
-      home: const MapScreen(),
+      initialRoute: AppRoutes.splash,
+      routes: AppRoutes.routes,
       debugShowCheckedModeBanner: false,
     );
   }

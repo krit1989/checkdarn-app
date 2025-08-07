@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/smart_security_service.dart';
+import 'sound_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -360,6 +361,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  _buildSettingsItem(
+                    'เสียงแจ้งเตือนโหมดกล้องจับความเร็ว',
+                    'เสียงพูดภาษาไทย',
+                    Icons.arrow_forward_ios,
+                    () async {
+                      // Smart Security validation for sound settings
+                      if (!await _validateSettingsActionSimple(
+                        action: 'sound_settings',
+                        context: {
+                          'user_email': AuthService.currentUser?.email,
+                          'navigation': 'sound_settings_screen',
+                        },
+                      )) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SoundSettingsScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _buildSettingsItem(
                     'ภาษา',

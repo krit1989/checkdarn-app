@@ -279,9 +279,9 @@ class BackgroundFetchService {
       // เพิ่มเงื่อนไข status
       query = query.where('status', isEqualTo: 'approved');
 
-      // เพิ่มเงื่อนไข timestamp (ล่าสุด 48 ชั่วโมง)
+      // เพิ่มเงื่อนไข timestamp (ล่าสุด 24 ชั่วโมง)
       final now = DateTime.now();
-      final cutoffTime = now.subtract(const Duration(hours: 48));
+      final cutoffTime = now.subtract(const Duration(hours: 24));
       query = query.where('timestamp',
           isGreaterThan: Timestamp.fromDate(cutoffTime));
 

@@ -21,7 +21,6 @@ import '../widgets/event_marker.dart';
 import '../widgets/location_button.dart';
 import '../widgets/comment_bottom_sheet.dart';
 import 'settings_screen.dart';
-import 'report_screen.dart';
 
 // Enum สำหรับประเภท Navigation Bar
 enum NavigationBarType {
@@ -39,11 +38,12 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  LatLng? currentPosition; // เปลี่ยนกลับเป็น nullable เพื่อรอหาตำแหน่งจริงก่อน
+  LatLng? currentPosition =
+      _defaultPosition; // เริ่มต้นด้วย Bangkok แล้วค่อยอัปเดตเป็นตำแหน่งจริง
   late MapController mapController;
   double searchRadius = 50.0; // เปลี่ยนเป็น 50 km เป็นค่าเริ่มต้น (10-100 km)
   LocationInfo? currentLocationInfo; // ข้อมูลที่อยู่ปัจจุบัน
-  bool isLoadingLocation = true; // เปลี่ยนเป็น true เพื่อหาตำแหน่งจริงก่อน
+  bool isLoadingLocation = false; // ไม่แสดง loading แล้ว ให้แสดงแผนที่เลย
   bool isLoadingMyLocation = false; // Loading state แยกสำหรับปุ่ม My Location
   double loadingProgress = 0.0; // Progress bar สำหรับหน้าโหลด
   Timer? _progressTimer; // Timer สำหรับ progress bar
@@ -121,6 +121,10 @@ class _MapScreenState extends State<MapScreen>
     _startProgressTimer();
 
     // หาตำแหน่งจริงทันทีก่อน - สำคัญที่สุด
+    if (kDebugMode) {
+      debugPrint(
+          '🚀 MapScreen initState: Starting location detection immediately...');
+    }
     _getCurrentLocationImmediately();
 
     // ตรวจสอบสถานะ Location สำหรับการ debug
@@ -789,12 +793,12 @@ class _MapScreenState extends State<MapScreen>
         debugPrint('🔧 Checking location prerequisites...');
       }
 
-      // ตั้ง timeout ให้เร็วขึ้น - บังคับใช้ default หลัง 8 วินาที
-      Future.delayed(const Duration(seconds: 8), () {
+      // เพิ่มเวลา timeout ให้นานขึ้น - ให้โอกาส GPS ทำงานได้สมบูรณ์
+      Future.delayed(const Duration(seconds: 15), () {
         if (mounted && (currentPosition == null || isLoadingLocation)) {
           if (kDebugMode) {
             debugPrint(
-                '⏰ GPS timeout after 8 seconds - using default location');
+                '⏰ GPS timeout after 15 seconds - using default location');
           }
           _useDefaultLocationImmediately();
         }
@@ -843,25 +847,10 @@ class _MapScreenState extends State<MapScreen>
         debugPrint('✅ Location permission granted: $permission');
       }
 
-      // ลองใช้ last known position ก่อน (เร็วที่สุด)
+      // ข้าม last known position และไปหา current position ใหม่เลย
       if (kDebugMode) {
-        debugPrint('📋 Checking last known position...');
-      }
-      Position? lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null && mounted) {
-        if (kDebugMode) {
-          debugPrint(
-              '✅ Found last known position: ${lastKnown.latitude}, ${lastKnown.longitude}');
-        }
-        setState(() {
-          currentPosition = LatLng(lastKnown.latitude, lastKnown.longitude);
-          isLoadingLocation = false;
-        });
-        return;
-      } else {
-        if (kDebugMode) {
-          debugPrint('⚠️ No last known position available');
-        }
+        debugPrint(
+            '📋 Skipping last known position - getting fresh GPS location...');
       }
 
       // ตรวจสอบการเปิดใช้งาน Location Services
@@ -889,8 +878,9 @@ class _MapScreenState extends State<MapScreen>
       }
       try {
         Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium, // เพิ่มความแม่นยำ
-          timeLimit: const Duration(seconds: 7), // เพิ่มเวลา timeout
+          desiredAccuracy: LocationAccuracy.high, // เพิ่มความแม่นยำให้สูงสุด
+          timeLimit:
+              const Duration(seconds: 12), // เพิ่มเวลา timeout ให้นานขึ้น
         );
 
         if (kDebugMode) {
@@ -901,9 +891,21 @@ class _MapScreenState extends State<MapScreen>
         }
 
         if (mounted) {
+          final newPosition = LatLng(position.latitude, position.longitude);
           setState(() {
-            currentPosition = LatLng(position.latitude, position.longitude);
+            currentPosition = newPosition;
             isLoadingLocation = false;
+          });
+
+          // รอ 100ms แล้วค่อยย้ายแผนที่ เพื่อให้ MapController พร้อม
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              _smoothMoveMap(newPosition, 15.0);
+              if (kDebugMode) {
+                debugPrint(
+                    '🎯 Map moved to GPS location: ${newPosition.latitude}, ${newPosition.longitude}');
+              }
+            }
           });
         }
       } catch (e) {
@@ -963,17 +965,18 @@ class _MapScreenState extends State<MapScreen>
 
   // ฟังก์ชันใช้ตำแหน่งเริ่มต้นทันที
   void _useDefaultLocationImmediately() {
+    if (kDebugMode) {
+      debugPrint(
+          '⚠️ Using fallback default location (Bangkok): $_defaultPosition');
+      debugPrint('💡 Note: GPS may not be working or timed out');
+      debugPrint('🔄 User can press My Location button to retry GPS detection');
+    }
     setState(() {
       currentPosition = _defaultPosition;
       isLoadingLocation = false;
     });
     if (mounted) {
       _getLocationInfo(_defaultPosition);
-    }
-    if (kDebugMode) {
-      debugPrint('📍 Using default location (Bangkok): $_defaultPosition');
-      debugPrint(
-          '💡 User can press My Location button to find actual position');
     }
   }
 
@@ -992,12 +995,12 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  // ฟังก์ชันจัดการ Long Press บนแผนที่เพื่อสร้างโพสต์ที่ตำแหน่งนั้น (เฉพาะนิ้วเดียว)
+  // ฟังก์ชันจัดการ Long Press บนแผนที่เพื่อย้ายหมุดและดูโพสในบริเวณนั้น (เฉพาะนิ้วเดียว)
   void _onMapLongPress(TapPosition tapPosition, LatLng point) async {
     // ==================== SMART SECURITY CHECK ====================
 
     // ตรวจสอบด้วย Smart Security Service
-    if (!_validateMapAction('long_press_create_post')) {
+    if (!_validateMapAction('long_press_move_marker')) {
       print('🔒 Long press blocked by Smart Security');
       return;
     }
@@ -1012,20 +1015,7 @@ class _MapScreenState extends State<MapScreen>
     }
 
     if (kDebugMode) {
-      debugPrint('✅ Single finger long press detected - opening ReportScreen');
-    }
-    // ตรวจสอบการล็อกอิน
-    if (!AuthService.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'กรุณาล็อกอินก่อนสร้างโพสต์',
-            style: TextStyle(fontFamily: 'NotoSansThai'),
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
+      debugPrint('✅ Single finger long press detected - moving to view posts');
     }
 
     // แสดง loading แบบสั้นๆ
@@ -1043,42 +1033,50 @@ class _MapScreenState extends State<MapScreen>
             ),
             SizedBox(width: 12),
             Text(
-              'กำลังดึงข้อมูลตำแหน่ง...',
+              'กำลังค้นหาโพสในบริเวณนี้...',
               style: TextStyle(fontFamily: 'NotoSansThai'),
             ),
           ],
         ),
-        duration: Duration(seconds: 2),
+        duration: Duration(seconds: 1),
       ),
     );
 
     try {
-      // ดึงข้อมูลตำแหน่ง
+      // ดึงข้อมูลที่อยู่ของตำแหน่งใหม่
       final locationInfo = await GeocodingService.getLocationInfo(point);
 
       // ซ่อน loading snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // นำทางไป ReportScreen พร้อมข้อมูลตำแหน่งและชื่อถนน
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReportScreen(
-              initialLocation: point,
-              initialLocationInfo: locationInfo,
-            ),
+      // อัปเดตตำแหน่งปัจจุบันและข้อมูลตำแหน่ง
+      setState(() {
+        currentPosition = point;
+        currentLocationInfo = locationInfo;
+      });
+
+      // ย้ายกล้องไปยังตำแหน่งใหม่
+      _smoothMoveMap(point, mapController.camera.zoom);
+
+      // ล้าง cache เพื่อให้แสดงหมุดในบริเวณใหม่
+      _invalidateMarkersCache();
+
+      // แสดงข้อความแจ้งผลลัพธ์
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'ย้ายไปดูโพสในบริเวณ: ${locationInfo?.displayName ?? 'ตำแหน่งที่เลือก'}',
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
-        ).then((_) {
-          // เมื่อกลับมาจากหน้า Report ให้ invalidate cache เพื่อแสดงโพสใหม่
-          if (mounted) {
-            _invalidateMarkersCache();
-            if (kDebugMode) {
-              debugPrint(
-                  '🔄 Returned from ReportScreen - cache invalidated for new posts');
-            }
-          }
-        });
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      if (kDebugMode) {
+        debugPrint(
+            'Moved to new location: ${point.latitude}, ${point.longitude}');
+        debugPrint('Address: ${locationInfo?.displayName}');
       }
     } catch (e) {
       // ซ่อน loading snackbar
@@ -1099,8 +1097,34 @@ class _MapScreenState extends State<MapScreen>
 
   // ฟังก์ชัน smooth move แผนที่ - ย้ายกล้องไปตรงกลางจอ
   void _smoothMoveMap(LatLng target, double zoom) {
-    // ใช้ move เพื่อให้ตำแหน่งอยู่ตรงกลางจอ
-    mapController.move(target, zoom);
+    try {
+      // ใช้ move เพื่อให้ตำแหน่งอยู่ตรงกลางจอ
+      mapController.move(target, zoom);
+      if (kDebugMode) {
+        debugPrint(
+            '🗺️ Map moved successfully to: ${target.latitude}, ${target.longitude}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Error moving map: $e - retrying in 500ms');
+      }
+      // รอแล้วลองใหม่
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          try {
+            mapController.move(target, zoom);
+            if (kDebugMode) {
+              debugPrint(
+                  '🗺️ Map moved successfully on retry to: ${target.latitude}, ${target.longitude}');
+            }
+          } catch (retryError) {
+            if (kDebugMode) {
+              debugPrint('❌ Failed to move map even on retry: $retryError');
+            }
+          }
+        }
+      });
+    }
   }
 
   // Variables for advanced drag detection (simplified)
@@ -1159,15 +1183,8 @@ class _MapScreenState extends State<MapScreen>
   void _showEventPopup(
       BuildContext context, Map<String, dynamic> data, EventCategory category) {
     // ดึงข้อมูลเหมือนใน list_screen.dart
-    final title = data['title'] ??
-        (data['description']?.toString().isNotEmpty == true
-            ? data['description'].toString().length > 30
-                ? '${data['description'].toString().substring(0, 30)}...'
-                : data['description'].toString()
-            : 'ไม่มีหัวข้อ');
     final imageUrl = data['imageUrl'] as String?;
     final timestamp = data['timestamp'] as Timestamp?;
-    final reportId = data['id'] ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -1212,7 +1229,7 @@ class _MapScreenState extends State<MapScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // แถวที่ 1: emoji + หัวข้อเหตุการณ์
+                      // แถวที่ 1: emoji + หัวข้อเหตุการณ์ + เวลา
                       Row(
                         children: [
                           Text(
@@ -1233,6 +1250,18 @@ class _MapScreenState extends State<MapScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          // เวลาที่ผ่านมา
+                          if (timestamp != null) ...[
+                            Text(
+                              DateTimeFormatters.formatTimestamp(timestamp),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w400,
+                                fontFamily: 'NotoSansThai',
+                              ),
+                            ),
+                          ],
                         ],
                       ),
 
@@ -1293,13 +1322,28 @@ class _MapScreenState extends State<MapScreen>
                         ),
                       ],
 
-                      // แถวที่ 4: พิกัด GPS
-                      const SizedBox(height: 12),
-                      StatefulBuilder(
-                        builder: (context, setIconState) {
-                          return _CopyCoordinatesWidget(data: data);
-                        },
-                      ),
+                      // แถวที่ 4: วันเดือนปี
+                      if (timestamp != null) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Text(
+                              '🗓️',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              DateTimeFormatters.formatDate(timestamp),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w400,
+                                fontFamily: 'NotoSansThai',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
 
                       // แถวที่ 5: รูปภาพ (ถ้ามี)
                       if (imageUrl != null &&
@@ -1438,30 +1482,7 @@ class _MapScreenState extends State<MapScreen>
                         ),
                       ],
 
-                      // แถวที่ 6: เวลา
-                      if (timestamp != null) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            const Text(
-                              '🕐',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${DateTimeFormatters.formatDate(timestamp)} · ${DateTimeFormatters.formatTimestamp(timestamp)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w400,
-                                fontFamily: 'NotoSansThai',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-
-                      // แถวที่ 7: ชื่อคนโพส
+                      // แถวที่ 6: ชื่อคนโพส
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -1483,120 +1504,83 @@ class _MapScreenState extends State<MapScreen>
                         ],
                       ),
 
-                      // ช่องว่างด้านล่างเพื่อไม่ให้เนื้อหาติดขอบ
-                      const SizedBox(height: 80),
-                    ],
-                  ),
-                ),
-              ),
+                      // เพิ่มระยะห่างก่อน Divider
+                      const SizedBox(height: 8),
 
-              // Footer with comment button - ติดด้านล่าง
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    top: BorderSide(color: Colors.grey[200]!, width: 1),
-                  ),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: FutureBuilder<QuerySnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('reports')
-                        .doc(reportId)
-                        .collection('comments')
-                        .get(),
-                    builder: (context, snapshot) {
-                      // เพิ่ม loading state สำหรับความคิดเห็น
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return ElevatedButton.icon(
-                          onPressed: null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF9800),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            elevation: 0,
-                          ),
-                          icon: const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          label: const Text(
-                            'กำลังโหลด...',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              fontFamily: 'NotoSansThai',
-                            ),
-                          ),
-                        );
-                      }
-
-                      int commentCount = 0;
-                      if (snapshot.hasData) {
-                        commentCount = snapshot.data!.docs.length;
-                      }
-
-                      return ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context)
-                              .pop(); // ปิด bottom sheet ปัจจุบัน
-                          _showCommentSheet(reportId, title, category.name);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF9800),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(
-                          Icons.chat_bubble_outline,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'แสดงความคิดเห็น',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                                fontFamily: 'NotoSansThai',
-                              ),
-                            ),
-                            if (commentCount > 0) ...[
-                              const SizedBox(width: 6),
-                              Text(
-                                '$commentCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'NotoSansThai',
+                      // Comment button (แบบเดียวกับ list_screen.dart)
+                      const Divider(height: 1),
+                      FutureBuilder<QuerySnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('reports')
+                            .doc(data['id'] ?? '')
+                            .collection('comments')
+                            .get(),
+                        builder: (context, snapshot) {
+                          int commentCount = 0;
+                          if (snapshot.hasData) {
+                            commentCount = snapshot.data!.docs.length;
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                // ส่วนที่ไม่สามารถกดได้
+                                const Spacer(),
+                                // ส่วนที่กดได้ (เฉพาะไอคอนและข้อความ)
+                                InkWell(
+                                  onTap: () => _showCommentSheet(
+                                    data['id'] ?? '',
+                                    category.label,
+                                    category.name,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.chat_bubble_outline,
+                                          size: 16,
+                                          color: Color(0xFFFF9800),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'ความคิดเห็น',
+                                          style: TextStyle(
+                                            color: Color(0xFFFF9800),
+                                            fontWeight: FontWeight.w200,
+                                            fontSize: 14,
+                                            fontFamily: 'NotoSansThai',
+                                          ),
+                                        ),
+                                        if (commentCount > 0) ...[
+                                          const SizedBox(width: 0),
+                                          Text(
+                                            ' ($commentCount)',
+                                            style: const TextStyle(
+                                              color: Color(0xFFFF9800),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    },
+                                const SizedBox(width: 16), // เพิ่ม margin ขวา
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+
+                      // ช่องว่างด้านล่างเพื่อไม่ให้เนื้อหาติดขอบ
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
               ),
@@ -1749,6 +1733,7 @@ class _MapScreenState extends State<MapScreen>
         !radiusChanged &&
         _cachedDocuments.isNotEmpty &&
         _lastCachedPosition != null &&
+        currentPosition != null &&
         _calculateDistanceInKm(
               _lastCachedPosition!.latitude,
               _lastCachedPosition!.longitude,
@@ -1765,7 +1750,7 @@ class _MapScreenState extends State<MapScreen>
     }
 
     final now = DateTime.now();
-    final fortyEightHoursAgo = now.subtract(const Duration(hours: 48));
+    final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
 
     final filteredDocs = docs.where((doc) {
       final data = doc.data() as Map<String, dynamic>?;
@@ -1776,10 +1761,10 @@ class _MapScreenState extends State<MapScreen>
       final eventCategory = FirebaseService.getCategoryFromName(category ?? '');
       if (!selectedCategories.contains(eventCategory)) return false;
 
-      // ตรวจสอบเวลา - ต้องไม่เกิน 48 ชั่วโมง
+      // ตรวจสอบเวลา - ต้องไม่เกิน 24 ชั่วโมง
       DateTime? timestamp =
           DateTimeFormatters.parseTimestamp(data['timestamp']);
-      if (timestamp == null || !timestamp.isAfter(fortyEightHoursAgo))
+      if (timestamp == null || !timestamp.isAfter(twentyFourHoursAgo))
         return false;
 
       // ตรวจสอบพิกัด
@@ -1788,6 +1773,8 @@ class _MapScreenState extends State<MapScreen>
       if (lat == 0.0 && lng == 0.0) return false;
 
       // ตรวจสอบระยะทาง - ใช้รัศมีปัจจุบัน
+      if (currentPosition == null) return false; // ป้องกัน null
+
       final distance = FirebaseService.calculateDistance(
         currentPosition!.latitude,
         currentPosition!.longitude,
@@ -2246,128 +2233,8 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   Widget build(BuildContext context) {
-    // แสดง loading screen จนกว่าจะหาตำแหน่งจริงเจอ
-    if (isLoadingLocation || currentPosition == null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFFDC621), // เปลี่ยนกลับเป็นสีเหลืองเดิม
-        extendBodyBehindAppBar: true,
-        extendBody: true,
-        resizeToAvoidBottomInset: false,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 2),
-
-              // โลโก้แอป
-              Image.asset(
-                'assets/images/app_icon.png',
-                width: 120,
-                height: 120,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.location_on,
-                      size: 60,
-                      color: Colors.black, // เปลี่ยนกลับเป็นสีดำเดิม
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 30),
-
-              // โลโก้ CheckDarn
-              const Text(
-                'CheckDarn',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black, // เปลี่ยนกลับเป็นสีดำเดิม
-                  fontFamily: 'NotoSansThai',
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Progress Bar
-              Container(
-                width: 200,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.black
-                      .withValues(alpha: 0.2), // เปลี่ยนกลับเป็นสีดำอ่อนเดิม
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: loadingProgress,
-                    backgroundColor: Colors.transparent,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                        Colors.black), // เปลี่ยนกลับเป็นสีดำเดิม
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // เปอร์เซ็นต์
-              Text(
-                '${(loadingProgress * 100).toInt()}%',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87, // เปลี่ยนกลับเป็นสีดำเดิม
-                ),
-              ),
-
-              const Spacer(flex: 3),
-
-              // คำคมด้านล่าง
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Column(
-                  children: [
-                    const Text(
-                      '"รู้ก่อน รอดก่อน ปลอดภัยก่อน"',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.black87, // เปลี่ยนกลับเป็นสีดำเดิม
-                        fontStyle: FontStyle.italic,
-                        height: 1.4,
-                        fontFamily: 'NotoSansThai',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'CheckDarn - ตรวจสอบเหตุการณ์ใกล้ตัว',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black.withValues(
-                            alpha: 0.8), // เปลี่ยนกลับเป็นสีดำอ่อนเดิม
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'NotoSansThai',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      );
-    }
+    // ไม่แสดง loading screen แล้ว - ให้แสดงแผนที่เลย
+    // ยกเลิกการเช็ค isLoadingLocation เพื่อลบ progress bar ออก
 
     // คืนค่า Navigation Bar เมื่อเข้าหน้าแผนที่หลัก
     _restoreMainScreenNavigationBar();
@@ -2406,124 +2273,9 @@ class _MapScreenState extends State<MapScreen>
                     ),
                   ),
 
-                  // ส่วนกลาง - ปุ่ม help และโปรไฟล์
+                  // ส่วนกลาง - โปรไฟล์
                   Row(
                     children: [
-                      // ปุ่ม help สำหรับบอกวิธีใช้ Long Press
-                      GestureDetector(
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              title: const Row(
-                                children: [
-                                  Text('💡'),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'วิธีใช้งานแผนที่',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 18,
-                                      fontFamily: 'NotoSansThai',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              content: const Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.touch_app,
-                                          size: 20, color: Colors.blue),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'จิ้มที่แผนที่ 1 ครั้ง = ย้ายตำแหน่งการค้นหา',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontFamily: 'NotoSansThai',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.touch_app,
-                                          size: 20, color: Colors.orange),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'กดค้างที่แผนที่ = สร้างโพสต์ใหม่',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontFamily: 'NotoSansThai',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.my_location,
-                                          size: 20, color: Colors.blue),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'ปุ่มตำแหน่ง = กลับมาตำแหน่งจริงของคุณ',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontFamily: 'NotoSansThai',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text(
-                                    'เข้าใจแล้ว',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF4673E5),
-                                      fontFamily: 'NotoSansThai',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        child: Container(
-                          width: 35,
-                          height: 35,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            border: Border.all(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.help_outline,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-
                       // ส่วนโปรไฟล์
                       GestureDetector(
                         onTap: AuthService.isLoggedIn
@@ -2591,8 +2343,8 @@ class _MapScreenState extends State<MapScreen>
                 currentPosition), // rebuild เมื่อ currentPosition เปลี่ยน
             mapController: mapController,
             options: MapOptions(
-              initialCenter:
-                  currentPosition!, // ใช้ ! เพราะเช็คแล้วใน if ด้านบน
+              initialCenter: currentPosition ??
+                  _defaultPosition, // ใช้ Bangkok เป็นค่าเริ่มต้น แล้วค่อยย้ายไปตำแหน่งจริง
               initialZoom: 15.0,
               minZoom: 5.0,
               maxZoom: 18.0,
@@ -2720,7 +2472,9 @@ class _MapScreenState extends State<MapScreen>
               CircleLayer(
                 circles: [
                   CircleMarker(
-                    point: currentPosition!, // ใช้ ! เพราะเช็คแล้วใน if ด้านบน
+                    point: currentPosition ??
+                        const LatLng(
+                            13.7563, 100.5018), // ใช้ตำแหน่งสำรองถ้าไม่มี
                     radius: searchRadius * 1000, // แปลงเป็นเมตร
                     useRadiusInMeter: true,
                     color: const Color(0xFF4673E5).withValues(alpha: 0.15),
@@ -2730,18 +2484,19 @@ class _MapScreenState extends State<MapScreen>
                 ],
               ),
               // หมุดตำแหน่งผู้ใช้ - optimized with key
-              MarkerLayer(
-                key: const ValueKey('user_position_marker'),
-                markers: [
-                  Marker(
-                    point: currentPosition!, // ใช้ ! เพราะเช็คแล้วใน if ด้านบน
-                    width: 38.64, // เพิ่มจาก 36.8 เป็น 38.64 (เพิ่ม 5%)
-                    height: 50.4, // เพิ่มจาก 48 เป็น 50.4 (เพิ่ม 5%)
-                    child: const LocationMarker(
-                        scale: 1.68), // เพิ่มจาก 1.6 เป็น 1.68 (เพิ่ม 5%)
-                  ),
-                ],
-              ),
+              if (currentPosition != null)
+                MarkerLayer(
+                  key: const ValueKey('user_position_marker'),
+                  markers: [
+                    Marker(
+                      point: currentPosition!, // safe เพราะเช็คแล้วใน if
+                      width: 38.64, // เพิ่มจาก 36.8 เป็น 38.64 (เพิ่ม 5%)
+                      height: 50.4, // เพิ่มจาก 48 เป็น 50.4 (เพิ่ม 5%)
+                      child: const LocationMarker(
+                          scale: 1.68), // เพิ่มจาก 1.6 เป็น 1.68 (เพิ่ม 5%)
+                    ),
+                  ],
+                ),
               // หมุดเหตุการณ์จาก Firebase - Optimized with better caching
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseService.getReportsStream(),
@@ -2925,129 +2680,5 @@ extension MapScreenAnalytics on _MapScreenState {
     if (kDebugMode) {
       debugPrint('🔕 Analytics tracking disabled');
     }
-  }
-}
-
-// Widget แยกสำหรับการคัดลอกพิกัด
-class _CopyCoordinatesWidget extends StatefulWidget {
-  final Map<String, dynamic> data;
-
-  const _CopyCoordinatesWidget({required this.data});
-
-  @override
-  State<_CopyCoordinatesWidget> createState() => _CopyCoordinatesWidgetState();
-}
-
-class _CopyCoordinatesWidgetState extends State<_CopyCoordinatesWidget> {
-  bool isCopied = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Text(
-          '🌐',
-          style: TextStyle(fontSize: 16),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: GestureDetector(
-            onTap: () async {
-              final lat = widget.data['lat'] as double?;
-              final lng = widget.data['lng'] as double?;
-
-              // Debug log เพื่อตรวจสอบพิกัด
-              if (kDebugMode) {
-                debugPrint('🌐 Debug coordinates: lat=$lat, lng=$lng');
-                debugPrint('🌐 Debug data keys: ${widget.data.keys.toList()}');
-              }
-
-              if (lat != null && lng != null) {
-                final coordinates =
-                    '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
-
-                // เปลี่ยนไอคอนเป็น check mark
-                setState(() {
-                  isCopied = true;
-                });
-
-                await Clipboard.setData(ClipboardData(text: coordinates));
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('คัดลอกพิกัดแล้ว',
-                          style: TextStyle(fontFamily: 'NotoSansThai')),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-
-                  // เปลี่ยนกลับเป็นไอคอน copy หลัง 2 วินาที
-                  Future.delayed(const Duration(seconds: 2), () {
-                    if (mounted) {
-                      setState(() {
-                        isCopied = false;
-                      });
-                    }
-                  });
-                }
-              } else {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('ไม่มีข้อมูลพิกัด',
-                          style: TextStyle(fontFamily: 'NotoSansThai')),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isCopied ? Colors.green[50] : Colors.grey[100],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: isCopied ? Colors.green[300]! : Colors.grey[300]!,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Expanded(
-                    child: Text(
-                      () {
-                        final lat = widget.data['lat'] as double?;
-                        final lng = widget.data['lng'] as double?;
-                        if (lat != null && lng != null) {
-                          return '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
-                        }
-                        return 'ไม่มีพิกัด';
-                      }(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isCopied ? Colors.green[700] : Colors.grey[700],
-                        fontFamily: 'NotoSansThai',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: Icon(
-                      isCopied ? Icons.check : Icons.copy,
-                      key: ValueKey(isCopied),
-                      size: 14,
-                      color: isCopied ? Colors.green[600] : Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }

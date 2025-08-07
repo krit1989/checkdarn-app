@@ -28,15 +28,15 @@ class CleanupService {
     print('🧹 Auto cleanup service stopped');
   }
 
-  /// ลบโพสต์ที่เก่ากว่า 48 ชั่วโมง (ใช้ Batch สำหรับ Firebase ฟรี)
+  /// ลบโพสต์ที่เก่ากว่า 24 ชั่วโมง (ใช้ Batch สำหรับ Firebase ฟรี)
   static Future<void> _performCleanup() async {
     try {
-      final cutoffTime = DateTime.now().subtract(const Duration(hours: 48));
+      final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
       final cutoffTimestamp = Timestamp.fromDate(cutoffTime);
 
       print('🧹 Starting cleanup for posts older than: $cutoffTime');
 
-      // ค้นหาโพสต์ที่เก่ากว่า 48 ชั่วโมง (จำกัด 15 รายการต่อครั้งเพื่อประหยัด quota)
+      // ค้นหาโพสต์ที่เก่ากว่า 24 ชั่วโมง (จำกัด 15 รายการต่อครั้งเพื่อประหยัด quota)
       final oldPostsQuery = await _firestore
           .collection(_collection)
           .where('timestamp', isLessThan: cutoffTimestamp)
@@ -127,7 +127,7 @@ class CleanupService {
       totalRounds++;
 
       // ตรวจสอบว่ายังมีโพสต์เก่าอีกไหม
-      final cutoffTime = DateTime.now().subtract(const Duration(hours: 48));
+      final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
       final cutoffTimestamp = Timestamp.fromDate(cutoffTime);
       final oldPostsCheck = await _firestore
           .collection(_collection)
@@ -147,11 +147,11 @@ class CleanupService {
         .collection(_collection)
         .where('timestamp',
             isGreaterThan: Timestamp.fromDate(
-                DateTime.now().subtract(const Duration(hours: 48))))
+                DateTime.now().subtract(const Duration(hours: 24))))
         .get();
 
     print('🧹 Manual cleanup completed after $totalRounds rounds');
-    print('📊 Fresh posts (48h): ${freshPosts.docs.length}');
+    print('📊 Fresh posts (24h): ${freshPosts.docs.length}');
 
     return freshPosts.docs.length;
   }
@@ -160,16 +160,16 @@ class CleanupService {
   static Future<Map<String, int>> getPostStatistics() async {
     try {
       final now = DateTime.now();
-      final fortyEightHoursAgo = now.subtract(const Duration(hours: 48));
+      final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
 
       // จำนวนโพสต์ทั้งหมด
       final totalQuery = await _firestore.collection(_collection).get();
 
-      // จำนวนโพสต์สดใหม่ (48 ชั่วโมง)
+      // จำนวนโพสต์สดใหม่ (24 ชั่วโมง)
       final freshQuery = await _firestore
           .collection(_collection)
           .where('timestamp',
-              isGreaterThan: Timestamp.fromDate(fortyEightHoursAgo))
+              isGreaterThan: Timestamp.fromDate(twentyFourHoursAgo))
           .get();
 
       return {

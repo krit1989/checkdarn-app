@@ -14,7 +14,7 @@
     </queries>
     
     <application
-        android:label="check_darn"
+        android:label="เช็กด่าน"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

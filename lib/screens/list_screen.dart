@@ -53,7 +53,7 @@ class _ListScreenState extends State<ListScreen> {
 
   // ฟังก์ชันโหลดข้อมูลเพิ่มเติม (Pagination)
   // 🔍 Firebase Indexes ที่ใช้:
-  // - timestamp (เวลา) - กรองโพสต์ใน 48 ชั่วโมงล่าสุด
+  // - timestamp (เวลา) - กรองโพสต์ใน 24 ชั่วโมงล่าสุด
   // - orderBy timestamp - เรียงจากใหม่ไปเก่า
   // 📝 Index ที่ต้องมีใน Firebase: timestamp (descending)
   Future<void> _loadMoreData() async {
@@ -64,8 +64,8 @@ class _ListScreenState extends State<ListScreen> {
     try {
       print('Debug: Starting to load data from Firestore...');
 
-      // Query หลักสำหรับ List Screen: โพสต์ 48 ชั่วโมงล่าสุด
-      final cutoffTime = DateTime.now().subtract(const Duration(hours: 48));
+      // Query หลักสำหรับ List Screen: โพสต์ 24 ชั่วโมงล่าสุด
+      final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
       print('Debug: Cutoff time: $cutoffTime');
 
       Query query = _firestore
@@ -324,14 +324,14 @@ class _ListScreenState extends State<ListScreen> {
               Text('📄 โพสต์ทั้งหมด: ${stats['total']} รายการ',
                   style: TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 8),
-              Text('✨ โพสต์สดใหม่ (48 ชม.): ${stats['fresh']} รายการ',
+              Text('✨ โพสต์สดใหม่ (24 ชม.): ${stats['fresh']} รายการ',
                   style: TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 8),
               Text('🗑️ โพสต์เก่า: ${stats['old']} รายการ',
                   style: TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 16),
               const Text(
-                '💡 โพสต์จะถูกลบอัตโนมัติหลัง 48 ชั่วโมง\nเพื่อรักษาความสดใหม่ของข้อมูล',
+                '💡 โพสต์จะถูกลบอัตโนมัติหลัง 24 ชั่วโมง\nเพื่อรักษาความสดใหม่ของข้อมูล',
                 style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
@@ -650,7 +650,7 @@ class _ListScreenState extends State<ListScreen> {
       backgroundColor: const Color(0xFFEDF0F7),
       appBar: AppBar(
         title: const Text(
-          'รายการแจ้งเหตุ',
+          'ใกล้ฉัน',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.black,
@@ -854,7 +854,7 @@ class _ListScreenState extends State<ListScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // แถวที่ 1: emoji + หัวข้อเหตุการณ์
+                                    // แถวที่ 1: emoji + หัวข้อเหตุการณ์ + เวลาที่ผ่านมา
                                     Row(
                                       children: [
                                         Text(
@@ -881,6 +881,19 @@ class _ListScreenState extends State<ListScreen> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
+                                        // เวลาที่ผ่านมา
+                                        if (timestamp != null) ...[
+                                          Text(
+                                            DateTimeFormatters.formatTimestamp(
+                                                timestamp),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w400,
+                                              fontFamily: 'NotoSansThai',
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
 
@@ -1144,13 +1157,13 @@ class _ListScreenState extends State<ListScreen> {
                                       ),
                                     ],
 
-                                    // แถวที่ 6: เวลา
+                                    // แถวที่ 6: วันเดือนปี เวลาที่โพสต์
                                     if (timestamp != null) ...[
                                       const SizedBox(height: 5),
                                       Row(
                                         children: [
                                           const Text(
-                                            '🕐',
+                                            '🗓️',
                                             style: TextStyle(
                                               fontSize: 13,
                                               fontFamily: 'NotoSansThai',
@@ -1160,7 +1173,8 @@ class _ListScreenState extends State<ListScreen> {
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            '${DateTimeFormatters.formatDate(timestamp)} · ${DateTimeFormatters.formatTimestamp(timestamp)}',
+                                            DateTimeFormatters.formatDate(
+                                                timestamp),
                                             style: const TextStyle(
                                               fontSize: 13,
                                               color: Colors.black,

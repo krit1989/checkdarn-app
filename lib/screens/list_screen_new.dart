@@ -66,12 +66,12 @@ class _ListScreenState extends State<ListScreen> {
             children: [
               Text('📄 โพสต์ทั้งหมด: ${stats['total']} รายการ'),
               const SizedBox(height: 8),
-              Text('✨ โพสต์สดใหม่ (48 ชม.): ${stats['fresh']} รายการ'),
+              Text('✨ โพสต์สดใหม่ (24 ชม.): ${stats['fresh']} รายการ'),
               const SizedBox(height: 8),
               Text('🗑️ โพสต์เก่า: ${stats['old']} รายการ'),
               const SizedBox(height: 16),
               const Text(
-                '💡 โพสต์จะถูกลบอัตโนมัติหลัง 48 ชั่วโมง\nเพื่อรักษาความสดใหม่ของข้อมูล',
+                '💡 โพสต์จะถูกลบอัตโนมัติหลัง 24 ชั่วโมง\nเพื่อรักษาความสดใหม่ของข้อมูล',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
@@ -315,7 +315,7 @@ class _ListScreenState extends State<ListScreen> {
             .collection('reports')
             .where('timestamp',
                 isGreaterThan: Timestamp.fromDate(DateTime.now().subtract(
-                    const Duration(hours: 48)))) // แสดงเฉพาะโพสต์ใน 48 ชั่วโมง
+                    const Duration(hours: 24)))) // แสดงเฉพาะโพสต์ใน 24 ชั่วโมง
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {

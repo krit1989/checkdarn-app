@@ -48,8 +48,17 @@ class SoundManager {
     final prefs = await SharedPreferences.getInstance();
 
     final soundTypeIndex =
-        prefs.getInt(_soundTypeKey) ?? 3; // เปลี่ยนจาก 1 เป็น 3 (tts)
-    _currentSoundType = AlertSoundType.values[soundTypeIndex];
+        prefs.getInt(_soundTypeKey) ?? 3; // ค่าเริ่มต้นเป็น tts (index 3)
+
+    // ถ้าค่าที่บันทึกไว้เป็น beep (index 1) หรือ warning (index 2)
+    // ให้เปลี่ยนเป็น tts (index 3) อัตโนมัติ
+    if (soundTypeIndex == 1 || soundTypeIndex == 2) {
+      _currentSoundType = AlertSoundType.tts;
+      // บันทึกค่าใหม่ลง SharedPreferences
+      await prefs.setInt(_soundTypeKey, AlertSoundType.tts.index);
+    } else {
+      _currentSoundType = AlertSoundType.values[soundTypeIndex];
+    }
 
     _isSoundEnabled = prefs.getBool(_soundEnabledKey) ?? true;
   }
@@ -388,11 +397,11 @@ extension AlertSoundTypeExtension on AlertSoundType {
       case AlertSoundType.none:
         return 'ปิดเสียง';
       case AlertSoundType.beep:
-        return 'เสียงบี๊บจริง';
+        return 'เสียงบี๊บจริง (ไม่แนะนำ)'; // เพิ่มคำเตือน
       case AlertSoundType.warning:
-        return 'เสียงเตือนภัยจริง';
+        return 'เสียงเตือนภัยจริง (ไม่แนะนำ)'; // เพิ่มคำเตือน
       case AlertSoundType.tts:
-        return 'เสียงพูด';
+        return 'เสียงพูดภาษาไทย';
     }
   }
 
@@ -416,11 +425,11 @@ extension AlertSoundTypeExtension on AlertSoundType {
       case AlertSoundType.none:
         return 'ไม่มีเสียงแจ้งเตือน';
       case AlertSoundType.beep:
-        return 'เสียงบี๊บจริงๆ (ไม่ใช่เสียงพูด)';
+        return 'เสียงบี๊บจริงๆ (เลิกใช้แล้ว)';
       case AlertSoundType.warning:
-        return 'เสียงเตือนภัยจริงๆ (แบบไซเรน)';
+        return 'เสียงเตือนภัยจริงๆ (เลิกใช้แล้ว)';
       case AlertSoundType.tts:
-        return 'อ่านข้อความเป็นเสียงพูด';
+        return 'อ่านข้อความเป็นเสียงพูดภาษาไทย - แนะนำ';
     }
   }
 }
