@@ -15,6 +15,7 @@ import '../services/geocoding_service.dart';
 import '../services/firebase_service.dart';
 import '../services/auth_service.dart';
 import '../services/smart_security_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/location_picker_screen.dart';
 import 'list_screen.dart';
 
@@ -545,6 +546,16 @@ class _ReportScreenState extends State<ReportScreen> {
       );
 
       print('✅ Submission successful: $reportId');
+
+      // 🔔 ทริกเกอร์การส่งแจ้งเตือนหลังโพสใหม่สำเร็จ
+      try {
+        print('🔔 Triggering notification for new post...');
+        await NotificationService.triggerNewPostNotification(reportId);
+        print('✅ Notification triggered successfully');
+      } catch (notificationError) {
+        print('⚠️ Notification error (non-critical): $notificationError');
+        // ไม่ให้ error ของ notification ขัดขวางการโพส
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

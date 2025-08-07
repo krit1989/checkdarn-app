@@ -13,6 +13,7 @@ import '../services/cleanup_service.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/geocoding_service.dart';
+import '../services/push_notification_service.dart';
 
 class ListScreen extends StatefulWidget {
   const ListScreen({super.key});
@@ -49,6 +50,79 @@ class _ListScreenState extends State<ListScreen> {
     super.initState();
     _getCurrentLocation();
     _loadMoreData(); // โหลดข้อมูลแรก
+
+    // 🔔 ตรวจสอบว่ามี pending notification จาก PushNotificationService หรือไม่
+    _checkPendingNotification();
+  }
+
+  /// 🔔 ตรวจสอบ Pending Notification
+  void _checkPendingNotification() {
+    try {
+      final String? pendingReportId =
+          PushNotificationService.getPendingReportId();
+      if (pendingReportId != null) {
+        print(
+            '🔔 ListScreen: Found pending notification for reportId: $pendingReportId');
+
+        // รอให้หน้าโหลดเสร็จ แล้วเปิด comment sheet
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          _openCommentSheetForReport(pendingReportId);
+        });
+      }
+    } catch (e) {
+      print('❌ ListScreen: Error checking pending notification: $e');
+    }
+  }
+
+  /// 💬 เปิด Comment Sheet สำหรับ Report ID ที่กำหนด
+  Future<void> _openCommentSheetForReport(String reportId) async {
+    try {
+      print('🔔 ListScreen: Opening comment sheet for reportId: $reportId');
+
+      // หา document ใน _allDocuments ที่มี reportId ตรงกัน
+      DocumentSnapshot? targetDoc;
+      for (final doc in _allDocuments) {
+        if (doc.id == reportId) {
+          targetDoc = doc;
+          break;
+        }
+      }
+
+      if (targetDoc != null) {
+        final Map<String, dynamic> data =
+            targetDoc.data() as Map<String, dynamic>;
+        final String title = data['title'] ??
+            data['description']?.toString().split(' ').take(3).join(' ') ??
+            'ไม่มีหัวข้อ';
+        final String category = data['category'] ?? data['type'] ?? 'other';
+
+        _showCommentSheet(reportId, title, category);
+      } else {
+        print(
+            '⚠️ ListScreen: Report not found in current documents: $reportId');
+
+        // ถ้าไม่เจอใน current documents ให้ดึงจาก Firestore
+        final DocumentSnapshot reportDoc = await FirebaseFirestore.instance
+            .collection('reports')
+            .doc(reportId)
+            .get();
+
+        if (reportDoc.exists) {
+          final Map<String, dynamic> data =
+              reportDoc.data() as Map<String, dynamic>;
+          final String title = data['title'] ??
+              data['description']?.toString().split(' ').take(3).join(' ') ??
+              'ไม่มีหัวข้อ';
+          final String category = data['category'] ?? data['type'] ?? 'other';
+
+          _showCommentSheet(reportId, title, category);
+        } else {
+          print('❌ ListScreen: Report not found in Firestore: $reportId');
+        }
+      }
+    } catch (e) {
+      print('❌ ListScreen: Error opening comment sheet: $e');
+    }
   }
 
   // ฟังก์ชันโหลดข้อมูลเพิ่มเติม (Pagination)

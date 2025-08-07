@@ -89,6 +89,45 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // 🔔 กฎสำหรับ FCM Tokens ในผู้ใช้ - เฉพาะเจ้าของและระบบ
+    // เปิดให้อ่านได้สำหรับ Cloud Functions เพื่อส่ง notifications
+    match /users/{userId} {
+      allow read: if true; // Cloud Functions ต้องอ่าน fcmToken เพื่อส่งแจ้งเตือน
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 🔑 กฎสำหรับ user tokens collection - FCM tokens สำหรับแจ้งเตือน
+    match /user_tokens/{tokenId} {
+      allow read: if request.auth != null;  // อ่านได้เฉพาะผู้ล็อกอิน
+      allow create: if request.auth != null;  // สร้างได้เฉพาะผู้ล็อกอิน
+      allow update: if request.auth != null && (
+        // เจ้าของ token สามารถอัปเดตได้
+        request.auth.uid == resource.data.userId ||
+        // หรือระบบสามารถอัปเดตได้ (สำหรับการทำความสะอาด)
+        request.auth.token.firebase.sign_in_provider != 'anonymous'
+      );
+      allow delete: if request.auth != null && (
+        // เจ้าของ token สามารถลบได้
+        request.auth.uid == resource.data.userId ||
+        // หรือระบบสามารถลบได้ (สำหรับการทำความสะอาด invalid tokens)
+        request.auth.token.firebase.sign_in_provider != 'anonymous'
+      );
+    }
+    
+    // 📊 กฎสำหรับ notification logs - ประวัติการส่งแจ้งเตือน
+    match /notification_logs/{logId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ notification
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ log
+    }
+    
+    // ❌ กฎสำหรับ notification errors - ประวัติ errors การส่งแจ้งเตือน
+    match /notification_errors/{errorId} {
+      allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
+      allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ notification
+      allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ error log
+    }
     
     // 📊 กฎสำหรับจำกัดการโพสต์ - เฉพาะเจ้าของ
     match /userLimits/{userId} {
@@ -97,11 +136,6 @@ service cloud.firestore {
     
     // 📈 กฎสำหรับสถิติผู้ใช้ - เฉพาะเจ้าของ
     match /user_stats/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // 🔑 FCM Tokens - เฉพาะเจ้าของ
-    match /user_tokens/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
@@ -217,6 +251,14 @@ service cloud.firestore {
       allow read: if true;  // เปิดให้อ่านได้ทุกคน (สำหรับ debugging)
       allow create: if request.auth != null;  // สร้างได้เฉพาะระบบ
       allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ log
+    }
+    
+    // 🔄 กฎสำหรับ notification retry queue - คิว retry การส่งแจ้งเตือน
+    match /notification_retry_queue/{entry} {
+      allow read: if request.auth != null && 
+        request.auth.token.firebase.sign_in_provider != 'anonymous';  // เฉพาะ user ที่ล็อกอินจริง
+      allow write: if request.auth != null && 
+        request.auth.token.firebase.sign_in_provider != 'anonymous';  // สร้าง/อัปเดตได้เฉพาะระบบ
     }
   }
 }

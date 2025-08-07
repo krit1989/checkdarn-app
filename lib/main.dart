@@ -8,6 +8,8 @@ import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
 import 'services/cleanup_service.dart';
 import 'services/enhanced_cache_service.dart';
+import 'services/notification_service.dart';
+import 'services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +54,10 @@ void _initializeBackgroundServices() async {
     await EnhancedCacheService.initialize();
     await FirebaseService.initializeAndMigrate();
 
+    // 🔔 เริ่ม Notification Services
+    await NotificationService.initialize();
+    await PushNotificationService.initialize();
+
     // 🚀 เริ่ม Smart Prefetch System
     _startSmartPrefetch();
 
@@ -84,6 +90,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'Sarabun',
       ),
+      navigatorKey:
+          NotificationService.navigatorKey, // เพิ่ม global navigator key
       initialRoute: AppRoutes.splash,
       routes: AppRoutes.routes,
       debugShowCheckedModeBanner: false,

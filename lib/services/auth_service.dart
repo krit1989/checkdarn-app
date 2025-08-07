@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../screens/login_screen.dart';
 import 'secure_storage_service.dart';
+import 'notification_service.dart';
 
 // Mock UserCredential class สำหรับจัดการ type casting error
 class MockUserCredential implements UserCredential {
@@ -288,6 +289,9 @@ class AuthService {
         // บันทึกข้อมูลผู้ใช้ใน Firestore
         await _saveUserData(user);
 
+        // 🔔 อัพเดท Notification Token หลังล็อกอินสำเร็จ
+        await NotificationService.updateTokenOnLogin();
+
         // แสดง success message หากมี context
         if (context != null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -388,6 +392,9 @@ class AuthService {
       // ล็อกเอาต์จาก Firebase
       await _auth.signOut();
       print('Firebase signed out');
+
+      // 🔔 ลบ Notification Token เมื่อ logout
+      await NotificationService.removeTokenOnLogout();
 
       // รีเซ็ต local cache
       _isUserLoggedIn = false;
