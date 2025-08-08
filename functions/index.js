@@ -393,6 +393,7 @@ exports.sendNewCommentNotification = functions.firestore
       
       console.log(`💬 New comment with retry: ${commentId} on report: ${reportId}`);
       console.log(`📝 Comment by: ${commentData.userId}`);
+      console.log(`🔍 Comment data structure:`, JSON.stringify(commentData, null, 2));
       
       // ดึงข้อมูลโพสต์หลัก
       const reportDoc = await admin.firestore()
@@ -417,22 +418,43 @@ exports.sendNewCommentNotification = functions.firestore
       // ดึง FCM token ของคนโพส
       const authorTokenDoc = await admin.firestore()
         .collection('user_tokens')
-        .where('userId', '==', postAuthorId)
-        .where('isActive', '==', true)
-        .limit(1)
+        .doc(postAuthorId)
         .get();
       
-      if (authorTokenDoc.empty) {
-        console.log('⚠️ Post author has no active FCM token');
+      if (!authorTokenDoc.exists) {
+        console.log('⚠️ Post author has no token document');
         return null;
       }
       
-      const authorToken = authorTokenDoc.docs[0].data().token;
+      const authorTokenData = authorTokenDoc.data();
+      if (!authorTokenData.tokens || !Array.isArray(authorTokenData.tokens) || authorTokenData.tokens.length === 0) {
+        console.log('⚠️ Post author has no active FCM tokens');
+        return null;
+      }
+      
+      // ใช้ token แรกที่พบ
+      const authorToken = authorTokenData.tokens[0];
       
       // สร้างข้อความแจ้งเตือน
       const commenterName = commentData.displayName || 'ผู้ใช้คนหนึ่ง';
+      
+      // ปิดบางส่วนของชื่อ (แสดงแค่ 4 ตัวแรก แล้วใส่ ***)
+      const maskedName = commenterName.length > 4 
+        ? `${commenterName.substring(0, 4)} ${'*'.repeat(Math.min(commenterName.length - 4, 5))}`
+        : commenterName;
+      
+      // ดึงข้อความคอมเม้น (ลองหลาย field name)
+      const commentText = commentData.text || commentData.comment || commentData.message || commentData.content || '';
+      console.log(`💬 Comment text found: "${commentText}"`);
+      
+      const shortComment = commentText.length > 30 
+        ? `${commentText.substring(0, 27)}...`
+        : commentText;
+      
       const notificationTitle = '💬 มีความคิดเห็นใหม่!';
-      const notificationBody = `${commenterName} แสดงความคิดเห็นในโพสต์ของคุณ`;
+      const notificationBody = shortComment 
+        ? `${maskedName}: ${shortComment}`
+        : `${maskedName} แสดงความคิดเห็นในโพสต์ของคุณ`;
       
       // ส่งข้อความแจ้งเตือน
       const message = {

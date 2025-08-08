@@ -221,29 +221,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _getRoadNameFromCoordinates(point); // Get road name automatically
   }
 
-  void _onCoordinateChanged() {
-    try {
-      final lat = double.parse(_latController.text);
-      final lng = double.parse(_lngController.text);
-
-      // Validate coordinate ranges
-      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        _showError(
-            'พิกัดไม่ถูกต้อง: Latitude (-90 ถึง 90), Longitude (-180 ถึง 180)');
-        return;
-      }
-
-      final newLocation = LatLng(lat, lng);
-      setState(() {
-        _selectedLocation = newLocation;
-      });
-      _moveToLocation(newLocation);
-      _getRoadNameFromCoordinates(
-          newLocation); // Get road name when coordinates change
-    } catch (e) {
-      _showError('รูปแบบพิกัดไม่ถูกต้อง');
-    }
-  }
+  // ลบ function นี้แล้ว - จะใช้ validation ในปุ่มยืนยันแทน
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +280,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
                           style: const TextStyle(fontFamily: 'NotoSansThai'),
-                          onChanged: (_) => _onCoordinateChanged(),
+                          // ลบ onChanged ออก - จะตรวจสอบตอนกดยืนยันเท่านั้น
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -319,7 +297,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
                           style: const TextStyle(fontFamily: 'NotoSansThai'),
-                          onChanged: (_) => _onCoordinateChanged(),
+                          // ลบ onChanged ออก - จะตรวจสอบตอนกดยืนยันเท่านั้น
                         ),
                       ),
                     ],
@@ -570,10 +548,52 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context, {
-                            'location': _selectedLocation,
-                            'locationInfo': _selectedLocationInfo,
-                          }),
+                          onPressed: () {
+                            // ตรวจสอบ validation ก่อนยืนยันตำแหน่ง (เฉพาะกรณีที่กรอกพิกัดเอง)
+                            if (_latController.text.isNotEmpty ||
+                                _lngController.text.isNotEmpty) {
+                              try {
+                                final lat = double.parse(_latController.text);
+                                final lng = double.parse(_lngController.text);
+
+                                if (lat >= -90 &&
+                                    lat <= 90 &&
+                                    lng >= -180 &&
+                                    lng <= 180) {
+                                  // อัปเดตตำแหน่งใหม่และปิด dialog
+                                  _selectedLocation = LatLng(lat, lng);
+
+                                  Navigator.pop(context, {
+                                    'location': _selectedLocation,
+                                    'locationInfo': _selectedLocationInfo,
+                                  });
+                                } else {
+                                  // แสดง error ว่าพิกัดไม่ถูกต้อง
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('พิกัดต้องอยู่ในช่วงที่ถูกต้อง'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                // แสดง error ว่ารูปแบบพิกัดไม่ถูกต้อง
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('รูปแบบพิกัดไม่ถูกต้อง'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } else {
+                              // ถ้าไม่ได้กรอกพิกัดเอง ให้ผ่านไปปกติ
+                              Navigator.pop(context, {
+                                'location': _selectedLocation,
+                                'locationInfo': _selectedLocationInfo,
+                              });
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFC107),
                             foregroundColor: Colors.black,

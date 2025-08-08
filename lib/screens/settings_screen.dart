@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/smart_security_service.dart';
 import 'sound_settings_screen.dart';
+import 'terms_of_service_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isNewEventNotificationEnabled = true;
   bool _isSoundNotificationEnabled = true;
-  bool _isVibrationNotificationEnabled = true;
 
   @override
   void initState() {
@@ -306,18 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value,
                       (v) => setState(() => _isSoundNotificationEnabled = v),
                     ),
-                  ),
-                  _buildNotificationToggle(
-                    'การสั่นแจ้งเตือน',
-                    'สั่นเครื่องเมื่อมีการแจ้งเตือน',
-                    _isVibrationNotificationEnabled,
-                    (value) => _handleSecureNotificationToggle(
-                      'vibration',
-                      value,
-                      (v) =>
-                          setState(() => _isVibrationNotificationEnabled = v),
-                    ),
-                    isLast: true,
+                    isLast: true, // เปลี่ยนเป็น true เพราะเป็นรายการสุดท้าย
                   ),
                 ],
               ),
@@ -490,16 +480,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'เงื่อนไขการใช้งาน',
                     null,
                     Icons.arrow_forward_ios,
-                    () {
-                      // TODO: Navigate to terms of service
+                    () async {
+                      debugPrint('🔥 TERMS BUTTON CLICKED IN SETTINGS');
+
+                      // Smart Security validation
+                      if (!await _validateSettingsActionSimple(
+                        action: 'view_terms',
+                        context: {'source': 'settings_screen'},
+                      )) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      debugPrint('🔥 NAVIGATING TO TERMS SCREEN');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TermsOfServiceScreen(),
+                        ),
+                      );
+                      debugPrint('🔥 NAVIGATION COMPLETED');
                     },
                   ),
                   _buildSettingsItem(
                     'นโยบายความเป็นส่วนตัว',
                     null,
                     Icons.arrow_forward_ios,
-                    () {
-                      // TODO: Navigate to privacy policy
+                    () async {
+                      debugPrint('🔒 PRIVACY POLICY BUTTON CLICKED');
+
+                      // Smart Security validation
+                      if (!await _validateSettingsActionSimple(
+                        action: 'view_privacy',
+                        context: {'source': 'settings_screen'},
+                      )) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      debugPrint('🔒 NAVIGATING TO PRIVACY POLICY SCREEN');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyScreen(),
+                        ),
+                      );
+                      debugPrint('🔒 NAVIGATION COMPLETED');
                     },
                   ),
                   _buildSettingsItem(
