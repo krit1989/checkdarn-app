@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../generated/gen_l10n/app_localizations.dart';
 import '../models/speed_camera_model.dart';
 import 'speed_camera_marker.dart';
 
@@ -15,7 +16,8 @@ class CameraSelectionMapScreen extends StatefulWidget {
     super.key,
     required this.existingCameras,
     this.selectedCamera,
-    this.title = 'เลือกกล้อง',
+    this.title =
+        'Select Camera', // Default English, actual display uses AppLocalizations
   });
 
   @override
@@ -157,12 +159,12 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
         // Show snackbar if location not available
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'ไม่สามารถหาตำแหน่งปัจจุบันได้ กรุณาเปิด GPS',
-                style: TextStyle(fontFamily: 'NotoSansThai'),
+                AppLocalizations.of(context).cannotFindCurrentLocationEnableGPS,
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -176,7 +178,7 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
-          widget.title,
+          AppLocalizations.of(context).selectCamera,
           style: const TextStyle(
             fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
@@ -190,9 +192,9 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
           if (_selectedCamera != null)
             TextButton(
               onPressed: () => Navigator.pop(context, _selectedCamera),
-              child: const Text(
-                'เลือก',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.of(context).select,
+                style: const TextStyle(
                   fontFamily: 'NotoSansThai',
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
@@ -329,7 +331,8 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'จำกัดความเร็ว: ${_selectedCamera!.speedLimit} km/h',
+                      AppLocalizations.of(context)
+                          .speedLimitFormat(_selectedCamera!.speedLimit),
                       style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 14,
@@ -357,9 +360,9 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       elevation: 2,
                     ),
-                    child: const Text(
-                      'ยกเลิก',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context).cancel,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 16,
                         color: Colors.black,
@@ -381,9 +384,9 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       elevation: 2,
                     ),
-                    child: const Text(
-                      'ยืนยันการเลือก',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context).confirmSelection,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -407,9 +410,9 @@ class _CameraSelectionMapScreenState extends State<CameraSelectionMapScreen> {
                   color: Colors.blue.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'แตะที่ไอคอนกล้องบนแผนที่เพื่อเลือก',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).tapCameraIconOnMapToSelect,
+                  style: const TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.white,

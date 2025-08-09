@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/comment_service.dart';
 import '../services/auth_service.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class CommentBottomSheet extends StatefulWidget {
   final String reportId;
@@ -75,16 +76,18 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
             ),
             title: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: dialogWidth),
-              child: const Text(
-                'รายงานความคิดเห็น',
-                style: TextStyle(fontSize: 18, fontFamily: 'NotoSansThai'),
+              child: Text(
+                AppLocalizations.of(context).reportComment,
+                style:
+                    const TextStyle(fontSize: 18, fontFamily: 'NotoSansThai'),
               ),
             ),
             content: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: dialogWidth),
-              child: const Text(
-                'คุณต้องการรายงานความคิดเห็นนี้ว่าไม่เหมาะสมหรือไม่?',
-                style: TextStyle(fontSize: 14, fontFamily: 'NotoSansThai'),
+              child: Text(
+                AppLocalizations.of(context).reportCommentConfirm,
+                style:
+                    const TextStyle(fontSize: 14, fontFamily: 'NotoSansThai'),
               ),
             ),
             actions: [
@@ -121,9 +124,9 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('รายงานความคิดเห็นเรียบร้อยแล้ว',
-                  style: TextStyle(fontFamily: 'NotoSansThai')),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).reportCommentSuccess,
+                  style: const TextStyle(fontFamily: 'NotoSansThai')),
               backgroundColor: Colors.orange,
             ),
           );
@@ -172,9 +175,9 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                 children: [
                   const Icon(Icons.chat_bubble_outline, color: Colors.blue),
                   const SizedBox(width: 8),
-                  const Text(
-                    'ความคิดเห็น',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).commentsTitle,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'NotoSansThai',
@@ -205,24 +208,24 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.chat_bubble_outline,
+                          const Icon(Icons.chat_bubble_outline,
                               size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Text(
-                            'ยังไม่มีความคิดเห็น',
-                            style: TextStyle(
+                            AppLocalizations.of(context).noCommentsYet,
+                            style: const TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey,
                                 fontFamily: 'NotoSansThai'),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
-                            'เป็นคนแรกที่แสดงความคิดเห็น!',
-                            style: TextStyle(
+                            AppLocalizations.of(context).beFirstToComment,
+                            style: const TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey,
                                 fontFamily: 'NotoSansThai'),
@@ -358,7 +361,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'เพิ่มความคิดเห็น...',
+                            AppLocalizations.of(context).addCommentHint,
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.grey.shade600,
@@ -447,9 +450,9 @@ class _CommentInputModalState extends State<CommentInputModal> {
     final comment = _commentController.text.trim();
     if (comment.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('กรุณาพิมพ์ความคิดเห็น',
-                style: TextStyle(fontFamily: 'NotoSansThai'))),
+        SnackBar(
+            content: Text(AppLocalizations.of(context).pleaseEnterComment,
+                style: const TextStyle(fontFamily: 'NotoSansThai'))),
       );
       return;
     }
@@ -486,9 +489,9 @@ class _CommentInputModalState extends State<CommentInputModal> {
       if (mounted) {
         Navigator.pop(context); // ปิด modal หลังส่งสำเร็จ
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ส่งความคิดเห็นสำเร็จ',
-                style: TextStyle(fontFamily: 'NotoSansThai')),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).commentSentSuccess,
+                style: const TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.green,
           ),
         );
@@ -564,13 +567,15 @@ class _CommentInputModalState extends State<CommentInputModal> {
                         maxLines: 1, // จำกัดให้เป็นบรรทัดเดียวเหมือนก่อนพิมพ์
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _handleSubmit(),
-                        decoration: const InputDecoration(
-                          hintText: 'พิมพ์ความคิดเห็น...',
+                        decoration: InputDecoration(
+                          hintText:
+                              AppLocalizations.of(context).typeCommentHint,
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                           counterText: '', // ซ่อน counter default
                           isDense: true, // ลดความสูงภายใน
-                          hintStyle: TextStyle(fontFamily: 'NotoSansThai'),
+                          hintStyle:
+                              const TextStyle(fontFamily: 'NotoSansThai'),
                         ),
                         style: const TextStyle(
                             fontSize: 15, fontFamily: 'NotoSansThai'),

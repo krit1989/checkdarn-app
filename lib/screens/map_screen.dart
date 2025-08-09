@@ -20,6 +20,7 @@ import '../widgets/location_marker.dart';
 import '../widgets/event_marker.dart';
 import '../widgets/location_button.dart';
 import '../widgets/comment_bottom_sheet.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 import 'settings_screen.dart';
 
 // Enum สำหรับประเภท Navigation Bar
@@ -1020,10 +1021,10 @@ class _MapScreenState extends State<MapScreen>
 
     // แสดง loading แบบสั้นๆ
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 16,
               height: 16,
               child: CircularProgressIndicator(
@@ -1031,14 +1032,14 @@ class _MapScreenState extends State<MapScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
-              'กำลังค้นหาโพสในบริเวณนี้...',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).searchingPostsInArea,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
           ],
         ),
-        duration: Duration(seconds: 1),
+        duration: const Duration(seconds: 1),
       ),
     );
 
@@ -1065,7 +1066,10 @@ class _MapScreenState extends State<MapScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'ย้ายไปดูโพสในบริเวณ: ${locationInfo?.displayName ?? 'ตำแหน่งที่เลือก'}',
+            AppLocalizations.of(context).movedToViewPosts(
+              locationInfo?.displayName ??
+                  AppLocalizations.of(context).selectedLocation,
+            ),
             style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.green,
@@ -1086,7 +1090,7 @@ class _MapScreenState extends State<MapScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'ไม่สามารถดึงข้อมูลตำแหน่งได้: ${e.toString()}',
+            AppLocalizations.of(context).cannotGetLocationInfo(e.toString()),
             style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.red,
@@ -1239,7 +1243,7 @@ class _MapScreenState extends State<MapScreen>
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              category.label,
+                              category.label(context),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -1374,7 +1378,7 @@ class _MapScreenState extends State<MapScreen>
                                           cacheHeight: 800,
                                           errorBuilder:
                                               (context, error, stackTrace) {
-                                            return const Center(
+                                            return Center(
                                               child: Column(
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.center,
@@ -1383,7 +1387,10 @@ class _MapScreenState extends State<MapScreen>
                                                       size: 48,
                                                       color: Colors.white),
                                                   SizedBox(height: 8),
-                                                  Text('ไม่สามารถโหลดรูปภาพได้',
+                                                  Text(
+                                                      AppLocalizations.of(
+                                                              context)
+                                                          .cannotLoadImage,
                                                       style: TextStyle(
                                                           color: Colors.white,
                                                           fontFamily:
@@ -1455,7 +1462,7 @@ class _MapScreenState extends State<MapScreen>
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
                                         color: Colors.grey[100],
-                                        child: const Center(
+                                        child: Center(
                                           child: Column(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
@@ -1463,7 +1470,9 @@ class _MapScreenState extends State<MapScreen>
                                               Icon(Icons.broken_image,
                                                   size: 32, color: Colors.grey),
                                               SizedBox(height: 4),
-                                              Text('ไม่สามารถโหลดรูปภาพได้',
+                                              Text(
+                                                  AppLocalizations.of(context)
+                                                      .cannotLoadImage,
                                                   style: TextStyle(
                                                       fontSize: 12,
                                                       color: Colors.grey,
@@ -1531,7 +1540,7 @@ class _MapScreenState extends State<MapScreen>
                                 InkWell(
                                   onTap: () => _showCommentSheet(
                                     data['id'] ?? '',
-                                    category.label,
+                                    category.label(context),
                                     category.name,
                                   ),
                                   borderRadius: BorderRadius.circular(8),
@@ -1547,9 +1556,9 @@ class _MapScreenState extends State<MapScreen>
                                           color: Color(0xFFFF9800),
                                         ),
                                         const SizedBox(width: 4),
-                                        const Text(
-                                          'ความคิดเห็น',
-                                          style: TextStyle(
+                                        Text(
+                                          AppLocalizations.of(context).comments,
+                                          style: const TextStyle(
                                             color: Color(0xFFFF9800),
                                             fontWeight: FontWeight.w200,
                                             fontSize: 14,
@@ -2583,9 +2592,9 @@ class _MapScreenState extends State<MapScreen>
                       color: Color(0xFF4673E5),
                     ),
                   ),
-                  const Text(
-                    'กม.',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).kilometerShort,
+                    style: const TextStyle(
                       fontSize: 10, // เพิ่มจาก 8 เป็น 10
                       color: Colors.grey,
                     ),

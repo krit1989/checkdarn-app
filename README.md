@@ -3,13 +3,24 @@
 > **แอปพลิเคชันรายงานเหตุการณ์ชุมชนอัจฉริยะ** ที่ช่วยให้ผู้ใช้สามารถรายงานและติดตามเหตุการณ์ต่างๆ พร้อมระบบ Community Engagement และ Speed Camera Intelligence
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.33.0-blue.svg)](https://flutter.dev/)
-[![Firebase](https://img.shields.io/badge/Firebase-Latest-orange.svg)](https://firebase.google.com/)
+[![Firebase](https://img.shields.io/badge/Firebase-Latest-orange### 🆕 ฟีเจอร์ใหม่ล่าสุด
+
+### 🌐 **UI Localization Optimization (NEW!)**
+- 📱 **Bottom Bar Text Updates** - ปรับข้อความให้สั้นและเหมาะสมกับการแสดงผล
+- 🌍 **Bilingual Support** - รองรับภาษาไทยและอังกฤษอย่างสมบูรณ์
+- ✨ **Generated Files Update** - อัพเดทไฟล์ที่ Flutter สร้างอัตโนมัติ
+- 🎯 **UI Consistency** - ปรับปรุงความสอดคล้องของ UI elements
+- 📱 **Better UX** - ข้อความสั้นลงทำให้อ่านง่ายและใช้งานสะดวกขึ้น
+
+### 🏗️ **Enterprise Architecture Upgrade**g)](https://firebase.google.com/)
 [![Status](https://img.shields.io/badge/Status-Enterprise%20Ready-green.svg)]()
-[![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.1-blue.svg)]()
 [![APK](https://img.shields.io/badge/APK-28.1MB-green.svg)]()
 [![Architecture](https://img.shields.io/badge/Architecture-Level%204%20Enterprise-gold.svg)]()
 [![Security](https://img.shields.io/badge/Security-Smart%20Security%20Service-red.svg)]()
 [![Valuation](https://img.shields.io/badge/Estimated%20Value-$600M--800M-purple.svg)]()
+[![Localization](https://img.shields.io/badge/Languages-TH%20|%20EN-green.svg)]()
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
 ## 🌟 ฟีเจอร์หลัก
 
@@ -498,6 +509,7 @@ exports.cleanupOldReports = functions.pubsub
 ### 🎯 Roadmap
 - [ ] **Advanced Community Features** - Comment system, photo sharing, local groups
 - [ ] **Push Notifications** - แจ้งเตือนเหตุการณ์ใกล้เคียง
+- [ ] **Enhanced Localization** - Multi-language support (EN, TH, และภาษาอื่นๆ)
 - [ ] **LINE Integration** - Login ผ่าน LINE และ social sharing
 - [ ] **Real-time Chat** - แชทกลุ่มตามเส้นทาง
 - [ ] **ASEAN Expansion** - ขยายไปประเทศเพื่อนบ้าน
@@ -505,13 +517,13 @@ exports.cleanupOldReports = functions.pubsub
 - [ ] **AR Mode** - แสดงเหตุการณ์ผ่าน Augmented Reality
 - [ ] **Voice Reporting** - รายงานด้วยเสียง
 - [ ] **Machine Learning** - ตรวจสอบข้อมูลเท็จอัตโนมัติ
-- [ ] **Multi-language** - รองรับหลายภาษา
 
 ### 🐛 Known Issues
 - Firebase Composite Index warning (ปกติสำหรับโปรเจคใหม่)
 - พิกัด GPS แสดงเฉพาะโพสใหม่เท่านั้น
 - Marker clustering ใช้งานได้เมื่อซูมน้อยกว่า 14x และมี markers มากกว่า 10 อัน
 - Shadow effects แสดงเฉพาะที่ปลายหมุดเท่านั้น (ตามการออกแบบ)
+- ข้อความบาง UI elements อาจยาวเกินไปในบางอุปกรณ์ (กำลังปรับปรุง)
 
 ## 📄 การมีส่วนร่วม
 
@@ -529,7 +541,23 @@ exports.cleanupOldReports = functions.pubsub
 
 ### 📝 เวอร์ชันและการอัปเดต
 
-### 🏷️ Version 2.0.0 (ปัจจุบัน) - Enterprise Upgrade
+### 🏷️ Version 2.0.1 (ปัจจุบัน) - UI Localization Updates
+- ✅ **Bottom Bar Text Optimization** - ปรับข้อความให้สั้นและกระชับ
+  - "ฉุกเฉิน" → ไม่เปลี่ยน
+  - "ประเภท" → ไม่เปลี่ยน  
+  - "แจ้งอะไร?" → ไม่เปลี่ยน
+  - "ใกล้ฉัน" → ไม่เปลี่ยน
+  - "กล้อง" → ไม่เปลี่ยน
+- ✅ **English Localization Updates** - ปรับข้อความภาษาอังกฤษ
+  - "Emergency" → "Emergency"
+  - "Category" → "Type"
+  - "Report What?" → "Report"  
+  - "Near Me" → "Near Me"
+  - "Camera" → "Camera"
+- ✅ **Generated Localization Files** - อัพเดทไฟล์ที่ Flutter สร้างอัตโนมัติ
+- ✅ **UI Consistency** - ข้อความสั้นลงทำให้แสดงผลดีขึ้น
+
+### 🏷️ Version 2.0.0 - Enterprise Upgrade
 - ✅ **Enterprise Architecture** - Level 4 classification (92/100 score)
 - ✅ **Smart Security Service** - AI-powered security และ threat detection
 - ✅ **Secure Storage Service** - Encrypted storage พร้อม biometric support
@@ -560,6 +588,7 @@ exports.cleanupOldReports = functions.pubsub
 ### 📅 Version History
 | Version | Date | Features |
 |---------|------|----------|
+| 2.0.1 | สิงหาคม 2025 | UI Localization Updates, Bottom Bar Text Optimization |
 | 2.0.0 | สิงหาคม 2025 | Enterprise Architecture, Smart Security, Community Engagement, Market Valuation |
 | 1.3.0 | กรกฎาคม 2025 | Speed Camera Mode, Dual Mode System, Audio Feedback, Enhanced Location Services |
 | 1.2.1 | กรกฎาคม 2025 | Enhanced Image Display, Performance Optimizations, Marker Clustering |

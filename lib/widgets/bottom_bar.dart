@@ -5,6 +5,7 @@ import '../screens/report_screen.dart';
 import '../screens/list_screen.dart';
 import '../screens/emergency_contacts.dart';
 import '../modules/speed_camera/screens/speed_camera_screen.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class BottomBar extends StatelessWidget {
   final List<EventCategory> selectedCategories;
@@ -92,9 +93,9 @@ class BottomBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'ฉุกเฉิน',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).emergency,
+                        style: const TextStyle(
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
@@ -151,8 +152,8 @@ class BottomBar extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'ประเภท',
-                        style: TextStyle(
+                        AppLocalizations.of(context).category,
+                        style: const TextStyle(
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
@@ -218,9 +219,9 @@ class BottomBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'แจ้งอะไร?',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).reportWhat,
+                        style: const TextStyle(
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
@@ -283,9 +284,9 @@ class BottomBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'ใกล้ฉัน',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).nearMe,
+                        style: const TextStyle(
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),
@@ -348,9 +349,9 @@ class BottomBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'กล้อง',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).speedCamera,
+                        style: const TextStyle(
                           fontSize: 10.5, // เพิ่มจาก 10 เป็น 10.5 (+5%)
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF424743),

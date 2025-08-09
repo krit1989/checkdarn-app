@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
 import '../widgets/speed_camera_marker.dart';
+import '../../../generated/gen_l10n/app_localizations.dart';
 
 class CameraSelectionMapWidget extends StatefulWidget {
   final LatLng? initialCenter;
@@ -82,12 +83,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
       // แสดง loading อย่างไม่รบกวน
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'กำลังหาตำแหน่งปัจจุบัน...',
-            style: TextStyle(fontFamily: 'NotoSansThai'),
+            AppLocalizations.of(context).searchingCurrentLocation,
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.blue,
         ),
@@ -120,12 +121,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
         _mapController.move(_center, 14.0);
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'พบตำแหน่งปัจจุบันแล้ว',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).foundCurrentLocation,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.green,
           ),
@@ -142,12 +143,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'แสดงแผนที่กรุงเทพฯ (ค้นหากล้องได้ปกติ)',
-            style: TextStyle(fontFamily: 'NotoSansThai'),
+            AppLocalizations.of(context).showingBangkokMapNormalSearch,
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.orange,
         ),
@@ -197,12 +198,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
     try {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'กำลังค้นหาตำแหน่งปัจจุบัน...',
-            style: TextStyle(fontFamily: 'NotoSansThai'),
+            AppLocalizations.of(context).searchingCurrentLocation,
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.blue,
         ),
@@ -215,12 +216,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
             newPermission == LocationPermission.deniedForever) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'กรุณาอนุญาตการเข้าถึงตำแหน่งในการตั้งค่าแอป',
-                style: TextStyle(fontFamily: 'NotoSansThai'),
+                AppLocalizations.of(context).pleaseAllowLocationAccess,
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
               behavior: SnackBarBehavior.floating,
               backgroundColor: Colors.orange,
             ),
@@ -246,12 +247,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
         _mapController.move(_center, 14.0);
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'พบตำแหน่งปัจจุบันแล้ว!',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).foundCurrentLocation,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.green,
           ),
@@ -262,12 +263,12 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'ไม่สามารถหาตำแหน่งได้ ใช้แผนที่ค้นหากล้องแทน',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).cannotFindLocationUseMap,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.orange,
           ),
@@ -282,9 +283,9 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'เลือกกล้องจากแผนที่',
-          style: TextStyle(fontFamily: 'NotoSansThai'),
+        title: Text(
+          AppLocalizations.of(context).selectCameraFromMap,
+          style: const TextStyle(fontFamily: 'NotoSansThai'),
         ),
         backgroundColor: const Color(0xFF1158F2),
         foregroundColor: Colors.white,
@@ -303,7 +304,7 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${_cameras.length} กล้อง',
+                    AppLocalizations.of(context).camerasCount(_cameras.length),
                     style: const TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 12,
@@ -319,9 +320,9 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
             TextButton.icon(
               onPressed: () => Navigator.pop(context, _selectedCamera),
               icon: const Icon(Icons.check, color: Colors.white, size: 18),
-              label: const Text(
-                'ยืนยัน',
-                style: TextStyle(
+              label: Text(
+                AppLocalizations.of(context).confirm,
+                style: const TextStyle(
                   color: Colors.white,
                   fontFamily: 'NotoSansThai',
                   fontWeight: FontWeight.bold,
@@ -352,7 +353,7 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
                       Icon(Icons.camera_alt, color: Colors.green.shade700),
                       const SizedBox(width: 8),
                       Text(
-                        'กล้องที่เลือก',
+                        AppLocalizations.of(context).selectedCameraInfo,
                         style: TextStyle(
                           fontFamily: 'NotoSansThai',
                           fontWeight: FontWeight.bold,
@@ -372,7 +373,8 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'รหัส: ${_getMaskedId(_selectedCamera!.id)}',
+                    AppLocalizations.of(context)
+                        .cameraCode(_getMaskedId(_selectedCamera!.id)),
                     style: TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 12,
@@ -380,7 +382,10 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
                     ),
                   ),
                   Text(
-                    'ความเร็ว: ${_selectedCamera!.speedLimit} km/h • ${_selectedCamera!.type.displayName}',
+                    AppLocalizations.of(context).speedAndType(
+                      _selectedCamera!.speedLimit,
+                      _selectedCamera!.type.displayName,
+                    ),
                     style: TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 12,
@@ -548,9 +553,9 @@ class _CameraSelectionMapWidgetState extends State<CameraSelectionMapWidget> {
                               backgroundColor: const Color(0xFF1158F2),
                               foregroundColor: Colors.white,
                               icon: const Icon(Icons.check_circle),
-                              label: const Text(
-                                'ยืนยันการเลือก',
-                                style: TextStyle(
+                              label: Text(
+                                AppLocalizations.of(context).confirmSelection,
+                                style: const TextStyle(
                                   fontFamily: 'NotoSansThai',
                                   fontWeight: FontWeight.w600,
                                 ),

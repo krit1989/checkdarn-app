@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_service.dart';
@@ -394,11 +392,13 @@ class NotificationService {
       print('Body: ${message.notification?.body}');
       print('Data: ${message.data}');
 
-      // ส่งข้อมูลไปยัง Stream เพื่อให้ UI รับรู้
+      // ส่งข้อมูลไปยัง Stream เพื่อให้ UI รับรู้ (แต่ไม่แสดง in-app notification)
       _messageStreamController.add(message);
 
-      // แสดง notification แบบ In-App
-      _showInAppNotification(message);
+      // ไม่แสดง SnackBar หรือ in-app notification เมื่ออยู่ในแอพ
+      // ให้แสดงแค่ notification ปกติจากระบบเท่านั้น
+      print(
+          '✅ NotificationService: Foreground message processed (no in-app display)');
     } catch (e) {
       print('❌ NotificationService: Error handling foreground message: $e');
 
@@ -413,80 +413,7 @@ class NotificationService {
     }
   }
 
-  /// 💬 **แสดง Notification แบบ In-App**
-  static void _showInAppNotification(RemoteMessage message) {
-    try {
-      final BuildContext? context = navigatorKey.currentContext;
-      if (context == null) {
-        print(
-            '⚠️ NotificationService: No context available for in-app notification');
-        return;
-      }
-
-      final String title = message.notification?.title ?? 'แจ้งเตือน';
-      final String body = message.notification?.body ?? 'คุณมีข้อความใหม่';
-
-      // แสดง SnackBar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'NotoSansThai',
-                ),
-              ),
-              if (body.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  body,
-                  style: const TextStyle(fontFamily: 'NotoSansThai'),
-                ),
-              ],
-            ],
-          ),
-          backgroundColor: const Color(0xFFFF9800),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'ดู',
-            textColor: Colors.white,
-            onPressed: () {
-              _handleNotificationAction(message);
-            },
-          ),
-        ),
-      );
-
-      // เล่นเสียงเตือน (optional)
-      _playNotificationSound();
-    } catch (e) {
-      print('❌ NotificationService: Error showing in-app notification: $e');
-    }
-  }
-
-  /// 🔊 **เล่นเสียงเตือน**
-  static void _playNotificationSound() {
-    try {
-      if (kDebugMode) {
-        // ใน debug mode ใช้ HapticFeedback แทนเสียง
-        HapticFeedback.lightImpact();
-      }
-      // TODO: เพิ่มการเล่นเสียงด้วย audioplayers package ถ้าต้องการ
-    } catch (e) {
-      print('❌ NotificationService: Error playing notification sound: $e');
-    }
-  }
-
-  /// 🖱️ **จัดการเมื่อผู้ใช้แตะ Notification**
+  /// ️ **จัดการเมื่อผู้ใช้แตะ Notification**
   static void _handleNotificationTap(RemoteMessage message) {
     try {
       print('🔔 NotificationService: Notification tapped');
@@ -504,9 +431,10 @@ class NotificationService {
       final Map<String, dynamic> data = message.data;
       final String? type = data['type'];
       final String? reportId = data['reportId'];
+      final String? action = data['action'];
 
       print(
-          '🔔 NotificationService: Handling action - Type: $type, ReportId: $reportId');
+          '🔔 NotificationService: Handling action - Type: $type, Action: $action, ReportId: $reportId');
 
       final BuildContext? context = navigatorKey.currentContext;
       if (context == null) {
@@ -514,20 +442,32 @@ class NotificationService {
         return;
       }
 
-      switch (type) {
-        case 'new_comment':
-          // นำทางไปยังหน้า List Screen และเปิด Comment BottomSheet
-          _navigateToComment(context, reportId);
+      switch (action) {
+        case 'open_comment':
+          // ✅ นำทางไปยังหน้า List Screen แบบปกติ (ไม่เปิด Comment อัตโนมัติ)
+          _navigateToListScreen(context);
           break;
 
-        case 'new_post':
+        case 'open_post':
           // นำทางไปยังหน้า List Screen
           _navigateToListScreen(context);
           break;
 
         default:
-          print('⚠️ NotificationService: Unknown notification type: $type');
-          _navigateToListScreen(context);
+          // Legacy support - ใช้ type แทน action
+          switch (type) {
+            case 'new_comment':
+              // ✅ นำทางไปยังหน้า List Screen แบบปกติ (ไม่เปิด Comment อัตโนมัติ)
+              _navigateToListScreen(context);
+              break;
+            case 'new_post':
+              _navigateToListScreen(context);
+              break;
+            default:
+              print(
+                  '⚠️ NotificationService: Unknown notification type/action: $type/$action');
+              _navigateToListScreen(context);
+          }
       }
     } catch (e) {
       print('❌ NotificationService: Error handling notification action: $e');
@@ -537,47 +477,31 @@ class NotificationService {
   /// 📄 **นำทางไปยัง List Screen**
   static void _navigateToListScreen(BuildContext context) {
     try {
-      // ถ้าอยู่ที่หน้า List Screen อยู่แล้ว ไม่ต้องทำอะไร
+      // ตรวจสอบว่าอยู่ที่หน้า List Screen อยู่แล้วหรือไม่
       final String currentRoute = ModalRoute.of(context)?.settings.name ?? '';
-      if (currentRoute.contains('list')) {
+      if (currentRoute.contains('list') || currentRoute == '/list') {
         print('🔔 NotificationService: Already on List Screen');
         return;
       }
 
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/list', // หรือ route name ที่ใช้สำหรับ List Screen
-        (route) => false,
-      );
+      // ใช้ pushReplacementNamed แทนเพื่อป้องกัน navigation stack ผิดปกติ
+      Navigator.of(context).pushReplacementNamed('/list');
     } catch (e) {
       print('❌ NotificationService: Error navigating to List Screen: $e');
-    }
-  }
-
-  /// 💬 **นำทางไปยัง Comment และเปิด BottomSheet**
-  static void _navigateToComment(BuildContext context, String? reportId) {
-    try {
-      if (reportId == null || reportId.isEmpty) {
-        print('⚠️ NotificationService: No reportId provided');
-        _navigateToListScreen(context);
-        return;
-      }
-
-      // TODO: Implement navigation to specific comment
-      // ปัจจุบันไปที่ List Screen ก่อน
-      _navigateToListScreen(context);
-
-      // เพิ่ม delay เล็กน้อยเพื่อให้หน้าโหลดเสร็จก่อนเปิด BottomSheet
-      Future.delayed(const Duration(milliseconds: 500), () {
-        // TODO: เปิด Comment BottomSheet สำหรับ reportId นี้
+      // ถ้าเกิดข้อผิดพลาด ลองใช้ pushNamedAndRemoveUntil
+      try {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/list',
+          (route) => route.isFirst,
+        );
+      } catch (fallbackError) {
         print(
-            '🔔 NotificationService: Should open comment for report: $reportId');
-      });
-    } catch (e) {
-      print('❌ NotificationService: Error navigating to comment: $e');
+            '❌ NotificationService: Fallback navigation also failed: $fallbackError');
+      }
     }
   }
 
-  /// 🔄 **อัพเดท Token เมื่อผู้ใช้เข้าสู่ระบบ**
+  ///  **อัพเดท Token เมื่อผู้ใช้เข้าสู่ระบบ**
   static Future<void> updateTokenOnLogin() async {
     try {
       print('🔔 NotificationService: Updating token on login...');

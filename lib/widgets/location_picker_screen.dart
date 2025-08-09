@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 import '../services/geocoding_service.dart';
 
 class LocationPickerScreen extends StatefulWidget {
@@ -15,7 +16,7 @@ class LocationPickerScreen extends StatefulWidget {
   const LocationPickerScreen({
     super.key,
     this.initialLocation,
-    this.title = 'เลือกตำแหน่ง',
+    this.title = '',
     this.autoLocateToCurrentPosition = false, // ค่าเริ่มต้นเป็น false
   });
 
@@ -166,13 +167,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showError('ไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง');
+          _showError(AppLocalizations.of(context).locationAccessDenied);
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showError('กรุณาเปิดอนุญาตตำแหน่งในการตั้งค่า');
+        _showError(AppLocalizations.of(context).enableLocationInSettings);
         return;
       }
 
@@ -197,7 +198,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       setState(() {
         _isLoadingCurrentLocation = false;
       });
-      _showError('ไม่สามารถระบุตำแหน่งปัจจุบันได้');
+      _showError(AppLocalizations.of(context).cannotGetLocation);
     }
   }
 
@@ -256,9 +257,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'ป้อนพิกัดโดยตรง',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).manualCoordinateEntry,
+                    style: const TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -270,11 +271,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       Expanded(
                         child: TextField(
                           controller: _latController,
-                          decoration: const InputDecoration(
-                            labelText: 'Latitude',
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context).latitude,
                             hintText: '13.756300',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
@@ -287,11 +288,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       Expanded(
                         child: TextField(
                           controller: _lngController,
-                          decoration: const InputDecoration(
-                            labelText: 'Longitude',
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context).longitude,
                             hintText: '100.501800',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
@@ -304,7 +305,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'หรือแตะบนแผนที่เพื่อเลือกตำแหน่ง',
+                    AppLocalizations.of(context).tapOnMapToSelectLocation,
                     style: TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 12,
@@ -316,8 +317,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   TextField(
                     controller: _roadNameController,
                     decoration: InputDecoration(
-                      labelText: 'ชื่อถนน',
-                      hintText: 'ชื่อถนนจะแสดงอัตโนมัติ หรือพิมพ์เอง',
+                      labelText: AppLocalizations.of(context)
+                          .roadName
+                          .replaceAll(':', ''),
+                      hintText: AppLocalizations.of(context).roadNameHint,
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
@@ -402,9 +405,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'ตำแหน่งที่เลือก:',
-                              style: TextStyle(
+                            Text(
+                              AppLocalizations.of(context).coordinates,
+                              style: const TextStyle(
                                 fontFamily: 'NotoSansThai',
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -535,9 +538,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             elevation: 2,
                           ),
-                          child: const Text(
-                            'ยกเลิก',
-                            style: TextStyle(
+                          child: Text(
+                            AppLocalizations.of(context).cancelAction,
+                            style: const TextStyle(
                               fontFamily: 'NotoSansThai',
                               fontSize: 16,
                               color: Colors.black,
@@ -570,9 +573,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                                 } else {
                                   // แสดง error ว่าพิกัดไม่ถูกต้อง
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('พิกัดต้องอยู่ในช่วงที่ถูกต้อง'),
+                                    SnackBar(
+                                      content: Text(AppLocalizations.of(context)
+                                          .coordinatesOutOfRange),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -580,8 +583,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                               } catch (e) {
                                 // แสดง error ว่ารูปแบบพิกัดไม่ถูกต้อง
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('รูปแบบพิกัดไม่ถูกต้อง'),
+                                  SnackBar(
+                                    content: Text(AppLocalizations.of(context)
+                                        .invalidCoordinateFormat),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -600,9 +604,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             elevation: 2,
                           ),
-                          child: const Text(
-                            'ยืนยันตำแหน่ง',
-                            style: TextStyle(
+                          child: Text(
+                            AppLocalizations.of(context).confirmLocation,
+                            style: const TextStyle(
                               fontFamily: 'NotoSansThai',
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

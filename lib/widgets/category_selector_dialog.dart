@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/event_model.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class CategorySelectorDialog extends StatefulWidget {
   final List<EventCategory> initiallySelectedCategories;
@@ -75,9 +76,9 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'เลือกประเภท',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context).selectCategory,
+                                style: const TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black87,
@@ -87,7 +88,9 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${selectedCategories.length} จาก ${EventCategory.values.length} รายการ',
+                                AppLocalizations.of(context).selectedOfTotal(
+                                    selectedCategories.length,
+                                    EventCategory.values.length),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade600,
@@ -216,7 +219,7 @@ class _CategorySelectorDialogState extends State<CategorySelectorDialog> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        category.label,
+                                        category.label(context),
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,

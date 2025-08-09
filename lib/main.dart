@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // สำหรับ kIsWeb
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'routes/app_routes.dart';
 import 'services/firebase_service.dart';
@@ -10,6 +12,8 @@ import 'services/cleanup_service.dart';
 import 'services/enhanced_cache_service.dart';
 import 'services/notification_service.dart';
 import 'services/push_notification_service.dart';
+import 'providers/language_provider.dart';
+import 'generated/gen_l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,10 +38,8 @@ void _initializeBackgroundServices() async {
   try {
     // 🚀 เปิด Local Persistence เพื่อเพิ่มความเร็ว (Platform-specific)
     if (kIsWeb) {
-      await FirebaseFirestore.instance.enablePersistence(
-        const PersistenceSettings(synchronizeTabs: true),
-      );
-      print('✅ Firebase persistence enabled for Web!');
+      // Web persistence ใช้วิธีอื่น
+      print('✅ Firebase persistence skipped for Web (will use browser cache)');
     } else {
       // สำหรับ Mobile จะตั้งค่าใน Settings ด้านล่าง
       print('✅ Firebase persistence will be set via Settings for Mobile');
@@ -84,17 +86,37 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'CheckDarn - แผนที่เหตุการณ์',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Sarabun',
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => LanguageProvider()),
+      ],
+      child: Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return MaterialApp(
+            title: 'CheckDarn - แผนที่เหตุการณ์',
+            locale: languageProvider.currentLocale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en', ''), // English
+              Locale('th', ''), // Thai
+            ],
+            theme: ThemeData(
+              primarySwatch: Colors.blue,
+              fontFamily: 'Sarabun',
+            ),
+            navigatorKey:
+                NotificationService.navigatorKey, // เพิ่ม global navigator key
+            initialRoute: AppRoutes.splash,
+            routes: AppRoutes.routes,
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
-      navigatorKey:
-          NotificationService.navigatorKey, // เพิ่ม global navigator key
-      initialRoute: AppRoutes.splash,
-      routes: AppRoutes.routes,
-      debugShowCheckedModeBanner: false,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../generated/gen_l10n/app_localizations.dart';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
 import '../widgets/speed_camera_marker.dart';
@@ -59,7 +60,7 @@ class _SingleCameraMapScreenState extends State<SingleCameraMapScreen> {
         // ไม่พบกล้อง แสดง fallback location
         setState(() {
           _isLoading = false;
-          _errorMessage = 'ไม่พบข้อมูลกล้องในระบบ';
+          _errorMessage = AppLocalizations.of(context).cameraNotFoundInSystem;
         });
 
         if (widget.fallbackLocation != null) {
@@ -76,7 +77,7 @@ class _SingleCameraMapScreenState extends State<SingleCameraMapScreen> {
       print('❌ Error loading camera: $e');
       setState(() {
         _isLoading = false;
-        _errorMessage = 'เกิดข้อผิดพลาดในการโหลดข้อมูล: $e';
+        _errorMessage = '${AppLocalizations.of(context).errorLoadingData}: $e';
       });
 
       // แสดง fallback location หากมี
@@ -103,15 +104,15 @@ class _SingleCameraMapScreenState extends State<SingleCameraMapScreen> {
         elevation: 2,
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
                   Text(
-                    'กำลังโหลดข้อมูลกล้อง...',
-                    style: TextStyle(fontFamily: 'NotoSansThai'),
+                    AppLocalizations.of(context).loadingCameraData,
+                    style: const TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                 ],
               ),
@@ -264,7 +265,8 @@ class _SingleCameraMapScreenState extends State<SingleCameraMapScreen> {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'จำกัดความเร็ว: ${_camera!.speedLimit} km/h',
+                                  AppLocalizations.of(context)
+                                      .speedLimitDisplay(_camera!.speedLimit),
                                   style: const TextStyle(
                                     fontFamily: 'NotoSansThai',
                                     fontSize: 14,

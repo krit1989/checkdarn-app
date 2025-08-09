@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 
 class LoginTestScreen extends StatefulWidget {
@@ -203,7 +204,7 @@ class _LoginTestScreenState extends State<LoginTestScreen> {
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text('ตรวจสอบสถานะ'),
+                child: Text(AppLocalizations.of(context).checkStatus),
               ),
             ),
             const SizedBox(height: 12),

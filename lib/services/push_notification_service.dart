@@ -307,6 +307,12 @@ class PushNotificationService {
     return reportId;
   }
 
+  /// 🗑️ **ล้าง Pending Report ID**
+  static void clearPendingReportId() {
+    _pendingReportId = null;
+    print('🔔 PushNotificationService: Cleared pending report ID');
+  }
+
   /// � **ส่งการแจ้งเตือนทดสอบ**
   static Future<void> sendTestNotification() async {
     try {

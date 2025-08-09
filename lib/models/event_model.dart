@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 enum EventCategory {
   checkpoint, // ด่านตรวจ 🚓
@@ -12,7 +13,30 @@ enum EventCategory {
 }
 
 extension EventCategoryExtension on EventCategory {
-  String get label {
+  String label(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    switch (this) {
+      case EventCategory.checkpoint:
+        return l10n.categoryCheckpoint;
+      case EventCategory.accident:
+        return l10n.categoryAccident;
+      case EventCategory.fire:
+        return l10n.categoryFire;
+      case EventCategory.floodRain:
+        return l10n.categoryFloodRain;
+      case EventCategory.tsunami:
+        return l10n.categoryTsunami;
+      case EventCategory.earthquake:
+        return l10n.categoryEarthquake;
+      case EventCategory.animalLost:
+        return l10n.categoryAnimalLost;
+      case EventCategory.question:
+        return l10n.categoryQuestion;
+    }
+  }
+
+  // Fallback label getter for backward compatibility (hardcoded Thai)
+  String get fallbackLabel {
     switch (this) {
       case EventCategory.checkpoint:
         return "ด่านตรวจ";
@@ -245,7 +269,7 @@ class EventModel {
 
   @override
   String toString() {
-    return 'EventModel(id: $id, title: $title, category: ${category.label}, latitude: $latitude, longitude: $longitude)';
+    return 'EventModel(id: $id, title: $title, category: ${category.shortLabel}, latitude: $latitude, longitude: $longitude)';
   }
 
   @override

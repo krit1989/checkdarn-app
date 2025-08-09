@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/smart_security_service.dart';
 
@@ -97,8 +98,8 @@ class _LoginScreenState extends State<LoginScreen>
       },
     )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).securityValidationFailed),
           backgroundColor: Colors.red,
         ),
       );
@@ -117,8 +118,8 @@ class _LoginScreenState extends State<LoginScreen>
       },
     )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('การตรวจสอบความปลอดภัยล้มเหลว กรุณาลองใหม่อีกครั้ง'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).securityValidationFailed),
           backgroundColor: Colors.red,
         ),
       );
@@ -259,9 +260,9 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 32),
 
                         // Welcome text
-                        const Text(
-                          'ยินดีต้อนรับสู่',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.of(context).welcomeTo,
+                          style: const TextStyle(
                             fontSize: 24,
                             color: Colors.black54,
                             fontWeight: FontWeight.w300,

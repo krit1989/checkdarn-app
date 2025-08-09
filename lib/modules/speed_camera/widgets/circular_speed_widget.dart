@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../../../generated/gen_l10n/app_localizations.dart';
 
 class CircularSpeedWidget extends StatefulWidget {
   final double currentSpeed;
@@ -19,77 +20,94 @@ class CircularSpeedWidget extends StatefulWidget {
 
 class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
     with TickerProviderStateMixin {
-  late AnimationController _rotationController;
-  late AnimationController _pulseController;
+  late AnimationController _progressController;
+  double _currentProgress = 0.0;
+  static const double MAX_SPEED = 200.0; // ความเร็วสูงสุด 200 km/h
 
   @override
   void initState() {
     super.initState();
 
-    // Animation controller สำหรับการหมุนของวงแหวนเมื่อเคลื่อนที่
-    _rotationController = AnimationController(
-      duration: const Duration(seconds: 2),
+    // Animation controller สำหรับ progress แบบ smooth
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 200), // ตอบสนองเร็วขึ้น
       vsync: this,
     );
 
-    // Animation controller สำหรับ pulse effect
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    // เริ่ม animation หากกำลังเคลื่อนที่
-    if (widget.isMoving) {
-      _rotationController.repeat();
-      _pulseController.repeat(reverse: true);
-    }
+    // อัปเดต progress ครั้งแรก
+    _updateProgress();
   }
 
   @override
   void didUpdateWidget(CircularSpeedWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // อัปเดต animation เมื่อสถานะการเคลื่อนที่เปลี่ยน
-    if (widget.isMoving != oldWidget.isMoving) {
-      if (widget.isMoving) {
-        _rotationController.repeat();
-        _pulseController.repeat(reverse: true);
-      } else {
-        _rotationController.stop();
-        _pulseController.stop();
-      }
+    // อัปเดต progress เมื่อความเร็วเปลี่ยน
+    if (widget.currentSpeed != oldWidget.currentSpeed) {
+      _updateProgress();
     }
+  }
+
+  void _updateProgress() {
+    // คำนวณ progress จาก 0 ถึง 1 โดยใช้ 200 km/h เป็นสูงสุด
+    final targetProgress = (widget.currentSpeed / MAX_SPEED).clamp(0.0, 1.0);
+
+    // ปรับ Animation Duration ตามความเร็ว - เร็วขึ้นเมื่อความเร็วสูง
+    int animationDuration;
+    if (widget.currentSpeed > 100) {
+      animationDuration = 100; // ความเร็วสูงมาก = animation เร็ว (100ms)
+    } else if (widget.currentSpeed > 60) {
+      animationDuration = 150; // ความเร็วสูง = animation ปานกลาง (150ms)
+    } else if (widget.currentSpeed > 30) {
+      animationDuration = 200; // ความเร็วปานกลาง = animation ปกติ (200ms)
+    } else {
+      animationDuration =
+          250; // ความเร็วต่ำ = animation ช้า เพื่อความนุ่มนวล (250ms)
+    }
+
+    // Debug logging สำหรับตรวจสอบการ Sync
+    print('=== CIRCULAR SPEED WIDGET SYNC ===');
+    print('Speed: ${widget.currentSpeed.toStringAsFixed(2)} km/h');
+    print('Display: ${_getFormattedSpeed()}');
+    print('Progress: ${(targetProgress * 100).toStringAsFixed(1)}%');
+    print('Animation Duration: ${animationDuration}ms');
+    print('Color: ${_getSpeedColor()}');
+
+    // อัปเดต duration ของ _progressController
+    _progressController.duration = Duration(milliseconds: animationDuration);
+
+    _progressController.reset();
+    _progressController.forward();
+
+    _currentProgress = targetProgress;
   }
 
   @override
   void dispose() {
-    _rotationController.dispose();
-    _pulseController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
   Color _getSpeedColor() {
-    if (widget.speedLimit == null) return const Color(0xFF1158F2);
-
-    final ratio = widget.currentSpeed / widget.speedLimit!;
+    double ratio = widget.currentSpeed / (widget.speedLimit ?? 120);
     if (ratio > 1.2) return Colors.red.shade600;
     if (ratio > 1.0) return Colors.orange.shade600;
     return const Color(0xFF1158F2);
   }
 
-  double _getSpeedProgress() {
-    if (widget.speedLimit == null) return widget.currentSpeed / 100.0;
-    return (widget.currentSpeed / widget.speedLimit!).clamp(0.0, 1.5);
+  String _getFormattedSpeed() {
+    // แสดงเป็นจำนวนเต็มทุกครั้งเพื่อให้ดูเรียบง่ายและเป็นธรรมชาติ
+    return widget.currentSpeed.toInt().toString();
   }
 
   @override
   Widget build(BuildContext context) {
     final speedColor = _getSpeedColor();
-    final progress = _getSpeedProgress();
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_rotationController, _pulseController]),
+      animation: _progressController,
       builder: (context, child) {
+        // ใช้ progress ที่คำนวณจากความเร็วแบบ real-time
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -109,19 +127,14 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
                     ),
                   ),
 
-                  // วงแหวนความเร็ว (หมุนเมื่อเคลื่อนที่)
-                  Transform.rotate(
-                    angle: widget.isMoving
-                        ? _rotationController.value * 2 * math.pi
-                        : 0,
-                    child: CustomPaint(
-                      size: const Size(120, 120),
-                      painter: SpeedRingPainter(
-                        progress: progress,
-                        color: speedColor,
-                        strokeWidth: 8,
-                        hasGlow: widget.isMoving,
-                      ),
+                  // วงแหวนความเร็ว (Progress Bar - ไม่หมุน)
+                  CustomPaint(
+                    size: const Size(120, 120),
+                    painter: SpeedRingPainter(
+                      progress: _currentProgress,
+                      color: speedColor,
+                      strokeWidth: 8,
+                      hasGlow: widget.isMoving,
                     ),
                   ),
 
@@ -138,9 +151,9 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // ความเร็วปัจจุบัน
+                          // ความเร็วปัจจุบัน - แสดงทศนิยมเมื่อความเร็วต่ำ
                           Text(
-                            '${widget.currentSpeed.toInt()}',
+                            _getFormattedSpeed(),
                             style: const TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.bold,
@@ -179,7 +192,7 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
                   border: Border.all(color: Colors.orange, width: 1),
                 ),
                 child: Text(
-                  'จำกัด ${widget.speedLimit!.toInt()}',
+                  '${AppLocalizations.of(context).speedLimitText} ${widget.speedLimit!.toInt()}',
                   style: const TextStyle(
                     fontSize: 14, // เพิ่มขนาดจาก 10 เป็น 14
                     color: Colors.orange,

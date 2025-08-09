@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/sound_manager.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class SoundSettingsScreen extends StatefulWidget {
   const SoundSettingsScreen({super.key});
@@ -32,11 +33,11 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor:
-          const Color(0xFFEDF0F7), // เปลี่ยนเป็นสีเดียวกับ list screen
+          const Color(0xFFEDF0F7), // เปลี่ยนให้เหมือนกับ settings screen
       appBar: AppBar(
-        title: const Text(
-          'ตั้งค่าเสียงแจ้งเตือน',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).soundSettingsTitle,
+          style: const TextStyle(
             fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
             color: Colors.black, // เปลี่ยนเป็นสีดำ
@@ -61,18 +62,39 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // เปิด/ปิดเสียง
-            Card(
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: SwitchListTile(
-                title: const Text(
-                  'เปิดใช้งานเสียงแจ้งเตือน',
-                  style: TextStyle(
-                      fontFamily: 'NotoSansThai', fontWeight: FontWeight.bold),
+                title: Text(
+                  AppLocalizations.of(context).enableSoundNotifications,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                    fontFamily: 'NotoSansThai',
+                  ),
                 ),
-                subtitle: const Text(
-                  'เปิด/ปิดเสียงแจ้งเตือนทั้งหมด',
-                  style: TextStyle(fontFamily: 'NotoSansThai'),
+                subtitle: Text(
+                  AppLocalizations.of(context).enableDisableSoundDesc,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                    fontFamily: 'NotoSansThai',
+                  ),
                 ),
                 value: _isSoundEnabled,
+                activeColor: const Color(0xFF4673E5),
+                activeTrackColor: const Color(0xFF4673E5).withOpacity(0.3),
                 onChanged: (value) async {
                   setState(() {
                     _isSoundEnabled = value;
@@ -81,7 +103,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                 },
                 secondary: Icon(
                   _isSoundEnabled ? Icons.volume_up : Icons.volume_off,
-                  color: const Color(0xFF1158F2),
+                  color: const Color(0xFF4673E5),
                 ),
               ),
             ),
@@ -89,13 +111,13 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
             const SizedBox(height: 16),
 
             // เลือกประเภทเสียง
-            const Text(
-              '🔊 เลือกประเภทเสียงแจ้งเตือน',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).selectSoundType,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
                 fontFamily: 'NotoSansThai',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87, // เปลี่ยนจากสีขาวเป็นสีเข้ม
               ),
             ),
 
@@ -107,24 +129,41 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                     soundType != AlertSoundType.beep &&
                     soundType != AlertSoundType.warning)
                 .map((soundType) {
-              return Card(
+              return Container(
                 margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: ListTile(
                   leading: Icon(
                     _getSoundIcon(soundType),
                     size: 24,
-                    color: const Color(0xFF1158F2),
+                    color: const Color(0xFF4673E5),
                   ),
                   title: Text(
-                    soundType.displayName,
+                    _getSoundDisplayName(soundType),
                     style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
                       fontFamily: 'NotoSansThai',
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   subtitle: Text(
                     _getSoundDescription(soundType),
-                    style: const TextStyle(fontFamily: 'NotoSansThai'),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                      fontFamily: 'NotoSansThai',
+                    ),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -135,12 +174,13 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                         onPressed: _isSoundEnabled
                             ? () => _testSound(soundType)
                             : null,
-                        tooltip: 'ทดสอบเสียง',
+                        tooltip: AppLocalizations.of(context).testSound,
                       ),
                       // Radio button
                       Radio<AlertSoundType>(
                         value: soundType,
                         groupValue: _selectedSoundType,
+                        activeColor: const Color(0xFF4673E5),
                         onChanged: _isSoundEnabled
                             ? (AlertSoundType? value) async {
                                 if (value != null) {
@@ -161,26 +201,35 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
             const SizedBox(height: 16),
 
             // คำอธิบาย
-            Card(
-              color: Colors.blue.shade50,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '💡 คำแนะนำ',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).soundTips,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      '• เสียงพูด: อ่านข้อความเป็นเสียงพูดภาษาไทย ให้ข้อมูลละเอียดและชัดเจน\n'
-                      '• ปิดเสียง: ไม่มีเสียงแจ้งเตือน เหมาะสำหรับสถานที่เงียบ',
-                      style: TextStyle(fontFamily: 'NotoSansThai'),
+                    Text(
+                      AppLocalizations.of(context).soundTipsDescription,
+                      style: const TextStyle(fontFamily: 'NotoSansThai'),
                     ),
                   ],
                 ),
@@ -195,13 +244,26 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
   String _getSoundDescription(AlertSoundType soundType) {
     switch (soundType) {
       case AlertSoundType.none:
-        return 'ไม่มีเสียงแจ้งเตือน เงียบสนิท';
+        return AppLocalizations.of(context).noSoundDescription;
       case AlertSoundType.beep:
-        return 'เสียงบี๊บสั้นๆ (เลิกใช้แล้ว)';
+        return AppLocalizations.of(context).beepSoundDescription;
       case AlertSoundType.warning:
-        return 'เสียงเตือนภัยแบบไซเรน (เลิกใช้แล้ว)';
+        return AppLocalizations.of(context).warningSoundDescription;
       case AlertSoundType.tts:
-        return 'อ่านข้อความเป็นเสียงพูดภาษาไทย - แนะนำ';
+        return AppLocalizations.of(context).ttsSoundDescription;
+    }
+  }
+
+  String _getSoundDisplayName(AlertSoundType soundType) {
+    switch (soundType) {
+      case AlertSoundType.none:
+        return AppLocalizations.of(context).noSoundDisplayName;
+      case AlertSoundType.beep:
+        return AppLocalizations.of(context).beepSoundDescription;
+      case AlertSoundType.warning:
+        return AppLocalizations.of(context).warningSoundDescription;
+      case AlertSoundType.tts:
+        return AppLocalizations.of(context).thaiVoiceDisplayName;
     }
   }
 
@@ -226,7 +288,8 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'ทดสอบเสียง: ${soundType.displayName}',
+              AppLocalizations.of(context)
+                  .testSoundSuccess(_getSoundDisplayName(soundType)),
               style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             duration: const Duration(seconds: 2),
@@ -239,7 +302,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'ไม่สามารถเล่นเสียงได้: $e',
+              AppLocalizations.of(context).cannotPlaySound(e.toString()),
               style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             duration: const Duration(seconds: 3),

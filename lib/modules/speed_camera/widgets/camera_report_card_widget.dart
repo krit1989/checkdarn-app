@@ -7,6 +7,7 @@ import 'single_camera_map_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
+import '../../../generated/gen_l10n/app_localizations.dart';
 
 class CameraReportCardWidget extends StatelessWidget {
   final CameraReport report;
@@ -23,16 +24,16 @@ class CameraReportCardWidget extends StatelessWidget {
   });
 
   // ฟังก์ชันสร้างชื่อแบบ masked สำหรับการแสดงผล
-  String _getMaskedPosterName() {
+  String _getMaskedPosterName(BuildContext context) {
     final currentUser = AuthService.currentUser;
 
     // ถ้าเป็นผู้ใช้ปัจจุบัน
     if (currentUser != null && currentUser.uid == report.reportedBy) {
-      return 'รายงานของฉัน';
+      return AppLocalizations.of(context).myReport;
     }
 
     // สำหรับคนอื่น ไม่แสดงชื่อเลย เพื่อความเป็นส่วนตัว
-    return 'สมาชิกในชุมชน';
+    return AppLocalizations.of(context).communityMember;
   }
 
   @override
@@ -58,7 +59,7 @@ class CameraReportCardWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    _getTypeDisplayName(report.type),
+                    _getTypeDisplayName(report.type, context),
                     style: TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 12,
@@ -76,14 +77,14 @@ class CameraReportCardWidget extends StatelessWidget {
                     icon: const Icon(Icons.delete_outline),
                     iconSize: 20,
                     color: Colors.red.shade400,
-                    tooltip: 'ลบรายงาน',
+                    tooltip: AppLocalizations.of(context).deleteReport,
                     visualDensity: VisualDensity.compact,
                   ),
                   const SizedBox(width: 4),
                 ],
 
                 Text(
-                  _formatDateTime(report.reportedAt),
+                  _formatDateTime(report.reportedAt, context),
                   style: TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 12,
@@ -139,7 +140,8 @@ class CameraReportCardWidget extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'จำกัดความเร็ว: ${report.speedLimit} km/h',
+                    AppLocalizations.of(context)
+                        .speedLimitDisplay(report.speedLimit),
                     style: const TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 14,
@@ -164,7 +166,7 @@ class CameraReportCardWidget extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (context) => SingleCameraMapScreen(
                         cameraId: report.selectedCameraId!,
-                        title: 'ดูแผนที่',
+                        title: AppLocalizations.of(context).viewMapButton,
                         fallbackLocation:
                             LatLng(report.latitude, report.longitude),
                       ),
@@ -178,7 +180,8 @@ class CameraReportCardWidget extends StatelessWidget {
                       builder: (context) => LocationPickerScreen(
                         initialLocation:
                             LatLng(report.latitude, report.longitude),
-                        title: 'ดูตำแหน่ง: ${report.roadName}',
+                        title: AppLocalizations.of(context)
+                            .viewLocationTitle(report.roadName),
                       ),
                     ),
                   );
@@ -199,8 +202,8 @@ class CameraReportCardWidget extends StatelessWidget {
                                   report.type ==
                                       CameraReportType.speedChanged) &&
                               report.selectedCameraId != null
-                          ? 'ดูกล้องในแผนที่'
-                          : 'ดูแผนที่',
+                          ? AppLocalizations.of(context).viewCameraOnMap
+                          : AppLocalizations.of(context).viewMapButton,
                       style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 14,
@@ -229,7 +232,7 @@ class CameraReportCardWidget extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _getMaskedPosterName(),
+                  _getMaskedPosterName(context),
                   style: TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 11,
@@ -275,7 +278,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'ชนะ',
+                      AppLocalizations.of(context).win,
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 10,
@@ -317,7 +320,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'ชนะ',
+                      AppLocalizations.of(context).win,
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 10,
@@ -340,7 +343,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      'เสมอ 3-3',
+                      AppLocalizations.of(context).tied,
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 11,
@@ -358,7 +361,8 @@ class CameraReportCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      'ต้องการ ${3 - math.max(report.upvotes, report.downvotes)} โหวต',
+                      AppLocalizations.of(context).needsMoreVotes(
+                          3 - math.max(report.upvotes, report.downvotes)),
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 11,
@@ -384,7 +388,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       onPressed: () => onVoteSubmitted(VoteType.upvote),
                       icon: const Icon(Icons.thumb_up, size: 18),
                       label: Text(
-                        _getUpvoteButtonText(),
+                        _getUpvoteButtonText(context),
                         style: const TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -403,7 +407,7 @@ class CameraReportCardWidget extends StatelessWidget {
                       onPressed: () => onVoteSubmitted(VoteType.downvote),
                       icon: const Icon(Icons.thumb_down, size: 18),
                       label: Text(
-                        _getDownvoteButtonText(),
+                        _getDownvoteButtonText(context),
                         style: const TextStyle(fontFamily: 'NotoSansThai'),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -434,9 +438,9 @@ class CameraReportCardWidget extends StatelessWidget {
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'รายงานของคุณ - รอการโหวตจากชุมชน',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).yourReportPending,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
@@ -460,9 +464,9 @@ class CameraReportCardWidget extends StatelessWidget {
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'คุณได้โหวตแล้ว',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).alreadyVotedStatus,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
                         color: Colors.blue,
@@ -487,7 +491,7 @@ class CameraReportCardWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _getStatusDisplayName(report.status),
+                      _getStatusDisplayName(report.status, context),
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
@@ -519,23 +523,23 @@ class CameraReportCardWidget extends StatelessWidget {
   }
 
   // เลือกข้อความปุ่มโหวตที่เหมาะสมกับประเภทการรายงาน
-  String _getUpvoteButtonText() {
+  String _getUpvoteButtonText(BuildContext context) {
     switch (report.type) {
       case CameraReportType.newCamera:
-        return 'มีจริง';
+        return AppLocalizations.of(context).exists;
       case CameraReportType.removedCamera:
       case CameraReportType.speedChanged:
-        return 'จริง';
+        return AppLocalizations.of(context).trueVote;
     }
   }
 
-  String _getDownvoteButtonText() {
+  String _getDownvoteButtonText(BuildContext context) {
     switch (report.type) {
       case CameraReportType.newCamera:
-        return 'ไม่มี';
+        return AppLocalizations.of(context).doesNotExist;
       case CameraReportType.removedCamera:
       case CameraReportType.speedChanged:
-        return 'ไม่จริง';
+        return AppLocalizations.of(context).falseVote;
     }
   }
 
@@ -548,21 +552,21 @@ class CameraReportCardWidget extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          title: const Text(
-            'ยืนยันการลบ',
-            style: TextStyle(
+          title: Text(
+            AppLocalizations.of(context).confirmDeletion,
+            style: const TextStyle(
                 fontFamily: 'NotoSansThai', fontWeight: FontWeight.w600),
           ),
-          content: const Text(
-            'คุณต้องการลบรายงานนี้ใช่หรือไม่?\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้',
-            style: TextStyle(fontFamily: 'NotoSansThai'),
+          content: Text(
+            AppLocalizations.of(context).deleteConfirmMessage,
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'ยกเลิก',
-                style: TextStyle(fontFamily: 'NotoSansThai'),
+              child: Text(
+                AppLocalizations.of(context).cancel,
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ),
             ElevatedButton(
@@ -574,9 +578,9 @@ class CameraReportCardWidget extends StatelessWidget {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text(
-                'ลบ',
-                style: TextStyle(fontFamily: 'NotoSansThai'),
+              child: Text(
+                AppLocalizations.of(context).delete,
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ),
           ],
@@ -593,10 +597,10 @@ class CameraReportCardWidget extends StatelessWidget {
     try {
       // แสดงข้อความแจ้งเตือนแทน loading dialog
       scaffoldMessenger.showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -604,15 +608,15 @@ class CameraReportCardWidget extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Text(
-                'กำลังลบรายงาน...',
-                style: TextStyle(fontFamily: 'NotoSansThai'),
+                AppLocalizations.of(context).deletingReport,
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ],
           ),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 10), // ให้เวลาพอสำหรับการลบ
+          duration: const Duration(seconds: 10), // ให้เวลาพอสำหรับการลบ
         ),
       );
 
@@ -625,13 +629,13 @@ class CameraReportCardWidget extends StatelessWidget {
       // แสดงข้อความสำเร็จ
       if (context.mounted) {
         scaffoldMessenger.showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'ลบรายงานเรียบร้อยแล้ว 🎉 กำลังอัปเดตหน้าจอ...',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).reportDeletedSuccess,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
 
@@ -655,9 +659,10 @@ class CameraReportCardWidget extends StatelessWidget {
       // ซ่อน loading snackbar
       scaffoldMessenger.hideCurrentSnackBar();
 
-      String errorMessage = 'เกิดข้อผิดพลาด: $e';
+      String errorMessage =
+          AppLocalizations.of(context).errorOccurred(e.toString());
       if (e.toString().contains('TimeoutException')) {
-        errorMessage = 'การลบใช้เวลานานเกินไป กรุณาลองใหม่';
+        errorMessage = AppLocalizations.of(context).deleteTimeoutError;
       }
 
       // แสดงข้อความผิดพลาด
@@ -676,14 +681,14 @@ class CameraReportCardWidget extends StatelessWidget {
     }
   }
 
-  String _getTypeDisplayName(CameraReportType type) {
+  String _getTypeDisplayName(CameraReportType type, BuildContext context) {
     switch (type) {
       case CameraReportType.newCamera:
-        return '📷 กล้องใหม่';
+        return AppLocalizations.of(context).newCameraType;
       case CameraReportType.removedCamera:
-        return '❌ กล้องถูกถอด';
+        return AppLocalizations.of(context).removedCameraType;
       case CameraReportType.speedChanged:
-        return '⚡ เปลี่ยนความเร็ว';
+        return AppLocalizations.of(context).speedChangedType;
     }
   }
 
@@ -724,31 +729,31 @@ class CameraReportCardWidget extends StatelessWidget {
     }
   }
 
-  String _getStatusDisplayName(CameraStatus status) {
+  String _getStatusDisplayName(CameraStatus status, BuildContext context) {
     switch (status) {
       case CameraStatus.pending:
-        return 'รอการตรวจสอบ';
+        return AppLocalizations.of(context).pendingReview;
       case CameraStatus.verified:
-        return 'ยืนยันแล้ว';
+        return AppLocalizations.of(context).verified;
       case CameraStatus.rejected:
-        return 'ถูกปฏิเสธ';
+        return AppLocalizations.of(context).rejected;
       case CameraStatus.duplicate:
-        return 'ข้อมูลซ้ำ';
+        return AppLocalizations.of(context).duplicate;
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
+  String _formatDateTime(DateTime dateTime, BuildContext context) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inMinutes < 1) {
-      return 'เมื่อสักครู่';
+      return AppLocalizations.of(context).justNow;
     } else if (difference.inHours < 1) {
-      return '${difference.inMinutes} นาทีที่แล้ว';
+      return AppLocalizations.of(context).minutesAgo(difference.inMinutes);
     } else if (difference.inDays < 1) {
-      return '${difference.inHours} ชั่วโมงที่แล้ว';
+      return AppLocalizations.of(context).hoursAgo(difference.inHours);
     } else if (difference.inDays < 7) {
-      return '${difference.inDays} วันที่แล้ว';
+      return AppLocalizations.of(context).daysAgo(difference.inDays);
     } else {
       return DateFormat('dd/MM/yyyy').format(dateTime);
     }

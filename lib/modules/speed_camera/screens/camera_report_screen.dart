@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/smart_security_service.dart';
+import '../../../generated/gen_l10n/app_localizations.dart';
 import '../models/camera_report_model.dart';
 import '../services/camera_report_service.dart';
 import '../widgets/camera_report_form_widget.dart';
@@ -117,8 +118,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
       },
     )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).securityValidationFailed),
           backgroundColor: Colors.red,
         ),
       );
@@ -231,7 +232,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         if (AuthService.isLoggedIn) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('เกิดข้อผิดพลาด: $e'),
+              content: Text(
+                  AppLocalizations.of(context).errorOccurred(e.toString())),
               backgroundColor: Colors.red,
             ),
           );
@@ -339,9 +341,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
       key: ValueKey(_scaffoldRefreshKey), // Key สำหรับ force rebuild ทั้งหน้า
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text(
-          'รายงานกล้องจับความเร็ว',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).cameraReportTitle,
+          style: const TextStyle(
             fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
           ),
@@ -358,8 +360,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               color: Colors.white,
             ),
             tooltip: _showAllNationwide
-                ? 'เปลี่ยนเป็นดูเฉพาะใกล้เคียง'
-                : 'เปลี่ยนเป็นดูทั่วประเทศ',
+                ? AppLocalizations.of(context).switchToNearbyView
+                : AppLocalizations.of(context).switchToNationwideView,
           ),
         ],
         bottom: TabBar(
@@ -371,10 +373,16 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             fontFamily: 'NotoSansThai',
             fontWeight: FontWeight.w600,
           ),
-          tabs: const [
-            Tab(icon: Icon(Icons.add_location), text: 'รายงานใหม่'),
-            Tab(icon: Icon(Icons.how_to_vote), text: 'โหวต'),
-            Tab(icon: Icon(Icons.bar_chart), text: 'สถิติ'),
+          tabs: [
+            Tab(
+                icon: const Icon(Icons.add_location),
+                text: AppLocalizations.of(context).newReportTab),
+            Tab(
+                icon: const Icon(Icons.how_to_vote),
+                text: AppLocalizations.of(context).votingTab),
+            Tab(
+                icon: const Icon(Icons.bar_chart),
+                text: AppLocalizations.of(context).statisticsTab),
           ],
         ),
       ),
@@ -418,9 +426,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'วิธีการรายงาน',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).howToReportTitle,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1158F2),
@@ -429,13 +437,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  '• รายงานกล้องใหม่ที่คุณพบเจอ\n'
-                  '• รายงานการเปลี่ยนจำกัดความเร็ว\n'
-                  '• ข้อมูลจะถูกตรวจสอบโดยชุมชน\n'
-                  '• เมื่อได้รับการยืนยัน ระบบจะดำเนินการอัตโนมัติ\n'
-                  '• คุณไม่สามารถโหวตรายงานของตัวเองได้',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).howToReportDescription,
+                  style: const TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.black87,
@@ -461,8 +465,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                 },
               )) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                  SnackBar(
+                    content:
+                        Text(AppLocalizations.of(context).securityCheckFailed),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -475,10 +480,10 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               _tabController.animateTo(1); // Index 1 = แท็บโหวต
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Text(
-                    'ส่งรายงานเรียบร้อยแล้ว! ตรวจสอบในแท็บโหวต',
-                    style: TextStyle(fontFamily: 'NotoSansThai'),
+                    AppLocalizations.of(context).reportSubmissionSuccess,
+                    style: const TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                   backgroundColor: Colors.green,
                 ),
@@ -525,8 +530,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   children: [
                     Text(
                       _showAllNationwide
-                          ? 'แสดงโพสต์จากทั่วประเทศ'
-                          : 'แสดงโพสต์ใกล้เคียง',
+                          ? AppLocalizations.of(context).showPostsFromNationwide
+                          : AppLocalizations.of(context).showNearbyPosts,
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w600,
@@ -538,8 +543,10 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     ),
                     Text(
                       _showAllNationwide
-                          ? 'รัศมี: ${_currentRadius.toInt()} กม. • โพสต์ทั้งหมด: ${_pendingReports.length}'
-                          : 'รัศมี: ${_currentRadius.toInt()} กม. • โพสต์ใกล้เคียง: ${_pendingReports.length}',
+                          ? AppLocalizations.of(context).radiusAllPosts(
+                              _currentRadius.toInt(), _pendingReports.length)
+                          : AppLocalizations.of(context).radiusNearbyPosts(
+                              _currentRadius.toInt(), _pendingReports.length),
                       style: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 12,
@@ -561,7 +568,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                       : Colors.green.shade700,
                 ),
                 label: Text(
-                  _showAllNationwide ? 'ใกล้เคียง' : 'ทั่วประเทศ',
+                  _showAllNationwide
+                      ? AppLocalizations.of(context).nearby
+                      : AppLocalizations.of(context).nationwide,
                   style: TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 12,
@@ -602,7 +611,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'จำเป็นต้องล็อกอินเพื่อโหวต',
+              AppLocalizations.of(context).loginRequiredToVote,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 18,
@@ -611,7 +620,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'กรุณาล็อกอินผ่านโปรไฟล์ในหน้าแผนที่',
+              AppLocalizations.of(context).pleaseLoginThroughMapProfile,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 14,
@@ -620,7 +629,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'แตะที่ปุ่มโปรไฟล์มุมขวาบนของแผนที่',
+              AppLocalizations.of(context).tapProfileButtonOnMap,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 12,
@@ -633,15 +642,15 @@ class _CameraReportScreenState extends State<CameraReportScreen>
     }
 
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
             Text(
-              'กำลังโหลดข้อมูล...',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).loadingData,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
           ],
         ),
@@ -672,7 +681,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'ไม่มีรายงานที่รอการโหวต',
+              AppLocalizations.of(context).noPendingReports,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 18,
@@ -681,7 +690,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'ขอบคุณที่ช่วยตรวจสอบข้อมูล!',
+              AppLocalizations.of(context).thankYouForVerifying,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 14,
@@ -723,8 +732,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   },
                 )) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+                    SnackBar(
+                      content: Text(
+                          AppLocalizations.of(context).securityCheckFailed),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -759,8 +769,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         },
       )) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('การตรวจสอบความปลอดภัยล้มเหลว'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).securityCheckFailed),
             backgroundColor: Colors.red,
           ),
         );
@@ -770,9 +780,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
       // ตรวจสอบการล็อกอินก่อนโหวต
       if (!AuthService.isLoggedIn) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('กรุณาล็อกอินผ่านหน้าแผนที่ก่อนโหวต',
-                style: TextStyle(fontFamily: 'NotoSansThai')),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).pleaseLoginBeforeVoting,
+                style: const TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -794,7 +804,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               ),
               const SizedBox(width: 16),
               Text(
-                'กำลังโหวต...',
+                AppLocalizations.of(context).voting,
                 style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
             ],
@@ -819,8 +829,8 @@ class _CameraReportScreenState extends State<CameraReportScreen>
         SnackBar(
           content: Text(
             voteType == VoteType.upvote
-                ? 'โหวต "มีจริง" เรียบร้อยแล้ว'
-                : 'โหวต "ไม่มี" เรียบร้อยแล้ว',
+                ? AppLocalizations.of(context).voteExistsSuccess
+                : AppLocalizations.of(context).voteNotExistsSuccess,
             style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           backgroundColor: Colors.green,
@@ -833,16 +843,18 @@ class _CameraReportScreenState extends State<CameraReportScreen>
       // ลบ loading indicator และแสดง error
       ScaffoldMessenger.of(context).clearSnackBars();
 
-      String errorMessage = 'เกิดข้อผิดพลาด: $e';
+      String errorMessage =
+          AppLocalizations.of(context).errorOccurred(e.toString());
       Color errorColor = Colors.red;
       bool shouldRetry = false;
 
       // จัดการ error แยกประเภทแบบละเอียด
-      if (e.toString().contains('คุณได้โหวตรายงานนี้แล้ว')) {
+      if (e.toString().contains('คุณได้โหวตรายงานนี้แล้ว') ||
+          e.toString().contains('already voted')) {
         // ตรวจสอบว่าเป็น error หลังจากโหวตสำเร็จหรือเปล่า
         // ถ้า voted reports ยังไม่มี report นี้ แสดงว่าเพิ่งโหวตสำเร็จ
         if (!_userVotedReports.contains(report.id)) {
-          errorMessage = 'โหวตเรียบร้อยแล้ว!\n(ระบบตรวจสอบว่าคุณได้โหวตแล้ว)';
+          errorMessage = AppLocalizations.of(context).alreadyVotedDetected;
           errorColor = Colors.green; // เปลี่ยนเป็นสีเขียวเพื่อบอกว่าสำเร็จ
           setState(() {
             _userVotedReports.add(report.id);
@@ -852,27 +864,32 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               const Duration(seconds: 1), () => _loadData(forceRefresh: true));
         } else {
           // ถ้า voted reports มี report นี้อยู่แล้ว แสดงว่าโหวตซ้ำจริงๆ
-          errorMessage = 'คุณได้โหวตรายงานนี้แล้ว';
+          errorMessage = AppLocalizations.of(context).alreadyVoted;
           errorColor = Colors.orange;
         }
-      } else if (e.toString().contains('ไม่มีสิทธิ์')) {
-        errorMessage = 'ไม่มีสิทธิ์ในการโหวต\nลองออกจากระบบและล็อกอินใหม่';
+      } else if (e.toString().contains('ไม่มีสิทธิ์') ||
+          e.toString().contains('permission') ||
+          e.toString().contains('unauthorized')) {
+        errorMessage = AppLocalizations.of(context).noVotingPermission;
         errorColor = Colors.red;
         shouldRetry = true;
-      } else if (e.toString().contains('ไม่พบรายงาน')) {
-        errorMessage = 'ไม่พบรายงานนี้ อาจถูกลบไปแล้ว';
+      } else if (e.toString().contains('ไม่พบรายงาน') ||
+          e.toString().contains('not found') ||
+          e.toString().contains('report not exist')) {
+        errorMessage = AppLocalizations.of(context).reportNotFound;
         errorColor = Colors.red;
         // Refresh data เพื่อลบรายงานที่ไม่มีออกจากรายการ
         Future.delayed(
             const Duration(seconds: 1), () => _loadData(forceRefresh: true));
       } else if (e.toString().contains('ปัญหาการเชื่อมต่อ') ||
+          e.toString().contains('connection') ||
           e.toString().contains('network') ||
           e.toString().contains('timeout')) {
-        errorMessage = 'ปัญหาการเชื่อมต่อ\nกรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่';
+        errorMessage = AppLocalizations.of(context).connectionProblem;
         errorColor = Colors.amber;
         shouldRetry = true;
       } else {
-        errorMessage = 'ไม่สามารถโหวตได้ กรุณาลองใหม่';
+        errorMessage = AppLocalizations.of(context).cannotVoteRetry;
         errorColor = Colors.red;
         shouldRetry = true;
       }
@@ -887,7 +904,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
           duration: const Duration(seconds: 5),
           action: shouldRetry
               ? SnackBarAction(
-                  label: 'ลองใหม่',
+                  label: AppLocalizations.of(context).tryAgain,
                   textColor: Colors.white,
                   onPressed: () {
                     // Retry voting
@@ -917,7 +934,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'จำเป็นต้องล็อกอินเพื่อดูสถิติ',
+              AppLocalizations.of(context).loginRequiredToViewStats,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 18,
@@ -926,7 +943,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'กรุณาล็อกอินผ่านโปรไฟล์ในหน้าแผนที่',
+              AppLocalizations.of(context).pleaseLoginThroughMapProfile,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 14,
@@ -935,7 +952,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'แตะที่ปุ่มโปรไฟล์มุมขวาบนของแผนที่',
+              AppLocalizations.of(context).tapProfileButtonOnMap,
               style: TextStyle(
                 fontFamily: 'NotoSansThai',
                 fontSize: 12,
@@ -982,9 +999,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   size: 48,
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'คะแนนการมีส่วนร่วม',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).engagementScore,
+                  style: const TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -1001,9 +1018,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     color: Colors.white,
                   ),
                 ),
-                const Text(
-                  'การมีส่วนร่วมทั้งหมด',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).totalEngagement,
+                  style: const TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.white70,
@@ -1021,7 +1038,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.add_location,
-                  title: 'รายงานส่ง',
+                  title: AppLocalizations.of(context).reportsSubmitted,
                   value: '${_userStats['reports_submitted'] ?? 0}',
                   color: Colors.orange,
                 ),
@@ -1030,7 +1047,7 @@ class _CameraReportScreenState extends State<CameraReportScreen>
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.how_to_vote,
-                  title: 'โหวตให้',
+                  title: AppLocalizations.of(context).voteFor,
                   value: '${_userStats['votes_submitted'] ?? 0}',
                   color: Colors.purple,
                 ),
@@ -1065,9 +1082,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'ผลกระทบต่อชุมชน',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).communityImpact,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -1076,12 +1093,9 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'การมีส่วนร่วมของคุณช่วยให้:\n'
-                  '• ข้อมูลกล้องจับความเร็วมีความแม่นยำ\n'
-                  '• ชุมชนมีข้อมูลที่ทันสมัย\n'
-                  '• การขับขี่ปลอดภัยยิ่งขึ้น',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).communityImpactDescription,
+                  style: const TextStyle(
                     fontFamily: 'NotoSansThai',
                     fontSize: 14,
                     color: Colors.black87,
@@ -1117,16 +1131,16 @@ class _CameraReportScreenState extends State<CameraReportScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'กำลังจะมาเร็วๆ นี้',
+                        AppLocalizations.of(context).comingSoon,
                         style: TextStyle(
                           fontFamily: 'NotoSansThai',
                           fontWeight: FontWeight.w600,
                           color: Colors.amber.shade700,
                         ),
                       ),
-                      const Text(
-                        'อันดับผู้มีส่วนร่วม และรางวัลพิเศษ',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).leaderboardAndRewards,
+                        style: const TextStyle(
                           fontFamily: 'NotoSansThai',
                           fontSize: 12,
                           color: Colors.black87,

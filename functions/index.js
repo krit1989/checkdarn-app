@@ -435,25 +435,26 @@ exports.sendNewCommentNotification = functions.firestore
       // ใช้ token แรกที่พบ
       const authorToken = authorTokenData.tokens[0];
       
-      // สร้างข้อความแจ้งเตือน
-      const commenterName = commentData.displayName || 'ผู้ใช้คนหนึ่ง';
+      // สร้างข้อความแจ้งเตือนที่ดีขึ้นพร้อมข้อมูลพื้นที่
+      const commenterName = commentData.displayName || 'ผู้ใช้';
       
-      // ปิดบางส่วนของชื่อ (แสดงแค่ 4 ตัวแรก แล้วใส่ ***)
-      const maskedName = commenterName.length > 4 
-        ? `${commenterName.substring(0, 4)} ${'*'.repeat(Math.min(commenterName.length - 4, 5))}`
-        : commenterName;
+      // ปิดบางส่วนของชื่อ (แสดงแค่ 6 ตัวแรก แล้วใส่ ********)
+      const maskedName = commenterName.length > 6 
+        ? `${commenterName.substring(0, 6)}********`
+        : `${commenterName}********`;
       
       // ดึงข้อความคอมเม้น (ลองหลาย field name)
       const commentText = commentData.text || commentData.comment || commentData.message || commentData.content || '';
       console.log(`💬 Comment text found: "${commentText}"`);
       
-      const shortComment = commentText.length > 30 
-        ? `${commentText.substring(0, 27)}...`
+      // สร้าง preview ของคอมเม้นต์
+      const shortComment = commentText.length > 25 
+        ? `${commentText.substring(0, 22)}...`
         : commentText;
       
-      const notificationTitle = '💬 มีความคิดเห็นใหม่!';
+      const notificationTitle = '💬 ความคิดเห็นใหม่';
       const notificationBody = shortComment 
-        ? `${maskedName}: ${shortComment}`
+        ? `${maskedName}: "${shortComment}"`
         : `${maskedName} แสดงความคิดเห็นในโพสต์ของคุณ`;
       
       // ส่งข้อความแจ้งเตือน
@@ -467,6 +468,28 @@ exports.sendNewCommentNotification = functions.firestore
           reportId: reportId,
           commentId: commentId,
           category: reportData.category || '',
+          location: reportData.location || '',
+          district: reportData.district || '',
+          province: reportData.province || '',
+          roadName: reportData.roadName || '',
+          subDistrict: reportData.subDistrict || '',
+          fullLocation: buildLocationString(reportData) || '',
+          // เพิ่มข้อมูลสำหรับการนำทาง
+          action: 'open_comment',
+          targetScreen: 'report_detail',
+          scrollToComment: 'true',
+          showComments: 'true',
+          autoOpenComments: 'true',
+          openCommentsSection: 'true',
+          expandComments: 'true',
+          focusComment: 'true',
+          commenterName: maskedName,
+          commentText: shortComment || '',
+          commentTimestamp: Date.now().toString(),
+          // เพิ่มข้อมูลเพื่อให้แน่ใจว่าจะเปิดคอมเมนต์
+          shouldOpenComments: 'true',
+          highlightCommentId: commentId,
+          navigateToComment: 'true'
         },
         token: authorToken
       };
@@ -633,6 +656,46 @@ async function cleanupSingleInvalidToken(invalidToken) {
 }
 
 /**
+ * 🗺️ สร้างข้อความตำแหน่งที่อ่านง่ายและครบถ้วน
+ * @param {Object} reportData - ข้อมูลรายงาน
+ * @returns {string} - ข้อความตำแหน่งที่จัดรูปแบบแล้ว
+ */
+function buildLocationString(reportData) {
+  const parts = [];
+  
+  // ลำดับความสำคัญ: อำเภอ > จังหวัด > ตำบล > ถนน
+  if (reportData.district) {
+    parts.push(reportData.district);
+  }
+  
+  if (reportData.province && reportData.province !== reportData.district) {
+    parts.push(reportData.province);
+  }
+  
+  // เพิ่มข้อมูลถนนถ้ามี (แต่ไม่ยาวเกินไป)
+  if (reportData.roadName && reportData.roadName.length <= 15) {
+    parts.unshift(reportData.roadName); // ใส่ไว้หน้าสุด
+  }
+  
+  // เพิ่มข้อมูลตำบลถ้ามีและไม่ซ้ำกับอำเภอ
+  if (reportData.subDistrict && 
+      reportData.subDistrict !== reportData.district && 
+      parts.length < 3) { // จำกัดไม่เกิน 3 ส่วน
+    parts.splice(-1, 0, reportData.subDistrict); // ใส่ก่อนจังหวัด
+  }
+  
+  if (parts.length === 0) {
+    // ถ้าไม่มีข้อมูลตำแหน่ง ลองใช้ location field
+    if (reportData.location) {
+      return reportData.location.length <= 20 ? reportData.location : null;
+    }
+    return null;
+  }
+  
+  return parts.join(', ');
+}
+
+/**
  * 🏷️ ดึง emoji สำหรับหมวดหมู่ (ตรงกับ Flutter event_model_new.dart)
  */
 function getCategoryEmoji(category) {
@@ -665,6 +728,121 @@ function getCategoryName(category) {
   };
   return nameMap[category] || 'เหตุการณ์';
 }
+
+/**
+ * 📍 **ส่งแจ้งเตือนตามพื้นที่** (Geographic Targeting)
+ * ส่งแจ้งเตือนให้เฉพาะผู้ใช้ในพื้นที่ใกล้เคียงเท่านั้น
+ */
+exports.sendLocationBasedNotification = functions.https.onCall(async (data, context) => {
+  try {
+    // ตรวจสอบ authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'กรุณาล็อกอินก่อนใช้งาน'
+      );
+    }
+
+    const { reportId, targetProvinces, targetDistricts, message, title } = data;
+    
+    console.log(`📍 Sending location-based notification for report: ${reportId}`);
+    console.log(`🎯 Target provinces: ${JSON.stringify(targetProvinces)}`);
+    console.log(`🎯 Target districts: ${JSON.stringify(targetDistricts)}`);
+
+    // ดึงข้อมูลโพสต์
+    const reportDoc = await admin.firestore()
+      .collection('reports')
+      .doc(reportId)
+      .get();
+
+    if (!reportDoc.exists) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        'ไม่พบรายงานที่ระบุ'
+      );
+    }
+
+    const reportData = reportDoc.data();
+
+    // สร้าง query สำหรับหาผู้ใช้ในพื้นที่เป้าหมาย
+    let userQuery = admin.firestore().collection('user_tokens');
+
+    // กรองตามจังหวัด
+    if (targetProvinces && targetProvinces.length > 0) {
+      userQuery = userQuery.where('province', 'in', targetProvinces);
+    }
+
+    // กรองตามอำเภอ
+    if (targetDistricts && targetDistricts.length > 0) {
+      userQuery = userQuery.where('district', 'in', targetDistricts);
+    }
+
+    const targetUsersSnapshot = await userQuery.get();
+    
+    const tokens = [];
+    targetUsersSnapshot.docs.forEach(doc => {
+      const userData = doc.data();
+      if (userData.tokens && Array.isArray(userData.tokens)) {
+        userData.tokens.forEach(token => {
+          if (token && token.length > 0) {
+            tokens.push(token);
+          }
+        });
+      }
+    });
+
+    if (tokens.length === 0) {
+      return {
+        success: false,
+        message: 'ไม่พบผู้ใช้ในพื้นที่เป้าหมาย'
+      };
+    }
+
+    // สร้างข้อความแจ้งเตือน
+    const categoryEmoji = getCategoryEmoji(reportData.category);
+    const categoryName = getCategoryName(reportData.category);
+    const locationInfo = buildLocationString(reportData);
+
+    const notificationMessage = {
+      notification: {
+        title: title || `🚨 ${categoryName}${locationInfo ? ` - ${locationInfo}` : ''}`,
+        body: message || reportData.description || 'มีเหตุการณ์ใหม่ในพื้นที่ของคุณ',
+      },
+      data: {
+        type: 'location_alert',
+        reportId: reportId,
+        category: reportData.category || '',
+        location: reportData.location || '',
+        district: reportData.district || '',
+        province: reportData.province || '',
+        fullLocation: locationInfo || '',
+        urgency: 'high'
+      },
+      tokens: tokens
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(notificationMessage);
+    
+    console.log(`📍 Location-based notification sent: ${response.successCount}/${tokens.length}`);
+
+    return {
+      success: true,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      targetUsers: targetUsersSnapshot.size,
+      sentTokens: tokens.length,
+      targetLocation: locationInfo
+    };
+
+  } catch (error) {
+    console.error('❌ Error in sendLocationBasedNotification:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      'ไม่สามารถส่งแจ้งเตือนได้',
+      error.message
+    );
+  }
+});
 
 // ============================================================================
 // 🔄 NOTIFICATION RETRY SYSTEM
@@ -749,18 +927,68 @@ exports.sendNewPostNotification = functions.firestore
 
       console.log(`📤 Found ${tokens.length} valid tokens for notification`)
 
-      // 2. สร้างข้อความแจ้งเตือนที่มีรายละเอียด
+      // 2. ดึงข้อมูลชื่อผู้โพส
+      let posterName = 'ผู้ใช้';
+      
+      // ลองดึงชื่อจากโพสต์ก่อน (มักจะมี displayName)
+      if (reportData.displayName) {
+        posterName = reportData.displayName;
+      } else {
+        try {
+          // ถ้าไม่มีในโพสต์ ลองดึงจาก user_tokens collection
+          const posterTokenDoc = await admin.firestore()
+            .collection('user_tokens')
+            .doc(reporterId)
+            .get();
+          
+          if (posterTokenDoc.exists) {
+            const posterData = posterTokenDoc.data();
+            posterName = posterData.displayName || posterData.username || posterData.name || 'ผู้ใช้';
+          } else {
+            // ถ้าไม่มีใน user_tokens ลองดึงจาก users collection
+            const posterDoc = await admin.firestore()
+              .collection('users')
+              .doc(reporterId)
+              .get();
+            
+            if (posterDoc.exists) {
+              const posterData = posterDoc.data();
+              posterName = posterData.displayName || posterData.username || posterData.name || 'ผู้ใช้';
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Could not fetch poster name:', error.message);
+        }
+      }
+      
+      // ปิดบางส่วนของชื่อคนโพส (แสดงแค่ 6 ตัวแรก แล้วใส่ ********)
+      const maskedPosterName = posterName.length > 6 
+        ? `${posterName.substring(0, 6)}********`
+        : `${posterName}********`;
+
+      // 3. สร้างข้อความแจ้งเตือนที่มีรายละเอียดและตำแหน่งที่ชัดเจน
       const categoryEmoji = getCategoryEmoji(reportData.category);
       const categoryName = getCategoryName(reportData.category);
       
-      // ใช้รายละเอียดจากโพสเป็น title
-      const notificationTitle = `${categoryEmoji} ${categoryName}`;
+      // สร้างข้อมูลตำแหน่งที่ครบถ้วน
+      const locationInfo = buildLocationString(reportData);
       
-      // ใช้รายละเอียดที่ผู้ใช้กรอกเป็น body (จำกัด 100 ตัวอักษร)
-      let notificationBody = reportData.description || 'มีเหตุการณ์ใหม่ในพื้นที่ของคุณ';
-      if (notificationBody.length > 100) {
-        notificationBody = notificationBody.substring(0, 97) + '...';
+      // ปรับปรุงข้อความแจ้งเตือนให้น่าสนใจและมีข้อมูลครบถ้วน พร้อมชื่อคนโพส
+      const notificationTitle = `${categoryEmoji} ${categoryName}${locationInfo ? ` - ${locationInfo}` : ''}`;
+      
+      // สร้าง body ที่มีรายละเอียดและชื่อคนโพส
+      let baseDescription = reportData.description || 'มีเหตุการณ์ใหม่';
+      
+      // จำกัดความยาวของคำอธิบายเพื่อให้มีที่สำหรับชื่อคนโพส
+      if (baseDescription.length > 60) {
+        baseDescription = baseDescription.substring(0, 57) + '...';
       }
+      
+      const notificationBody = `${maskedPosterName}: ${baseDescription}`;
+      
+      console.log(`📝 Poster name: ${posterName} -> Masked: ${maskedPosterName}`);
+      console.log(`🔍 Report data displayName: ${reportData.displayName}`);
+      console.log(`🔍 Reporter ID: ${reporterId}`);
       
       const message = {
         notification: {
@@ -774,6 +1002,15 @@ exports.sendNewPostNotification = functions.firestore
           location: reportData.location || '',
           district: reportData.district || '',
           province: reportData.province || '',
+          roadName: reportData.roadName || '',
+          subDistrict: reportData.subDistrict || '',
+          fullLocation: buildLocationString(reportData) || '',
+          // เพิ่มข้อมูลการนำทาง
+          action: 'open_post',
+          targetScreen: 'report_detail',
+          // เพิ่มข้อมูลชื่อคนโพส
+          posterName: maskedPosterName,
+          originalPosterName: posterName
         },
         tokens: tokens
       };

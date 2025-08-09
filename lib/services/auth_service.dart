@@ -26,7 +26,9 @@ class MockUserCredential implements UserCredential {
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final GoogleSignIn _googleSignIn = GoogleSignIn();
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Local cache สำหรับสถานะล็อกอิน

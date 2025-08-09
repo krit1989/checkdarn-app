@@ -1,0 +1,1148 @@
+{
+  "@@locale": "en",
+  
+  "@@comment_map_screen": "==================== MAP SCREEN ====================",
+  "searchingPostsInArea": "Searching for posts in this area...",
+  "movedToViewPosts": "Moved to view posts in area: {locationName}",
+  "@movedToViewPosts": {
+    "placeholders": {
+      "locationName": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedLocation": "Selected location",
+  "cannotLoadImage": "Cannot load image",
+  "comments": "Comments",
+  "noTitle": "No title",
+  "anonymousUser": "Anonymous user",
+  "myLocationTooltip": "Back to my real location",
+  "eventsInArea": "Events in this area ({count} items)",
+  "@eventsInArea": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kilometerShort": "km",
+  "cannotGetLocationInfo": "Cannot retrieve location information: {error}",
+  "@cannotGetLocationInfo": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unknownLocation": "Unknown location",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "cannotLoadData": "Cannot load data: {error}",
+  "@cannotLoadData": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "tryAgain": "Try again",
+  
+  "@@comment_bottom_bar": "==================== BOTTOM BAR ====================",
+  "emergency": "Emergency",
+  "category": "Type", 
+  "reportWhat": "Report",
+  "nearMe": "Near Me",
+  "speedCamera": "Camera",
+  
+  "@@comment_emergency_contacts": "==================== EMERGENCY CONTACTS ====================",
+  "emergencyNumbers": "Emergency Numbers",
+  "police": "Police",
+  "traffic": "Traffic",
+  "highway": "Highway Department",
+  "ruralRoad": "Rural Road",
+  "fireDepartment": "Fire Department",
+  "emergencyMedical": "Emergency Medical Services (EMS)",
+  "erawanCenter": "Erawan Center (Bangkok)",
+  "disasterAlert": "Disaster Alert",
+  "bombThreatTerrorism": "Bomb Threat / Terrorism",
+  "diseaseControl": "Disease Control Center",
+  "disasterPrevention": "Disaster Prevention and Mitigation (DDPM)",
+  "ruamkatanyu": "Ruamkatanyu Foundation",
+  "pohtecktung": "Poh Teck Tung Foundation",
+  "cyberCrimeHotline": "Cyber Crime Hotline",
+  "consumerProtection": "Office of Consumer Protection Board (OCPB)",
+  "js100": "JS.100",
+  "touristPolice": "Tourist Police",
+  "tourismAuthority": "Tourism Authority of Thailand (TAT)",
+  "harborDepartment": "Harbor Department",
+  "waterAccident": "Water Accident",
+  "expressway": "Expressway Authority of Thailand",
+  "transportCooperative": "Transport Cooperative",
+  "busVan": "Bus / Van",
+  "taxiGrab": "Taxi / Grab",
+  "meaElectricity": "Metropolitan Electricity Authority (MEA)",
+  "peaElectricity": "Provincial Electricity Authority (PEA)",
+  "cannotCallPhone": "Cannot call {phoneNumber}\nPlease check if device supports phone calls",
+  "@cannotCallPhone": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "@@comment_category_selector": "==================== CATEGORY SELECTOR ====================",
+  "selectCategory": "Select Category",
+  "selectedOfTotal": "{selected} of {total} items",
+  "@selectedOfTotal": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "categoryCheckpoint": "Checkpoint",
+  "categoryAccident": "Accident",
+  "categoryFire": "Fire",
+  "categoryFloodRain": "Rain/Flood",
+  "categoryTsunami": "Tsunami",
+  "categoryEarthquake": "Earthquake", 
+  "categoryAnimalLost": "Lost Animal",
+  "categoryQuestion": "General Question",
+  
+  "@@comment_settings_screen": "==================== SETTINGS SCREEN ====================",
+  "settings": "Settings",
+  "notifications": "Notifications",
+  "speedCameraSoundAlert": "Speed Camera Sound Alert",
+  "enableNotifications": "Enable Notifications",
+  "enableNotificationsDesc": "Notify when new events occur",
+  "general": "General",
+  "thaiVoice": "Thai Voice",
+  "language": "Language",
+  "selectLanguage": "Select Language",
+  "thai": "Thai",
+  "english": "English",
+  "currentlySelected": "Currently Selected",
+  "comingSoon": "Coming Soon!",
+  "close": "Close",
+  "shareApp": "Share App",
+  "shareAppDesc": "Share app with friends",
+  "reviewApp": "Review App",
+  "reviewAppDesc": "Rate app on App Store",
+  "aboutApp": "About App",
+  "version": "Version",
+  "termsOfService": "Terms of Service",
+  "privacyPolicy": "Privacy Policy",
+  "contactUs": "Contact Us",
+  "sendFeedbackOrReport": "Send feedback or report issues",
+  "email": "Email",
+  "openEmailApp": "Open email app",
+  "reportProblem": "Report Problem",
+  "reportProblemDesc": "Report usage issues",
+  "reportFeatureComingSoon": "Report feature coming soon!",
+  "logoutTitle": "Logout",
+  "logoutMessage": "Do you want to logout?",
+  "cancel": "Cancel",
+  "logout": "Logout",
+  "securityValidationFailed": "Security validation failed",
+  "logoutFailed": "Logout failed",
+  
+  "@@comment_login_screen": "==================== LOGIN SCREEN ====================",
+  "welcomeTo": "Welcome to",
+  
+  "@@comment_terms_of_service": "==================== TERMS OF SERVICE ====================",
+  "termsOfServiceTitle": "Terms of Service",
+  "termsOfServiceHeader": "📋 CheckDarn Terms of Service",
+  "lastUpdated": "Last Updated: August 8, 2025",
+  "acceptanceOfTermsTitle": "1. Acceptance of Terms",
+  "acceptanceOfTermsContent": "By using the CheckDarn application, you agree to accept and comply with all terms of service. If you do not accept these terms, please stop using the application immediately.",
+  "purposeOfUseTitle": "2. Purpose of Use",
+  "purposeOfUseContent": "CheckDarn is an application for reporting and alerting various events in the area, such as traffic, accidents, or other important events to help the community receive useful information.",
+  "appropriateUseTitle": "3. Appropriate Use",
+  "appropriateUseContent": "Users must use the application responsibly. Do not post false, offensive, or illegal information. Reported information should be factual and beneficial to the community.",
+  "privacyTitle": "4. Privacy",
+  "privacyContent": "We value user privacy. Personal data will be kept secure and used only for service development and improvement purposes.",
+  "responsibilityTitle": "5. Responsibility",
+  "responsibilityContent": "Application developers are not responsible for any damages arising from the use of the application. Users must use their judgment when making decisions based on received information.",
+  "modificationsTitle": "6. Terms Modifications",
+  "modificationsContent": "We reserve the right to modify the terms of service at any time. Modifications will take effect immediately after being announced in the application.",
+  "contactTitle": "7. Contact",
+  "contactContent": "If you have questions or need to contact regarding the terms of service, you can contact through the application or designated channels.",
+  "thankYouForUsing": "✅ Thank you for using CheckDarn",
+  "communityMessage": "Together building a safe community with good information",
+  
+  "@@comment_privacy_policy": "==================== PRIVACY POLICY ====================",
+  "privacyPolicyTitle": "Privacy Policy",
+  "privacyPolicyHeader": "🔒 CheckDarn Privacy Policy",
+  "effectiveFrom": "Effective from: August 8, 2025",
+  "dataCollectionTitle": "1. Data We Collect",
+  "dataCollectionContent": "We collect information when you use the CheckDarn application, including:\n\n• Account Information: Email, username, profile picture\n• Location Data: GPS location to display and report events\n• Usage Data: Access time, reporting types\n• Device Information: Mobile model, operating system",
+  "dataUsageTitle": "2. Purpose of Data Usage",
+  "dataUsageContent": "We use your data to:\n\n• Provide event reporting and notification services\n• Display events on maps according to appropriate locations\n• Improve and develop application quality\n• Send necessary and relevant notifications\n• Maintain security and prevent inappropriate usage",
+  "dataSharingTitle": "3. Data Sharing",
+  "dataSharingContent": "We do not sell or rent your personal data to third parties\n\nWe may share data in the following cases:\n\n• When we receive your consent\n• To comply with laws or court orders\n• To protect users' rights and safety\n• Publicly disclosed information (reports that users choose to share)",
+  "dataSecurityTitle": "4. Data Security",
+  "dataSecurityContent": "We prioritize protecting your data:\n\n• Use data encryption during transmission and storage\n• Have secure authentication systems\n• Limit data access to necessary personnel only\n• Regularly check and update security systems",
+  "userRightsTitle": "5. User Rights",
+  "userRightsContent": "You have rights regarding your personal data:\n\n• Access Right: Request to view data we collect\n• Correction Right: Request to correct incorrect data\n• Deletion Right: Request to delete personal data\n• Withdrawal Right: Cancel service usage at any time\n• Complaint Right: Report data usage issues",
+  "cookiesTitle": "6. Cookies and Tracking Technologies",
+  "cookiesContent": "The application may use these technologies:\n\n• Local Storage: Store settings and temporary data\n• Analytics: Analyze usage to improve the app\n• Push Notifications: Send necessary notifications\n• Firebase Services: Cloud services for data storage",
+  "policyChangesTitle": "7. Policy Changes",
+  "policyChangesContent": "We may update the privacy policy periodically\n\n• Will notify in advance if there are significant changes\n• Continued usage implies acceptance of new policy\n• Should check policy updates regularly",
+  "contactPrivacyTitle": "8. Contact",
+  "contactPrivacyContent": "If you have questions about the privacy policy:\n\n• Contact through the application\n• Send email to support team\n• Use \"Contact Us\" feature in settings page",
+  "respectPrivacy": "🛡️ We respect your privacy",
+  "securityMessage": "Your data is protected with the highest security standards",
+  
+  "@@comment_email_actions": "==================== EMAIL ACTIONS ====================",
+  "cannotOpenEmailApp": "Cannot open email app. Please try another method",
+  "emailAppOpened": "Opening email app...",
+  
+  "@@comment_list_screen": "==================== LIST SCREEN ====================",
+  "nearMeTitle": "Near Me",
+  "allCategories": "All",
+  "myPosts": "My Posts",
+  "noReportsYet": "No reports yet",
+  "startWithFirstReport": "Start with your first report",
+  "postStatistics": "Post Statistics",
+  "totalPosts": "Total posts: {count} items",
+  "@totalPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "freshPosts": "Fresh posts (24 hrs): {count} items",
+  "@freshPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "oldPosts": "Old posts: {count} items",
+  "@oldPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoDeleteNotice": "Posts will be automatically deleted after 24 hours\nto maintain data freshness",
+  "deleteOldPostsNow": "Delete old posts now",
+  "deletingOldPosts": "Deleting old posts...",
+  "deleteComplete": "Deletion complete! {count} fresh posts remaining",
+  "@deleteComplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteError": "Error deleting posts: {error}",
+  "@deleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "generalError": "An error occurred: {error}",
+  "@generalError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewMap": "View Map",
+  "clickToViewImage": "Click to view image",
+  "devOnly": "View Post Statistics (Dev Only)",
+  "meters": "m",
+  "kilometers": "km",
+  
+  "@@comment_report_screen": "==================== REPORT SCREEN ====================",
+  "reportScreenTitle": "Report What?",
+  "selectEventType": "Select Event Type *",
+  "detailsField": "Details *",
+  "clickToSelectLocation": "Click to select location",
+  "willTakeToCurrentLocation": "Will take you to your current location *",
+  "findingCurrentLocation": "Finding current location...",
+  "loadingAddressInfo": "Loading address information...",
+  "tapToChangeLocation": "Tap to change location",
+  "imageOnlyForLostAnimals": "Images can only be attached for \"Lost Animals\" reports\nto prevent inappropriate content",
+  "selectImageSource": "Select Image Source",
+  "gallery": "Gallery",
+  "camera": "Camera",
+  "addImage": "Add Image (Optional)",
+  "change": "Change",
+  "save": "Save",
+  "sending": "Sending...",
+  "securityValidationFailedImage": "Security validation failed. Cannot upload image",
+  "webpCompression": "WebP Compression...",
+  "imageUploadSuccess": "Image uploaded successfully!",
+  "cannotProcessImage": "Cannot process image",
+  "imageSelectionError": "Error selecting image: {error}",
+  "@imageSelectionError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "securityValidationFailedGeneral": "Security validation failed. Please try again",
+  "pleaseSelectCoordinates": "Please select coordinates: {field}",
+  "@pleaseSelectCoordinates": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseFillData": "Please fill in data: {field}",
+  "@pleaseFillData": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "eventLocation": "Event Location",
+  "userNotFound": "User not found. Please login again",
+  "dailyLimitExceeded": "Limit exceeded: Maximum 10 posts per day. Please wait 24 hours",
+  "cannotGetLocation": "Cannot determine location. Please select location manually",
+  "success": "Success",
+  "submitTimeoutError": "Failed to submit report: Timeout. Please check your internet connection",
+  "submitError": "Error submitting report",
+  "networkError": "Network connection problem. Please check WiFi/4G",
+  "permissionError": "No upload permission. Please contact system administrator",
+  "storageError": "File upload problem. Please try sending without image",
+  "fileSizeError": "Image file too large. Please try taking a new photo",
+  "persistentError": "If the problem persists, try sending without image",
+  "tryAgainAction": "Try Again",
+  "pleaseSelectEventType": "Please select event type",
+  "pleaseFillDetails": "Please fill in details",
+  
+  "@@comment_location_picker": "==================== LOCATION PICKER ====================",
+  "selectLocation": "Select Location",
+  "tapOnMapToSelectLocation": "Or tap on map to select location",
+  "currentLocation": "Current Location",
+  "addressInformation": "Address Information",
+  "roadName": "Road Name:",
+  "subDistrict": "Sub-district:",
+  "district": "District:",
+  "province": "Province:",
+  "coordinates": "Coordinates",
+  "manualCoordinateEntry": "Manual coordinate entry",
+  "latitude": "Latitude",
+  "longitude": "Longitude",
+  "apply": "Apply",
+  "coordinatesOutOfRange": "Coordinates must be in valid range",
+  "invalidCoordinateFormat": "Invalid coordinate format",
+  "confirmLocation": "Confirm Location",
+  "cancelAction": "Cancel",
+  "roadNameHint": "Road name will be displayed automatically or type manually",
+  
+  "@@comment_comments": "==================== COMMENTS ====================",
+  "reportComment": "Report Comment",
+  "reportCommentConfirm": "Do you want to report this comment as inappropriate?",
+  "reportCommentSuccess": "Comment reported successfully",
+  "commentsTitle": "Comments",
+  "noCommentsYet": "No comments yet",
+  "beFirstToComment": "Be the first to comment!",
+  "addCommentHint": "Add comment...",
+  "pleaseEnterComment": "Please enter a comment",
+  "commentSentSuccess": "Comment sent successfully",
+  "typeCommentHint": "Type a comment...",
+  
+  "@@comment_sound_settings": "==================== SOUND SETTINGS ====================",
+  "soundSettingsTitle": "Sound Alert Settings",
+  "enableSoundNotifications": "Enable Sound Notifications",
+  "enableDisableSoundDesc": "Enable/Disable all sound alerts",
+  "selectSoundType": "🔊 Select Sound Alert Type",
+  "testSound": "Test Sound",
+  "soundTips": "💡 Tips",
+  "soundTipsDescription": "• Voice: Reads text aloud in Thai, provides detailed and clear information\n• Silent: No sound alerts, suitable for quiet places",
+  "noSoundDescription": "No sound alerts, completely silent",
+  "beepSoundDescription": "Short beep sound (deprecated)",
+  "warningSoundDescription": "Siren warning sound (deprecated)",
+  "ttsSoundDescription": "Reads text aloud in Thai - Recommended",
+  "noSoundDisplayName": "Silent",
+  "thaiVoiceDisplayName": "Thai Voice",
+  "testSoundSuccess": "Test sound: {soundType}",
+  "@testSoundSuccess": {
+    "placeholders": {
+      "soundType": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotPlaySound": "Cannot play sound: {error}",
+  "@cannotPlaySound": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "@@comment_camera_report": "==================== CAMERA REPORT ====================",
+  "cameraReportTitle": "Speed Camera Reports",
+  "switchToNearbyView": "Switch to nearby view",
+  "switchToNationwideView": "Switch to nationwide view",
+  "newReportTab": "New Report",
+  "votingTab": "Voting",
+  "statisticsTab": "Statistics",
+  "howToReportTitle": "How to Report",
+  "howToReportDescription": "• Report new cameras you encounter\n• Report speed limit changes\n• Data will be verified by the community\n• Once verified, the system will process automatically\n• You cannot vote on your own reports",
+  "reportSubmittedSuccess": "Report submitted successfully! Check in the voting tab",
+  "showingNationwidePosts": "Showing posts from nationwide",
+  "showingNearbyPosts": "Showing nearby posts",
+  "radiusKm": "Radius: {radius} km",
+  "@radiusKm": {
+    "placeholders": {
+      "radius": {
+        "type": "int"
+      }
+    }
+  },
+  "totalPostsCount": "Total posts: {count}",
+  "@totalPostsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyPostsCount": "Nearby posts: {count}",
+  "@nearbyPostsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearby": "Nearby",
+  "nationwide": "Nationwide",
+  "loginRequiredToVote": "Login required to vote",
+  "loginThroughMapProfile": "Please login through profile on map screen",
+  "tapProfileButtonOnMap": "Tap the profile button at the top right of the map",
+  "loadingData": "Loading data...",
+  "noPendingReports": "No reports pending for voting",
+  "thankYouForVerifying": "Thank you for helping verify data!",
+  "voting": "Voting...",
+  "voteUpvoteSuccess": "Vote \"Exists\" submitted successfully",
+  "voteDownvoteSuccess": "Vote \"Doesn't exist\" submitted successfully",
+  "alreadyVoted": "You have already voted on this report",
+  "voteSuccessfullyRecorded": "Vote recorded successfully!\n(System verified that you have voted)",
+  "noPermissionToVote": "No permission to vote\nTry logging out and logging in again",
+  "reportNotFound": "Report not found, may have been deleted",
+  "connectionProblem": "Connection problem\nPlease check your internet and try again",
+  "cannotVoteRetry": "Cannot vote, please try again",
+  "retry": "Retry",
+  "loginRequiredForStats": "Login required to view statistics",
+  "contributionScore": "Contribution Score",
+  "totalContributions": "Total Contributions",
+  "reportsSubmitted": "Reports Submitted",
+  "votesGiven": "Votes Given",
+  "communityImpact": "Community Impact",
+  "communityImpactDescription": "Your participation helps:\n• Speed camera data accuracy\n• Community has up-to-date information\n• Safer driving experience",
+  "leaderboardAndRewards": "Leaderboard and special rewards",
+  "loginThroughMapProfileRequired": "Please login through map profile before voting",
+  
+  "reportSubmissionSuccess": "Report submitted successfully! Check in voting tab",
+  "errorOccurred": "Error occurred: {error}",
+  "@errorOccurred": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "showPostsFromNationwide": "Show posts from nationwide",
+  "showNearbyPosts": "Show nearby posts",
+  "radiusAllPosts": "Radius: {radius} km. • All posts: {count}",
+  "@radiusAllPosts": {
+    "placeholders": {
+      "radius": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "radiusNearbyPosts": "Radius: {radius} km. • Nearby posts: {count}",
+  "@radiusNearbyPosts": {
+    "placeholders": {
+      "radius": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pleaseLoginThroughMapProfile": "Please login through map profile",
+  "tapProfileButtonInMap": "Tap profile button at top right of map",
+  "voteExistsSuccess": "Vote \"Exists\" submitted successfully",
+  "voteNotExistsSuccess": "Vote \"Doesn't exist\" submitted successfully",
+  
+  "cameraReportFormTitle": "Speed Camera Report",
+  "reportTypeLabel": "Report Type",
+  "newCameraLocationLabel": "New Camera Location",
+  "selectNewCameraLocation": "Select New Camera Location",
+  "selectLocationOnMap": "Please select location on map",
+  "roadNameLabel": "Road Name",
+  "pleaseEnterRoadName": "Please enter road name",
+  "speedLimitLabel": "Speed Limit (km/h)",
+  "newSpeedLimitLabel": "New Speed Limit (km/h)",
+  "additionalDetailsLabel": "Additional Details",
+  "selectExistingCameraLabel": "Select existing camera from system",
+  "selectedLocationLabel": "Selected Location",
+  "tapToSelectLocationOnMap": "Tap to select location on map",
+  "locationDetailsLabel": "Location details and landmarks",
+  "pleaseProvideLocationDetails": "Please provide location details and landmarks",
+  "pleaseProvideAtLeast10Characters": "Please provide at least 10 characters",
+  
+  "reportNewCamera": "Report New Camera",
+  "reportRemovedCamera": "Report Removed Camera",
+  "reportSpeedChanged": "Report Speed Limit Changed",
+  "noLocationDataFound": "No location data found",
+  "loginRequiredToViewStats": "Login required to view statistics",
+  "securityCheckFailed": "Security check failed",
+  "pleaseLoginBeforeVoting": "Please login through map page before voting",
+  "alreadyVotedDetected": "Vote completed!\n(System detected you have already voted)",
+  "noVotingPermission": "No voting permission\nTry logout and login again",
+  "engagementScore": "Engagement Score",
+  "totalEngagement": "Total Engagement",
+  "voteFor": "Vote For",
+  "loadingCameraData": "Loading camera data...",
+  "noCameraDataFound": "No camera data found in system",
+  "selectedCamera": "Selected Camera",
+  "tapToSelectCameraFromMap": "Tap to select camera from map",
+  "pleaseSelectCameraFromMap": "Please select camera from map",
+  "oldSpeedToNewSpeed": "Old speed: {oldSpeed} km/h → New: {newSpeed} km/h",
+  "@oldSpeedToNewSpeed": {
+    "placeholders": {
+      "oldSpeed": {
+        "type": "int"
+      },
+      "newSpeed": {
+        "type": "int"
+      }
+    }
+  },
+  "locationExampleHint": "e.g. Near Robinson Intersection, In front of school, Opposite gas station, Bridge area",
+  "pleaseLoginBeforeReportingCamera": "Please login before reporting camera",
+  "coordinatesFormat": "Latitude: {lat}, Longitude: {lng}",
+  "@coordinatesFormat": {
+    "placeholders": {
+      "lat": {
+        "type": "String"
+      },
+      "lng": {
+        "type": "String"
+      }
+    }
+  },
+  "selectCamera": "Select Camera",
+  "cannotFindCurrentLocationEnableGPS": "Cannot find current location, please enable GPS",
+  "select": "Select",
+  "speedLimitFormat": "Speed limit: {limit} km/h",
+  "@speedLimitFormat": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "confirmSelection": "Confirm Selection",
+  "tapCameraIconOnMapToSelect": "Tap camera icon on map to select",
+  "cameraNotFoundInSystem": "Camera data not found in system",
+  "errorLoadingData": "Error loading data",
+  "selectCameraFromMap": "Select Camera from Map",
+  "searchingCurrentLocation": "Searching for current location...",
+  "foundCurrentLocation": "Found current location",
+  "cannotFindLocationUseMap": "Cannot find location, use map to search for cameras instead",
+  "pleaseAllowLocationAccess": "Please allow location access in app settings",
+  "showingBangkokMapNormalSearch": "Showing Bangkok map (camera search works normally)",
+  "selectedCameraInfo": "Selected Camera",
+  "cameraCode": "Code: {code}",
+  "@cameraCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "speedAndType": "Speed: {speed} km/h • {type}",
+  "@speedAndType": {
+    "placeholders": {
+      "speed": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "camerasCount": "{count} cameras",
+  "@camerasCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "confirm": "Confirm",
+  "myReport": "My Report",
+  "communityMember": "Community Member",
+  "deleteReport": "Delete Report",
+  "speedLimitDisplay": "Speed limit: {speed} km/h",
+  "@speedLimitDisplay": {
+    "placeholders": {
+      "speed": {
+        "type": "int"
+      }
+    }
+  },
+  "viewMapButton": "View Map",
+  "viewCameraOnMap": "View Camera on Map",
+  "viewLocationTitle": "View Location: {roadName}",
+  "@viewLocationTitle": {
+    "placeholders": {
+      "roadName": {
+        "type": "String"
+      }
+    }
+  },
+  "win": "Win",
+  "tied": "Tied 3-3",
+  "needsMoreVotes": "Needs {count} more votes",
+  "@needsMoreVotes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exists": "Exists",
+  "trueVote": "True",
+  "doesNotExist": "Does Not Exist",
+  "falseVote": "False",
+  "confirmDeletion": "Confirm Deletion",
+  "deleteConfirmMessage": "Do you want to delete this report?\n\nOnce deleted, it cannot be recovered.",
+  "delete": "Delete",
+  "deletingReport": "Deleting report...",
+  "reportDeletedSuccess": "Report deleted successfully 🎉 Updating screen...",
+  "deleteTimeoutError": "Deletion took too long, please try again",
+  "newCameraType": "📷 New Camera",
+  "removedCameraType": "❌ Camera Removed",
+  "speedChangedType": "⚡ Speed Changed",
+  "yourReportPending": "Your Report - Pending Votes",
+  "alreadyVotedStatus": "You Have Already Voted",
+  "pendingReview": "Pending Review",
+  "verified": "Verified",
+  "rejected": "Rejected",
+  "duplicate": "Duplicate Data",
+  "justNow": "Just now",
+  "minutesAgo": "{minutes} minutes ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "{hours} hours ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "daysAgo": "{days} days ago",
+  "@daysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "locationAccessDenied": "Location access denied",
+  "enableLocationInSettings": "Please enable location access in settings",
+  
+  "@@comment_speed_camera_screen": "==================== SPEED CAMERA SCREEN ====================",
+  "speedCameraTitle": "Speed Camera",
+  "soundSettingsTooltip": "Sound Alert Settings",
+  "loadingDataText": "Loading data...",
+  "cannotDetermineLocation": "Cannot determine location",
+  "cannotLoadSpeedCameraData": "Cannot load speed camera data",
+  "speedLimitText": "Limit",
+  
+  "@@comment_speed_camera_alerts": "==================== SPEED CAMERA ALERTS ====================",
+  "predictedCameraAlert": "Predicted speed camera in 10 seconds on {roadName} limit {speedLimit} km/h",
+  "@predictedCameraAlert": {
+    "placeholders": {
+      "roadName": {
+        "type": "String"
+      },
+      "speedLimit": {
+        "type": "int"
+      }
+    }
+  },
+  "nearCameraReduceSpeed": "Near speed camera, please reduce speed",
+  "nearCameraGoodSpeed": "Near speed camera, appropriate speed",
+  "cameraAheadDistance": "Speed camera ahead {distance}m limit {speedLimit} km/h",
+  "@cameraAheadDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "int"
+      },
+      "speedLimit": {
+        "type": "int"
+      }
+    }
+  },
+  
+  "@@comment_speed_camera_badge": "==================== SPEED CAMERA BADGE ====================",
+  "speedCameraBadgeTitle": "Speed Camera",
+  "badgeUpdatingCameraData": "Updating camera data...",
+  "badgeFoundNewCameras": "🎉 Found {count} new community verified cameras!",
+  "@badgeFoundNewCameras": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeCameraDataUpdated": "✅ Camera data updated successfully",
+  "badgeCannotUpdateData": "⚠️ Cannot update data",
+  "badgeSecurityAnomalyDetected": "🔒 System detected abnormal usage",
+  "badgeSystemBackToNormal": "✅ System back to normal operation",
+  "badgePredictedCameraAhead": "🔮 Camera detected in 10 seconds",
+  "badgeNearCameraReduceSpeed": "⚠️ Near camera, please reduce speed",
+  "badgeNearCameraGoodSpeed": "✅ Near camera, appropriate speed",
+  "badgeExceedingSpeed": "🚨 Exceeding {excessSpeed} km/h",
+  "@badgeExceedingSpeed": {
+    "placeholders": {
+      "excessSpeed": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeCameraAhead": "📍 Camera ahead {distance}m",
+  "@badgeCameraAhead": {
+    "placeholders": {
+      "distance": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeRadarDetection": "🔊 Camera radar {distance}m",
+  "@badgeRadarDetection": {
+    "placeholders": {
+      "distance": {
+        "type": "int"
+      }
+    }
+  },
+  
+  "@@comment_sound_manager": "==================== SOUND MANAGER ====================",
+  "soundTypeNone": "Silent",
+  "soundTypeBeep": "Real beep sound (not recommended)",
+  "soundTypeWarning": "Real warning siren (not recommended)",
+  "soundTypeTts": "Thai voice",
+  "ttsDistanceKilometer": "{distance} kilometers",
+  "@ttsDistanceKilometer": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsDistanceMeter": "{distance} meters",
+  "@ttsDistanceMeter": {
+    "placeholders": {
+      "distance": {
+        "type": "int"
+      }
+    }
+  },
+  "ttsCameraDistance": "Speed camera is {distance} away from you",
+  "@ttsCameraDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsEnteringRoadSpeed": "Entering {roadName} speed limit {speedLimit} kilometers per hour",
+  "@ttsEnteringRoadSpeed": {
+    "placeholders": {
+      "roadName": {
+        "type": "String"
+      },
+      "speedLimit": {
+        "type": "int"
+      }
+    }
+  },
+  "ttsBeep": "Beep",
+  "ttsWarning": "Warning",
+  "ttsTestVoice": "Test Thai voice",
+  "ttsCameraExample": "Speed camera ahead speed limit 90 kilometers per hour",
+  
+  "@@comment_widgets": "==================== WIDGETS ====================",
+  "noMessage": "No message",
+  "other": "Other",
+  "report": "Report",
+  "error": "Error occurred",
+  "errorWithDetails": "Error occurred: {error}",
+  "@errorWithDetails": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryCount": "Category ({count})",
+  "@categoryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "urgent": "Urgent",
+  "listing": "Listing",
+  "locationPermissionDenied": "Location access denied",
+  "enableLocationPermission": "Please enable location access in settings",
+  "cannotDetermineCurrentLocation": "Cannot determine current location",
+  "coordinateValidationError": "Invalid coordinates: Latitude (-90 to 90), Longitude (-180 to 180)",
+  "invalidCoordinates": "Invalid coordinate format",
+  "cameraLocation": "Camera location - {roadName}",
+  "@cameraLocation": {
+    "placeholders": {
+      "roadName": {
+        "type": "String"
+      }
+    }
+  },
+  "closeButton": "Close",
+  "manualCoordinates": "Enter coordinates manually",
+  "tapMapToSelect": "Or tap on map to select location",
+  "roadNameFieldLabel": "Road name",
+  "roadNameHintText": "Road name will be displayed automatically or type manually",
+  "selectedLocationText": "Selected location:",
+  "cameraLocationText": "Camera location:",
+  "speedLimitInfo": "Speed limit: {speedLimit} km/h",
+  "@speedLimitInfo": {
+    "placeholders": {
+      "speedLimit": {
+        "type": "int"
+      }
+    }
+  },
+  "noDetails": "No details",
+  "noLocation": "No location specified",
+  "details": "Details",
+  "location": "Location",
+  "coordinatesLabel": "Coordinates",
+  "closeDialog": "Close",
+  "removedDetailPage": "Detail page has been removed",
+  "viewDetails": "View Details",
+  
+  "@@comment_notification_settings": "==================== NOTIFICATION SETTINGS ====================",
+  "saveSettingsSuccess": "✅ Settings saved successfully",
+  "saveSettingsError": "❌ Error occurred: {error}",
+  "@saveSettingsError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "testingNotification": "🔔 Testing notification...",
+  "testNotificationSent": "✅ Test notification sent",
+  "testNotificationError": "❌ Error testing: {error}",
+  "@testNotificationError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTitle": "Notifications",
+  "saveSettingsTooltip": "Save settings",
+  "mainSettingsTitle": "⚙️ Main Settings",
+  "enableNotificationTitle": "Enable Notifications",
+  "enableNotificationSubtitle": "Receive notifications from CheckDarn app",
+  "notificationTypesTitle": "🔔 Notification Types",
+  "newEventsTitle": "New Events",
+  "newEventsSubtitle": "Notify when new events are reported near you",
+  "commentsSubtitle": "Notify when someone comments on your posts",
+  "systemTitle": "System",
+  "systemSubtitle": "System notifications and updates",
+  "statusTitle": "📊 Status",
+  "userTitle": "User",
+  "deviceTitle": "Device",
+  "deviceConnected": "Connected",
+  "notificationDisabled": "Notifications disabled",
+  "testTitle": "🧪 Test",
+  "testNotification": "Test Notification",
+  "tipsTitle": "💡 Tips",
+  "privacySettingTitle": "Privacy",
+  "privacySettingSubtitle": "We won't notify you when you post yourself",
+  "batterySavingTitle": "Battery Saving",
+  "batterySavingSubtitle": "Turn off unnecessary notifications to save battery",
+  
+  "@@comment_login_screen_extended": "==================== LOGIN SCREEN (EXTENDED) ====================",
+  "loginProcessStarted": "🚀 Starting login process...",
+  "loginSuccessWelcome": "Login successful! Welcome {name}",
+  "@loginSuccessWelcome": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "loginFailed": "Login failed: {error}",
+  "@loginFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "platformDescription": "Event reporting platform\nfor your community",
+  "signingIn": "Signing in...",
+  "signInWithGoogle": "Sign in with Google",
+  "skipForNow": "Skip for now",
+  "loginBenefit": "Signing in allows you to\nreport events and comment",
+  
+  "@@comment_splash_screen": "==================== SPLASH SCREEN ====================",
+  "welcome": "Welcome",
+  "appSlogan": "\"Know First, Survive First, Safe First\"",
+  "appVersion": "Version 1.0",
+  
+  "@@comment_login_test": "==================== LOGIN TEST SCREEN ====================",
+  "readyToTest": "Ready to test",
+  "alreadyLoggedIn": "Already logged in",
+  "notLoggedIn": "Not logged in",
+  "testingLogin": "Testing login...",
+  "startLoginTest": "🧪 Starting login test...",
+  "loginSuccessEmail": "Login successful: {email}",
+  "@loginSuccessEmail": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSuccessName": "Login successful: {name}",
+  "@loginSuccessName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "userCancelledLogin": "User cancelled login",
+  "loginTestFailed": "❌ Login test failed: {error}",
+  "@loginTestFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loginFailedGeneral": "Login failed: {error}",
+  "@loginFailedGeneral": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loggedOut": "Logged out",
+  "logoutSuccess": "Logout successful",
+  "logoutFailedError": "Logout failed: {error}",
+  "@logoutFailedError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loginTestTitle": "Login Test",
+  "loginStatusTitle": "Login Status",
+  "userDataTitle": "User Data",
+  "testingTitle": "Testing",
+  "testing": "Testing...",
+  "testLogin": "Test Login",
+  "logoutButton": "Logout",
+  "notesTitle": "Notes:",
+  "debugConsole": "• Check Console/Log for debug details",
+  "checkGoogleServices": "• Check Google Services and Firebase Console",
+  "checkSHA1": "• Check SHA-1 fingerprint in Firebase",
+  "testOnDevice": "• Test on real device, not Emulator",
+  
+  "@@comment_simple_login_test": "==================== SIMPLE LOGIN TEST ====================",
+  "simpleTestReady": "Ready to test",
+  "simpleTesting": "Testing...",
+  "simpleTestStart": "🧪 === Starting login test ===",
+  "authServiceInitialized": "AuthService initialized\nLogin status: {status}",
+  "@authServiceInitialized": {
+    "placeholders": {
+      "status": {
+        "type": "bool"
+      }
+    }
+  },
+  
+  "@@comment_bottom_bar_extended": "==================== BOTTOM BAR EXTENDED ====================",
+  "categoryWithCount": "Category ({count})",
+  "@categoryWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "urgentReport": "Urgent",
+  "listView": "List",
+  
+  "@@comment_post_statistics": "==================== POST STATISTICS ====================",
+  "postStatisticsTitle": "📊 Post Statistics",
+  "totalPostsWithEmoji": "📄 Total posts: {count} items",
+  "@totalPostsWithEmoji": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "freshPostsWithEmoji": "✨ Fresh posts (24 hrs): {count} items",
+  "@freshPostsWithEmoji": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "oldPostsWithEmoji": "🗑️ Old posts: {count} items",
+  "@oldPostsWithEmoji": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoDeleteInfo": "💡 Posts will be automatically deleted after 24 hours\nto maintain data freshness",
+  "cleanupOldPosts": "🧹 Delete old posts now",
+  "cleaningPosts": "🧹 Deleting old posts...",
+  "cleanupComplete": "✅ Cleanup complete! {count} fresh posts remaining",
+  "@cleanupComplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cleanupError": "Error deleting posts: {error}",
+  "@cleanupError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "postStatisticsTooltip": "View post statistics",
+  "loadingDataError": "Error occurred: {error}",
+  "@loadingDataError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loadingText": "Loading data...",
+  "noReportsTitle": "No reports yet",
+  "startReporting": "Start with your first report",
+  "reportListTitle": "Report List",
+  "unspecifiedLocation": "Location not specified",
+  "showComments": "Show Comments",
+  
+  "@@comment_map_screen_extended": "==================== MAP SCREEN EXTENDED ====================",
+  "eventsInAreaFull": "Events in this area ({count} items)",
+  "@eventsInAreaFull": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unspecifiedUser": "Unspecified",
+  "unknownUser": "Anonymous user",
+  
+  "@@comment_auth_service": "==================== AUTH SERVICE ====================",
+  "maskedUserFallback": "Anonymous user",
+  "loginSuccessWithName": "Login successful! Welcome {name}",
+  "@loginSuccessWithName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "loginError": "Login error: {error}",
+  "@loginError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "logoutSuccessful": "Logout successful",
+  "logoutError": "Logout error: {error}",
+  "@logoutError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loginThroughMapRequired": "Please login through map profile",
+  
+  "@@comment_misc_hardcoded": "==================== MISCELLANEOUS HARDCODED TEXT ====================",
+  "fallbackOther": "Other",
+  "developmentOnly": "(Dev Only)",
+  "user": "User",
+  "defaultUser": "User",
+  "anonymous": "Anonymous",
+  "roadNamePlaceholder": "Road name",
+  "eventLocationLabel": "Event location",
+  "unspecified": "Unspecified",
+  "securityTimeout": "Security check timeout",
+  "locationRequest": "📍 Requesting current location...",
+  "locationReceived": "✅ Location received: {location}",
+  "@locationReceived": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotGetLocationManual": "Cannot determine location. Please select location manually",
+  "reportTimeoutWarning": "Report submission timeout. Please check internet connection",
+  "reportSuccessTitle": "Success",
+  "reportTimeoutError": "Failed to submit report: Timeout. Please check your internet connection"
+}

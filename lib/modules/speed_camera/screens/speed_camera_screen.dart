@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'dart:async';
 import 'dart:math';
+import '../../../generated/gen_l10n/app_localizations.dart';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
 import '../../../services/smart_security_service.dart';
@@ -35,7 +36,18 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
   List<SpeedCamera> speedCameras = [];
   bool isLoadingLocation = false;
   bool isLoadingCameras = true;
-  double currentSpeed = 0.0;
+
+  // ใช้ ValueNotifier สำหรับข้อมูลที่เปลี่ยนแปลงบ่อย
+  final ValueNotifier<double> currentSpeedNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> smoothHeadingNotifier =
+      ValueNotifier<double>(0.0);
+
+  // Property getters สำหรับ backward compatibility
+  double get currentSpeed => currentSpeedNotifier.value;
+  set currentSpeed(double value) => currentSpeedNotifier.value = value;
+
+  double get _smoothTravelHeading => smoothHeadingNotifier.value;
+  set _smoothTravelHeading(double value) => smoothHeadingNotifier.value = value;
   SpeedCamera? nearestCamera;
   double distanceToNearestCamera = 0.0;
   // Intelligent Auto-Follow System - ระบบติดตามอัจฉริยะ
@@ -43,15 +55,16 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
   bool _userIsManuallyControlling = false; // ผู้ใช้กำลังควบคุมแผนที่เอง
 
   // Badge Alert System - ระบบแจ้งเตือนใน Badge
-  String _badgeText = 'กล้องจับความเร็ว';
+  String _badgeText =
+      'Speed Camera'; // Default English text, will be updated with localization
   Color _badgeColor =
       const Color(0xFFFFC107); // เปลี่ยนกลับเป็นสีเหลืองแบบเดิม (สีหลักของแอพ)
   Timer? _badgeResetTimer;
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _speedUpdateTimer;
+  Timer? _arrowUpdateTimer; // Timer เฉพาะสำหรับลูกศรนำทาง
   Timer? _followModeResetTimer; // Timer สำหรับกลับมา auto-follow
-  double _smoothTravelHeading = 0.0; // สำหรับ smooth rotation
 
   // ระบบ Predict Movement
   List<Position> _positionHistory = [];
@@ -164,6 +177,26 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     _startResourceMonitoring(); // เริ่มตรวจสอบการใช้ทรัพยากร
     _initializeSmartLoginDetection(); // เริ่มระบบตรวจจับการใช้งานเพื่อเด้งล็อกอิน
 
+    // เพิ่ม Timer สำหรับอัปเดตหน้าจอให้ราบรื่น (30 FPS)
+    _speedUpdateTimer =
+        Timer.periodic(const Duration(milliseconds: 33), (timer) {
+      if (mounted) {
+        setState(() {
+          // บังคับอัปเดต UI ทุก 33ms เพื่อให้ตัวเลขเคลื่อนไหวได้ราบรื่น
+        });
+      }
+    });
+
+    // เพิ่ม Timer เฉพาะสำหรับลูกศรนำทางให้ smooth มากขึ้น (60 FPS)
+    _arrowUpdateTimer =
+        Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (mounted && currentSpeed > 1.0) {
+        setState(() {
+          // อัปเดตลูกศรนำทางให้นุ่มนวลมากขึ้น ทุก 16ms (60 FPS)
+        });
+      }
+    });
+
     // Initialize smart map system หลังจาก widget build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeSmartMapSystem();
@@ -257,8 +290,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
       // แสดงแจ้งเตือนว่ากำลังรีเฟรช
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         _showBadgeAlert(
-          'กำลังอัปเดตข้อมูลกล้อง...',
+          localizations.badgeUpdatingCameraData,
           Colors.green,
           2000, // 2 วินาที
         );
@@ -300,13 +334,14 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
         // แสดงแจ้งเตือนสำเร็จ
         if (communityCameras.isNotEmpty) {
           _showBadgeAlert(
-            '🎉 พบกล้องใหม่ ${communityCameras.length} จุด ที่ชุมชนยืนยัน!',
+            AppLocalizations.of(context)
+                .badgeFoundNewCameras(communityCameras.length),
             Colors.green,
             5000, // 5 วินาที
           );
         } else {
           _showBadgeAlert(
-            '✅ ข้อมูลกล้องอัปเดตเรียบร้อย',
+            AppLocalizations.of(context).badgeCameraDataUpdated,
             Colors.green,
             3000, // 3 วินาที
           );
@@ -320,7 +355,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       // ถ้าเกิดข้อผิดพลาด ให้แสดงข้อความแจ้งเตือน
       if (mounted) {
         _showBadgeAlert(
-          '⚠️ ไม่สามารถอัปเดตข้อมูลได้',
+          AppLocalizations.of(context).badgeCannotUpdateData,
           Colors.orange,
           3000, // 3 วินาที
         );
@@ -761,7 +796,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // แสดงแจ้งเตือนให้ผู้ใช้
     if (mounted) {
       _showBadgeAlert(
-        '🔒 ระบบตรวจพบการใช้งานผิดปกติ',
+        AppLocalizations.of(context).badgeSecurityAnomalyDetected,
         Colors.orange,
         10000, // 10 วินาที
       );
@@ -786,7 +821,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
     if (mounted) {
       _showBadgeAlert(
-        '✅ ระบบกลับสู่การทำงานปกติ',
+        AppLocalizations.of(context).badgeSystemBackToNormal,
         Colors.green,
         5000, // 5 วินาที
       );
@@ -968,8 +1003,13 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // ลบ WidgetsBindingObserver
     WidgetsBinding.instance.removeObserver(this);
 
+    // Dispose ValueNotifiers
+    currentSpeedNotifier.dispose();
+    smoothHeadingNotifier.dispose();
+
     _positionSubscription?.cancel();
     _speedUpdateTimer?.cancel();
+    _arrowUpdateTimer?.cancel(); // ยกเลิก arrow update timer
     _connectionCheckTimer?.cancel();
     _preloadTimer?.cancel();
     _followModeResetTimer?.cancel(); // เพิ่ม timer ใหม่
@@ -1078,10 +1118,12 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // ติดตามความเร็วและทิศทางการเดินทางแบบ real-time
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.high,
+        accuracy: LocationAccuracy
+            .bestForNavigation, // เปลี่ยนเป็น bestForNavigation สำหรับความแม่นยำสูงสุด
         distanceFilter:
-            currentSpeed > 30 ? 8 : 5, // ปรับ distance filter ตามความเร็ว
-        timeLimit: const Duration(seconds: 10), // เพิ่ม timeout
+            0, // ตั้งเป็น 0 เพื่อให้อัปเดตทุกการเปลี่ยนแปลง (ความละเอียดสูงสุด)
+        timeLimit: const Duration(
+            seconds: 3), // ลดจาก 5 เป็น 3 วินาที เพื่อการอัปเดตที่เร็วขึ้น
       ),
     ).listen((Position position) {
       if (mounted) {
@@ -1133,15 +1175,28 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
           _recordMovementForLoginDetection(newPosition);
 
           // อัปเดตทิศทางการเดินทางจาก GPS (เฉพาะเมื่อเคลื่อนที่)
-          if (currentSpeed > 5.0 && position.heading.isFinite) {
+          // ลด threshold จาก 2.0 เป็น 1.5 km/h เพื่อเพิ่มความละเอียดเมื่อขับช้า
+          if (currentSpeed > 1.5 && position.heading.isFinite) {
             // ตรวจสอบความแตกต่างของมุมก่อนการอัปเดต
             final headingDiff = (position.heading - _smoothTravelHeading).abs();
             final normalizedDiff =
                 headingDiff > 180 ? 360 - headingDiff : headingDiff;
 
-            // อัปเดตเฉพาะเมื่อมีการเปลี่ยนแปลงที่มีนัยสำคัญ (> 1.5 องศา)
-            // ลดจาก 2.0 เป็น 1.5 เพื่อความไวในการตอบสนอง
-            if (normalizedDiff > 1.5) {
+            // ปรับ threshold แบบละเอียดสำหรับความเร็วต่ำ
+            double threshold;
+            if (currentSpeed < 10) {
+              // ความเร็วต่ำมาก (1.5-10 km/h): ใช้ threshold ต่ำสุด 0.2°
+              threshold = 0.2 + (currentSpeed / 10) * 0.1; // 0.2° - 0.3°
+            } else if (currentSpeed < 30) {
+              // ความเร็วต่ำ (10-30 km/h): threshold ปานกลาง
+              threshold = 0.3 + ((currentSpeed - 10) / 20) * 0.4; // 0.3° - 0.7°
+            } else {
+              // ความเร็วสูง (30+ km/h): threshold สูงเพื่อลดการสั่นไหว
+              threshold = 0.7 + ((currentSpeed - 30) / 70) * 1.3; // 0.7° - 2.0°
+              threshold = threshold.clamp(0.7, 2.0);
+            }
+
+            if (normalizedDiff > threshold) {
               _smoothTravelHeading =
                   _interpolateHeading(_smoothTravelHeading, position.heading);
             }
@@ -1268,7 +1323,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
     // แสดงแจ้งเตือนใน Badge
     _showBadgeAlert(
-      badgeMessage,
+      AppLocalizations.of(context).badgePredictedCameraAhead,
       const Color(0xFF1158F2),
       6000, // 6 วินาที
     );
@@ -1385,31 +1440,31 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       diff += 360;
     }
 
-    // Adaptive smooth interpolation - ปรับตามความเร็วแบบละเอียด
-    double smoothFactor = 0.25; // ค่าเริ่มต้นลดลงเพื่อความนุ่มนวล
+    // ปรับปรุงสูตรคำนวณ smoothFactor เพื่อเพิ่มความละเอียดเมื่อขับช้า
+    double smoothFactor;
 
-    // ปรับตามความเร็วแบบ gradient
-    if (currentSpeed > 80) {
-      smoothFactor = 0.6; // ความเร็วสูงมาก = การเปลี่ยนทิศทางเร็วมาก
-    } else if (currentSpeed > 60) {
-      smoothFactor = 0.5; // ความเร็วสูง = การเปลี่ยนทิศทางเร็วขึ้น
-    } else if (currentSpeed > 40) {
-      smoothFactor = 0.35; // ความเร็วปานกลาง
-    } else if (currentSpeed > 20) {
-      smoothFactor = 0.3; // ความเร็วต่ำ
-    } else if (currentSpeed > 5) {
-      smoothFactor = 0.2; // ความเร็วต่ำมาก = การเปลี่ยนทิศทางช้าลง
+    if (currentSpeed < 5) {
+      // ความเร็วต่ำมาก (0-5 km/h): ใช้ factor ต่ำเพื่อความนุ่มนวลแต่ตอบสนอง
+      smoothFactor = 0.15 + (currentSpeed / 5) * 0.1; // 0.15 - 0.25
+    } else if (currentSpeed < 15) {
+      // ความเร็วต่ำ (5-15 km/h): เพิ่มความไวขึ้นเล็กน้อย
+      smoothFactor = 0.25 + ((currentSpeed - 5) / 10) * 0.15; // 0.25 - 0.4
+    } else if (currentSpeed < 50) {
+      // ความเร็วปานกลาง (15-50 km/h): ใช้สูตรปกติ
+      smoothFactor = 0.4 + ((currentSpeed - 15) / 35) * 0.2; // 0.4 - 0.6
     } else {
-      smoothFactor = 0.1; // เกือบหยุด = การเปลี่ยนทิศทางช้ามาก
+      // ความเร็วสูง (50+ km/h): เพิ่มการตอบสนองเร็วขึ้น
+      smoothFactor = 0.6 + ((currentSpeed - 50) / 150) * 0.2; // 0.6 - 0.8
+      smoothFactor = smoothFactor.clamp(0.6, 0.8);
     }
 
-    // เพิ่มการปกป้องจากการกระโดดมุมมาก - ปรับปรุงการคำนวณ
-    if (diff.abs() > 60) {
-      smoothFactor *= 0.3; // ลดมากเมื่อมุมต่างมากกว่า 60 องศา
+    // ปรับ threshold การป้องกันการกระโดดมุมมาก - ให้นุ่มนวลขึ้น
+    if (diff.abs() > 120) {
+      smoothFactor *= 0.4; // ลดมากเมื่อมุมต่างมากกว่า 120 องศา
+    } else if (diff.abs() > 60) {
+      smoothFactor *= 0.6; // ลดปานกลางเมื่อมุมต่างมากกว่า 60 องศา
     } else if (diff.abs() > 30) {
-      smoothFactor *= 0.5; // ลดปานกลางเมื่อมุมต่างมากกว่า 30 องศา
-    } else if (diff.abs() > 15) {
-      smoothFactor *= 0.7; // ลดเล็กน้อยเมื่อมุมต่างมากกว่า 15 องศา
+      smoothFactor *= 0.8; // ลดเล็กน้อยเมื่อมุมต่างมากกว่า 30 องศา
     }
 
     // คำนวณทิศทางใหม่
@@ -1578,7 +1633,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
       // แสดงแจ้งเตือนใน Badge
       _showBadgeAlert(
-        '⚠️ อยู่ใกล้กล้อง โปรดลดความเร็ว',
+        AppLocalizations.of(context).badgeNearCameraReduceSpeed,
         Colors.orange,
         5000, // 5 วินาที
       );
@@ -1590,7 +1645,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
       // แสดงแจ้งเตือนใน Badge
       _showBadgeAlert(
-        '✅ อยู่ใกล้กล้อง ความเร็วเหมาะสม',
+        AppLocalizations.of(context).badgeNearCameraGoodSpeed,
         Colors.green,
         4000, // 4 วินาที
       );
@@ -1691,7 +1746,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
       // แสดง Badge แจ้งสถานะ
       _showBadgeAlert(
-        '🔊 เรดาร์กล้อง ${distance.toInt()}m',
+        AppLocalizations.of(context).badgeRadarDetection(distance.toInt()),
         const Color(0xFF1158F2),
         beepInterval + 1000, // แสดงนานกว่า interval เล็กน้อย
       );
@@ -1754,7 +1809,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // สร้างตัวแปรสำหรับค่าที่ใช้ทั้งใน UI และเสียง เพื่อให้แน่ใจว่าตรงกัน
     final uiSpeed = currentSpeed.toInt(); // ใช้ค่าเดียวกับใน UI
     final excessSpeed = uiSpeed - camera.speedLimit;
-    final badgeMessage = '🚨 เร็วเกิน ${excessSpeed} km/h';
     final ttsMessage = 'เร็วเกิน ${excessSpeed} กิโลเมตรต่อชั่วโมง';
 
     // Debug: ตรวจสอบค่าความเร็ว
@@ -1763,7 +1817,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     print('UI Speed (toInt): $uiSpeed');
     print('Speed limit: ${camera.speedLimit}');
     print('Excess speed: $excessSpeed');
-    print('Badge shows: "$badgeMessage"');
     print('TTS says: "$ttsMessage"');
     print('Values should now be identical!');
 
@@ -1776,7 +1829,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
     // แสดงแจ้งเตือนใน Badge
     _showBadgeAlert(
-      badgeMessage,
+      AppLocalizations.of(context).badgeExceedingSpeed(excessSpeed),
       Colors.orange,
       5000, // 5 วินาที
     );
@@ -1785,14 +1838,12 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
   void _showProximityAlert(SpeedCamera camera, double distance) {
     // สร้างตัวแปรสำหรับค่าที่ใช้ทั้งใน UI และเสียง
     final distanceInt = distance.toInt();
-    final badgeMessage = '📍 กล้องข้างหน้า ${distanceInt}m';
     final ttsMessage =
         'กล้องจับความเร็วข้างหน้า ${distanceInt} เมตร จำกัด ${camera.speedLimit} กิโลเมตรต่อชั่วโมง';
 
     // Debug log
     print('=== PROXIMITY ALERT SYNC ===');
     print('Distance: ${distanceInt}m');
-    print('Badge: "$badgeMessage"');
     print('TTS: "$ttsMessage"');
 
     // เล่นเสียงแจ้งเตือนเมื่อใกล้กล้อง
@@ -1803,7 +1854,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
     // แสดงแจ้งเตือนใน Badge
     _showBadgeAlert(
-      badgeMessage,
+      AppLocalizations.of(context).badgeCameraAhead(distanceInt),
       Colors.orange,
       4000, // 4 วินาที
     );
@@ -1823,7 +1874,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     _badgeResetTimer = Timer(Duration(milliseconds: durationMs), () {
       if (mounted) {
         setState(() {
-          _badgeText = 'กล้องจับความเร็ว';
+          _badgeText = AppLocalizations.of(context).speedCameraBadgeTitle;
           _badgeColor =
               const Color(0xFFFFC107); // กลับเป็นสีเหลืองแบบเดิม (สีหลักของแอพ)
         });
@@ -1859,48 +1910,76 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // ใช้ทิศทางการเดินทางจาก GPS
     final markerColor = const Color(0xFF1158F2); // สีน้ำเงินหลักของแอป
 
-    // คำนวณ duration ตามความเร็ว - เร็วขึ้นเมื่อความเร็วสูง
-    final animationDuration = currentSpeed > 60
-        ? const Duration(milliseconds: 150) // ความเร็วสูง = หมุนเร็ว
-        : currentSpeed > 30
-            ? const Duration(milliseconds: 250) // ความเร็วปานกลาง
-            : const Duration(
-                milliseconds: 400); // ความเร็วต่ำ = หมุนช้า นุ่มนวล
+    return ValueListenableBuilder<double>(
+      valueListenable: smoothHeadingNotifier,
+      builder: (context, heading, child) {
+        return ValueListenableBuilder<double>(
+          valueListenable: currentSpeedNotifier,
+          builder: (context, speed, child) {
+            // ปรับปรุง animation duration เพื่อเพิ่มความละเอียดเมื่อขับช้า
+            Duration animationDuration;
+            if (speed < 5) {
+              // ความเร็วต่ำมาก (0-5 km/h): animation ช้าเพื่อความนุ่มนวลและละเอียด
+              animationDuration = const Duration(milliseconds: 400);
+            } else if (speed < 15) {
+              // ความเร็วต่ำ (5-15 km/h): animation ปานกลาง
+              animationDuration = const Duration(milliseconds: 250);
+            } else if (speed < 30) {
+              // ความเร็วปานกลาง (15-30 km/h): animation เร็วขึ้น
+              animationDuration = const Duration(milliseconds: 160);
+            } else if (speed < 60) {
+              // ความเร็วสูง (30-60 km/h): animation เร็ว
+              animationDuration = const Duration(milliseconds: 120);
+            } else {
+              // ความเร็วสูงมาก (60+ km/h): animation เร็วที่สุด
+              animationDuration = const Duration(milliseconds: 80);
+            }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // วงรัศมีเดียว - ขอบไม่เข้ม (เพิ่มขนาดเล็กน้อย)
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: markerColor.withValues(alpha: 0.2), // สีฟ้าใสๆ
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: markerColor.withValues(alpha: 0.2), // ขอบไม่เข้ม
-              width: 1,
-            ),
-          ),
-        ),
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // วงรัศมีเดียว - ขอบไม่เข้ม (เพิ่มขนาดเล็กน้อย)
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: markerColor.withValues(alpha: 0.2), // สีฟ้าใสๆ
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: markerColor.withValues(alpha: 0.2), // ขอบไม่เข้ม
+                      width: 1,
+                    ),
+                  ),
+                ),
 
-        // ลูกศรนำทางสีน้ำเงิน - แบบสมูทและนุ่มนวล
-        AnimatedRotation(
-          turns: _smoothTravelHeading / 360, // แปลงจากองศาเป็น turns (0-1)
-          duration: animationDuration, // ใช้ duration ที่คำนวณตามความเร็ว
-          curve: Curves.easeInOutCubic, // curve ที่นุ่มนวลมากขึ้น
-          child: Icon(
-            Icons.navigation,
-            color: markerColor, // สีน้ำเงินเดิม
-            size: 48, // ขนาด 1.5 เท่า
-          ),
-        ),
-      ],
+                // ลูกศรนำทางสีน้ำเงิน - แบบสมูทและนุ่มนวล
+                AnimatedRotation(
+                  turns: heading / 360, // แปลงจากองศาเป็น turns (0-1)
+                  duration:
+                      animationDuration, // ใช้ duration ที่เร็วขึ้นตามความเร็ว
+                  curve: Curves
+                      .easeOutCirc, // เปลี่ยนเป็น curve ที่ตอบสนองเร็วขึ้น
+                  child: Icon(
+                    Icons.navigation,
+                    color: markerColor, // สีน้ำเงินเดิม
+                    size: 48, // ขนาด 1.5 เท่า
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Update badge text with localized version if it's still the default
+    if (_badgeText == 'Speed Camera') {
+      _badgeText = AppLocalizations.of(context).speedCameraBadgeTitle;
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent, // ทำให้พื้นหลังใส
       extendBodyBehindAppBar: true, // ขยาย body ไปหลัง AppBar
@@ -2015,7 +2094,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
                   children: [
                     // ส่วนซ้าย - ปุ่มตั้งค่าเสียง
                     Tooltip(
-                      message: 'ตั้งค่าเสียงแจ้งเตือน',
+                      message:
+                          AppLocalizations.of(context).soundSettingsTooltip,
                       textStyle: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 12,
@@ -2149,15 +2229,15 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
           if (isLoadingLocation || isLoadingCameras)
             Container(
               color: Colors.black26,
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
                     Text(
-                      'กำลังโหลดข้อมูล...',
-                      style: TextStyle(
+                      AppLocalizations.of(context).loadingDataText,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontFamily: 'NotoSansThai',
                         fontSize: 16,
@@ -2176,7 +2256,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
               child: CircularSpeedWidget(
                 currentSpeed: currentSpeed,
                 speedLimit: nearestCamera?.speedLimit.toDouble(),
-                isMoving: currentSpeed > 5.0,
+                isMoving: false, // ปิด glow effect - ให้มีแค่สีตามความเร็ว
               ),
             ),
         ],

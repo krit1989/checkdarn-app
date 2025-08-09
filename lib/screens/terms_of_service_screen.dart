@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class TermsOfServiceScreen extends StatelessWidget {
   const TermsOfServiceScreen({super.key});
@@ -8,9 +9,9 @@ class TermsOfServiceScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFEDF0F7),
       appBar: AppBar(
-        title: const Text(
-          'เงื่อนไขการใช้งาน',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).termsOfServiceTitle,
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.black,
             fontFamily: 'NotoSansThai',
@@ -41,10 +42,10 @@ class TermsOfServiceScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                const Center(
+                Center(
                   child: Text(
-                    '📋 เงื่อนไขการใช้งาน CheckDarn',
-                    style: TextStyle(
+                    AppLocalizations.of(context).termsOfServiceHeader,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
@@ -54,10 +55,10 @@ class TermsOfServiceScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Center(
+                Center(
                   child: Text(
-                    'อัปเดตล่าสุด: 8 สิงหาคม 2568',
-                    style: TextStyle(
+                    AppLocalizations.of(context).lastUpdated,
+                    style: const TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
                       fontFamily: 'NotoSansThai',
@@ -68,51 +69,45 @@ class TermsOfServiceScreen extends StatelessWidget {
 
                 // 1. การยอมรับเงื่อนไข
                 _buildSection(
-                  title: '1. การยอมรับเงื่อนไข',
+                  title: AppLocalizations.of(context).acceptanceOfTermsTitle,
                   content:
-                      'การใช้งานแอปพลิเคชัน CheckDarn ถือว่าท่านยอมรับและตกลงที่จะปฏิบัติตามเงื่อนไขการใช้งานทั้งหมด หากท่านไม่ยอมรับเงื่อนไขเหล่านี้ กรุณาหยุดใช้งานแอปพลิเคชันทันที',
+                      AppLocalizations.of(context).acceptanceOfTermsContent,
                 ),
 
                 // 2. วัตถุประสงค์การใช้งาน
                 _buildSection(
-                  title: '2. วัตถุประสงค์การใช้งาน',
-                  content:
-                      'CheckDarn เป็นแอปพลิเคชันสำหรับรายงานและแจ้งเตือนเหตุการณ์ต่างๆ ในพื้นที่ เช่น การจราจร อุบัติเหตุ หรือเหตุการณ์สำคัญอื่นๆ เพื่อช่วยให้ชุมชนได้รับข้อมูลข่าวสารที่เป็นประโยชน์',
+                  title: AppLocalizations.of(context).purposeOfUseTitle,
+                  content: AppLocalizations.of(context).purposeOfUseContent,
                 ),
 
                 // 3. การใช้งานที่เหมาะสม
                 _buildSection(
-                  title: '3. การใช้งานที่เหมาะสม',
-                  content:
-                      'ผู้ใช้ต้องใช้งานแอปพลิเคชันด้วยความรับผิดชอบ ไม่โพสต์ข้อมูลที่เป็นเท็จ หยาบคาย หรือผิดกฎหมาย ข้อมูลที่รายงานควรเป็นข้อเท็จจริงและเป็นประโยชน์ต่อส่วนรวม',
+                  title: AppLocalizations.of(context).appropriateUseTitle,
+                  content: AppLocalizations.of(context).appropriateUseContent,
                 ),
 
                 // 4. ความเป็นส่วนตัว
                 _buildSection(
-                  title: '4. ความเป็นส่วนตัว',
-                  content:
-                      'เราให้ความสำคัญกับความเป็นส่วนตัวของผู้ใช้ ข้อมูลส่วนบุคคลจะถูกเก็บรักษาอย่างปลอดภัยและใช้เฉพาะเพื่อการพัฒนาและปรับปรุงบริการเท่านั้น',
+                  title: AppLocalizations.of(context).privacyTitle,
+                  content: AppLocalizations.of(context).privacyContent,
                 ),
 
                 // 5. การรับผิดชอบ
                 _buildSection(
-                  title: '5. การรับผิดชอบ',
-                  content:
-                      'ผู้พัฒนาแอปพลิเคชันไม่รับผิดชอบต่อความเสียหายใดๆ ที่เกิดจากการใช้งานแอปพลิเคชัน ผู้ใช้ต้องใช้วิจารณญาณในการตัดสินใจจากข้อมูลที่ได้รับ',
+                  title: AppLocalizations.of(context).responsibilityTitle,
+                  content: AppLocalizations.of(context).responsibilityContent,
                 ),
 
                 // 6. การแก้ไขเงื่อนไข
                 _buildSection(
-                  title: '6. การแก้ไขเงื่อนไข',
-                  content:
-                      'เราสงวนสิทธิ์ในการแก้ไขเงื่อนไขการใช้งานได้ตลอดเวลา การแก้ไขจะมีผลทันทีหลังจากประกาศในแอปพลิเคชัน',
+                  title: AppLocalizations.of(context).modificationsTitle,
+                  content: AppLocalizations.of(context).modificationsContent,
                 ),
 
                 // 7. การติดต่อ
                 _buildSection(
-                  title: '7. การติดต่อ',
-                  content:
-                      'หากมีข้อสงสัยหรือต้องการติดต่อเกี่ยวกับเงื่อนไขการใช้งาน สามารถติดต่อผ่านทางแอปพลิเคชันหรือช่องทางที่กำหนด',
+                  title: AppLocalizations.of(context).contactTitle,
+                  content: AppLocalizations.of(context).contactContent,
                   isLast: true,
                 ),
 
@@ -134,9 +129,9 @@ class TermsOfServiceScreen extends StatelessWidget {
                         size: 32,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        '✅ ขอบคุณที่ใช้งาน CheckDarn',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).thankYouForUsing,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
@@ -146,7 +141,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'ร่วมสร้างชุมชนที่ปลอดภัยและมีข้อมูลข่าวสารที่ดี',
+                        AppLocalizations.of(context).communityMessage,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],

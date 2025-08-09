@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -8,9 +9,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFEDF0F7),
       appBar: AppBar(
-        title: const Text(
-          'นโยบายความเป็นส่วนตัว',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).privacyPolicyTitle,
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.black,
             fontFamily: 'NotoSansThai',
@@ -41,10 +42,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                const Center(
+                Center(
                   child: Text(
-                    '🔒 นโยบายความเป็นส่วนตัว CheckDarn',
-                    style: TextStyle(
+                    AppLocalizations.of(context).privacyPolicyHeader,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
@@ -54,10 +55,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Center(
+                Center(
                   child: Text(
-                    'มีผลตั้งแต่: 8 สิงหาคม 2568',
-                    style: TextStyle(
+                    AppLocalizations.of(context).effectiveFrom,
+                    style: const TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
                       fontFamily: 'NotoSansThai',
@@ -67,17 +68,47 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // 1. ข้อมูลที่เราเก็บรวบรวม
+                const SizedBox(height: 16),
+                // 1. การเก็บรวบรวมข้อมูล
                 _buildSection(
-                  title: '1. ข้อมูลที่เราเก็บรวบรวม',
-                  content:
-                      'เราเก็บรวบรวมข้อมูลเมื่อคุณใช้งานแอปพลิเคชัน CheckDarn ประกอบด้วย:\n\n'
-                      '• ข้อมูลบัญชี: อีเมล ชื่อผู้ใช้ รูปโปรไฟล์\n'
-                      '• ข้อมูลตำแหน่ง: GPS location เพื่อแสดงและรายงานเหตุการณ์\n'
-                      '• ข้อมูลการใช้งาน: เวลาการเข้าใช้ ประเภทการรายงาน\n'
-                      '• ข้อมูลอุปกรณ์: รุ่นมือถือ ระบบปฏิบัติการ',
+                  title: AppLocalizations.of(context).dataCollectionTitle,
+                  content: AppLocalizations.of(context).dataCollectionContent,
                 ),
-
-                // 2. วัตถุประสงค์การใช้ข้อมูล
+                // 2. การใช้งานข้อมูล
+                _buildSection(
+                  title: AppLocalizations.of(context).dataUsageTitle,
+                  content: AppLocalizations.of(context).dataUsageContent,
+                ),
+                // 3. การแบ่งปันข้อมูล
+                _buildSection(
+                  title: AppLocalizations.of(context).dataSharingTitle,
+                  content: AppLocalizations.of(context).dataSharingContent,
+                ),
+                // 4. ความปลอดภัยของข้อมูล
+                _buildSection(
+                  title: AppLocalizations.of(context).dataSecurityTitle,
+                  content: AppLocalizations.of(context).dataSecurityContent,
+                ),
+                // 5. สิทธิของผู้ใช้
+                _buildSection(
+                  title: AppLocalizations.of(context).userRightsTitle,
+                  content: AppLocalizations.of(context).userRightsContent,
+                ),
+                // 6. คุกกี้และการติดตาม
+                _buildSection(
+                  title: AppLocalizations.of(context).cookiesTitle,
+                  content: AppLocalizations.of(context).cookiesContent,
+                ),
+                // 7. การเปลี่ยนแปลงนโยบาย
+                _buildSection(
+                  title: AppLocalizations.of(context).policyChangesTitle,
+                  content: AppLocalizations.of(context).policyChangesContent,
+                ),
+                // 8. ติดต่อเรา
+                _buildSection(
+                  title: AppLocalizations.of(context).contactTitle,
+                  content: AppLocalizations.of(context).contactContent,
+                ), // 2. วัตถุประสงค์การใช้ข้อมูล
                 _buildSection(
                   title: '2. วัตถุประสงค์การใช้ข้อมูล',
                   content: 'เราใช้ข้อมูลของคุณเพื่อ:\n\n'
@@ -88,17 +119,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       '• รักษาความปลอดภัยและป้องกันการใช้งานที่ผิดต้อง',
                 ),
 
-                // 3. การแบ่งปันข้อมูล
-                _buildSection(
-                  title: '3. การแบ่งปันข้อมูล',
-                  content:
-                      'เราไม่ขายหรือให้เช่าข้อมูลส่วนบุคคลของคุณแก่บุคคลที่สาม\n\n'
-                      'เราอาจแบ่งปันข้อมูลในกรณีต่อไปนี้:\n\n'
-                      '• เมื่อได้รับความยินยอมจากคุณ\n'
-                      '• เพื่อปฏิบัติตามกฎหมายหรือคำสั่งศาล\n'
-                      '• เพื่อปกป้องสิทธิและความปลอดภัยของผู้ใช้\n'
-                      '• ข้อมูลที่เปิดเผยต่อสาธารณะ (รายงานที่ผู้ใช้เลือกแชร์)',
-                ),
+                const SizedBox(height: 20),
+                // Shield Icon and Footer
 
                 // 4. ความปลอดภัยของข้อมูล
                 _buildSection(
@@ -169,9 +191,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         size: 32,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        '🛡️ เราเคารพความเป็นส่วนตัวของคุณ',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).respectPrivacy,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
@@ -181,7 +203,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'ข้อมูลของคุณได้รับการปกป้องด้วยมาตรฐานความปลอดภัยสูงสุด',
+                        AppLocalizations.of(context).securityMessage,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],

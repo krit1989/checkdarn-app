@@ -13,7 +13,7 @@ import '../services/cleanup_service.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/geocoding_service.dart';
-import '../services/push_notification_service.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class ListScreen extends StatefulWidget {
   const ListScreen({super.key});
@@ -45,83 +45,42 @@ class _ListScreenState extends State<ListScreen> {
   bool _isLoadingMore = false;
   final List<DocumentSnapshot> _allDocuments = [];
 
+  // ตัวแปรสำหรับ navigation arguments
+  bool _hasProcessedArguments = false; // ป้องกันการประมวลผล arguments ซ้ำ
+
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
     _loadMoreData(); // โหลดข้อมูลแรก
 
-    // 🔔 ตรวจสอบว่ามี pending notification จาก PushNotificationService หรือไม่
-    _checkPendingNotification();
+    // ✅ ปิดการตรวจสอบ pending notification - ให้ผู้ใช้เปิดคอมเมนต์เอง
+    // _checkPendingNotification();
   }
 
-  /// 🔔 ตรวจสอบ Pending Notification
-  void _checkPendingNotification() {
-    try {
-      final String? pendingReportId =
-          PushNotificationService.getPendingReportId();
-      if (pendingReportId != null) {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // 🔔 ตรวจสอบ arguments จาก notification navigation (เพียงครั้งเดียว)
+    if (!_hasProcessedArguments) {
+      final arguments =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      // ✅ ปิดการเปิดคอมเมนต์อัตโนมัติ - ให้ผู้ใช้เลือกเปิดเอง
+      // if (arguments != null && arguments['shouldOpenComment'] == true) {
+      if (arguments != null) {
+        final String? reportId = arguments['reportId'];
+        final String? commentId = arguments['commentId'];
+        final bool autoOpenComments = arguments['autoOpenComments'] == true;
+        final bool fromNotification = arguments['fromNotification'] == true;
+
         print(
-            '🔔 ListScreen: Found pending notification for reportId: $pendingReportId');
+            '🔔 ListScreen: Received notification arguments - reportId: $reportId, commentId: $commentId, autoOpen: $autoOpenComments, fromNotification: $fromNotification');
 
-        // รอให้หน้าโหลดเสร็จ แล้วเปิด comment sheet
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          _openCommentSheetForReport(pendingReportId);
-        });
+        // ✅ ปิดการเปิดคอมเมนต์อัตโนมัติ - ให้ผู้ใช้เลือกเปิดเอง
+        // โค้ดเปิดคอมเมนต์อัตโนมัติถูกลบออกแล้ว เพื่อให้ผู้ใช้เปิดเองผ่านปุ่มด้านล่างโพส
       }
-    } catch (e) {
-      print('❌ ListScreen: Error checking pending notification: $e');
-    }
-  }
-
-  /// 💬 เปิด Comment Sheet สำหรับ Report ID ที่กำหนด
-  Future<void> _openCommentSheetForReport(String reportId) async {
-    try {
-      print('🔔 ListScreen: Opening comment sheet for reportId: $reportId');
-
-      // หา document ใน _allDocuments ที่มี reportId ตรงกัน
-      DocumentSnapshot? targetDoc;
-      for (final doc in _allDocuments) {
-        if (doc.id == reportId) {
-          targetDoc = doc;
-          break;
-        }
-      }
-
-      if (targetDoc != null) {
-        final Map<String, dynamic> data =
-            targetDoc.data() as Map<String, dynamic>;
-        final String title = data['title'] ??
-            data['description']?.toString().split(' ').take(3).join(' ') ??
-            'ไม่มีหัวข้อ';
-        final String category = data['category'] ?? data['type'] ?? 'other';
-
-        _showCommentSheet(reportId, title, category);
-      } else {
-        print(
-            '⚠️ ListScreen: Report not found in current documents: $reportId');
-
-        // ถ้าไม่เจอใน current documents ให้ดึงจาก Firestore
-        final DocumentSnapshot reportDoc = await FirebaseFirestore.instance
-            .collection('reports')
-            .doc(reportId)
-            .get();
-
-        if (reportDoc.exists) {
-          final Map<String, dynamic> data =
-              reportDoc.data() as Map<String, dynamic>;
-          final String title = data['title'] ??
-              data['description']?.toString().split(' ').take(3).join(' ') ??
-              'ไม่มีหัวข้อ';
-          final String category = data['category'] ?? data['type'] ?? 'other';
-
-          _showCommentSheet(reportId, title, category);
-        } else {
-          print('❌ ListScreen: Report not found in Firestore: $reportId');
-        }
-      }
-    } catch (e) {
-      print('❌ ListScreen: Error opening comment sheet: $e');
+      _hasProcessedArguments = true;
     }
   }
 
@@ -181,11 +140,12 @@ class _ListScreenState extends State<ListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ไม่สามารถโหลดข้อมูลได้: $e',
+            content: Text(
+                AppLocalizations.of(context).cannotLoadData(e.toString()),
                 style: TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.red,
             action: SnackBarAction(
-              label: 'ลองใหม่',
+              label: AppLocalizations.of(context).tryAgain,
               textColor: Colors.white,
               onPressed: () => _loadMoreData(),
             ),
@@ -282,28 +242,42 @@ class _ListScreenState extends State<ListScreen> {
     final distanceInKm = distanceInMeters / 1000;
 
     if (distanceInKm < 1.0) {
-      return ' (${distanceInMeters.round()} ม.)';
+      return ' (${distanceInMeters.round()} ${AppLocalizations.of(context).meters})';
     } else {
-      return ' (${distanceInKm.toStringAsFixed(1)} กม.)';
+      return ' (${distanceInKm.toStringAsFixed(1)} ${AppLocalizations.of(context).kilometers})';
     }
   }
 
   void _showCommentSheet(String reportId, String title, String category) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useRootNavigator: true, // ใช้ root navigator สำหรับประสิทธิภาพที่ดีกว่า
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54, // เพิ่มสีพื้นหลังเมื่อแสดงป๊อปอัพ
-      isDismissible: true,
-      enableDrag: true,
-      useSafeArea: true,
-      clipBehavior: Clip.antiAlias,
-      builder: (context) => CommentBottomSheet(
-        reportId: reportId,
-        reportType: category, // ใช้ category แทน
-      ),
-    );
+    try {
+      if (!mounted) {
+        print('🔔 ListScreen: Widget not mounted, cannot show comment sheet');
+        return;
+      }
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useRootNavigator: true, // ใช้ root navigator สำหรับประสิทธิภาพที่ดีกว่า
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black54, // เพิ่มสีพื้นหลังเมื่อแสดงป๊อปอัพ
+        isDismissible: true,
+        enableDrag: true,
+        useSafeArea: true,
+        clipBehavior: Clip.antiAlias,
+        builder: (context) => CommentBottomSheet(
+          reportId: reportId,
+          reportType: category, // ใช้ category แทน
+        ),
+      ).then((_) {
+        // เมื่อ comment sheet ปิด
+        print('🔔 ListScreen: Comment sheet closed');
+      }).catchError((error) {
+        print('❌ ListScreen: Error showing comment sheet: $error');
+      });
+    } catch (e) {
+      print('❌ ListScreen: Error in _showCommentSheet: $e');
+    }
   }
 
   // ฟังก์ชันดึง EventCategory แบบ cache เพื่อประหยัดการแปลงซ้ำ
@@ -324,9 +298,9 @@ class _ListScreenState extends State<ListScreen> {
   }
 
   // ฟังก์ชันดึงชื่อหมวดหมู่ภาษาไทย (เก็บไว้เพื่อ backward compatibility)
-  String _getCategoryName(String category) {
+  String _getCategoryName(String category, BuildContext context) {
     final eventCategory = _getCachedCategory(category);
-    return eventCategory.label;
+    return eventCategory.label(context);
   }
 
   // ดึงชื่อคนโพสแบบ masked
@@ -334,7 +308,7 @@ class _ListScreenState extends State<ListScreen> {
     final userId = data['userId'] as String?;
 
     if (userId == null || userId.isEmpty) {
-      return 'ผู้ใช้ไม่ระบุชื่อ';
+      return AppLocalizations.of(context).anonymousUser;
     }
 
     // ถ้าเป็นผู้ใช้ปัจจุบัน ใช้ AuthService
@@ -350,7 +324,7 @@ class _ListScreenState extends State<ListScreen> {
 
     // ถ้าไม่มี displayName ให้ mask userId
     if (userId == 'anonymous') {
-      return 'ผู้ใช้ไม่ระบุชื่อ';
+      return AppLocalizations.of(context).anonymousUser;
     }
 
     // Mask userId
@@ -362,7 +336,7 @@ class _ListScreenState extends State<ListScreen> {
   String _maskDisplayName(String name) {
     final parts = name.trim().split(' ');
 
-    if (parts.isEmpty) return 'ผู้ใช้ไม่ระบุชื่อ';
+    if (parts.isEmpty) return AppLocalizations.of(context).anonymousUser;
 
     if (parts.length == 1) {
       // ถ้ามีคำเดียว เช่น "kritchapon" -> "krit*****"
@@ -389,24 +363,24 @@ class _ListScreenState extends State<ListScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('📊 สถิติโพสต์',
-              style: TextStyle(fontFamily: 'NotoSansThai')),
+          title: Text(AppLocalizations.of(context).postStatistics,
+              style: const TextStyle(fontFamily: 'NotoSansThai')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('📄 โพสต์ทั้งหมด: ${stats['total']} รายการ',
-                  style: TextStyle(fontFamily: 'NotoSansThai')),
+              Text(AppLocalizations.of(context).totalPosts(stats['total']!),
+                  style: const TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 8),
-              Text('✨ โพสต์สดใหม่ (24 ชม.): ${stats['fresh']} รายการ',
-                  style: TextStyle(fontFamily: 'NotoSansThai')),
+              Text(AppLocalizations.of(context).freshPosts(stats['fresh']!),
+                  style: const TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 8),
-              Text('🗑️ โพสต์เก่า: ${stats['old']} รายการ',
-                  style: TextStyle(fontFamily: 'NotoSansThai')),
+              Text(AppLocalizations.of(context).oldPosts(stats['old']!),
+                  style: const TextStyle(fontFamily: 'NotoSansThai')),
               const SizedBox(height: 16),
-              const Text(
-                '💡 โพสต์จะถูกลบอัตโนมัติหลัง 24 ชั่วโมง\nเพื่อรักษาความสดใหม่ของข้อมูล',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).autoDeleteNotice,
+                style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
                     fontFamily: 'NotoSansThai'),
@@ -416,8 +390,8 @@ class _ListScreenState extends State<ListScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ปิด',
-                  style: TextStyle(fontFamily: 'NotoSansThai')),
+              child: Text(AppLocalizations.of(context).close,
+                  style: const TextStyle(fontFamily: 'NotoSansThai')),
             ),
             if (stats['old']! > 0)
               TextButton(
@@ -425,8 +399,9 @@ class _ListScreenState extends State<ListScreen> {
                   Navigator.of(context).pop();
                   _performManualCleanup();
                 },
-                child: const Text('🧹 ลบโพสต์เก่าตอนนี้',
-                    style: TextStyle(fontFamily: 'NotoSansThai')),
+                child: Text(
+                    '🧹 ${AppLocalizations.of(context).deleteOldPostsNow}',
+                    style: const TextStyle(fontFamily: 'NotoSansThai')),
               ),
           ],
         ),
@@ -434,8 +409,9 @@ class _ListScreenState extends State<ListScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e',
-                style: TextStyle(fontFamily: 'NotoSansThai'))),
+          content: Text(AppLocalizations.of(context).generalError(e.toString()),
+              style: const TextStyle(fontFamily: 'NotoSansThai')),
+        ),
       );
     }
   }
@@ -444,9 +420,10 @@ class _ListScreenState extends State<ListScreen> {
   Future<void> _performManualCleanup() async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('🧹 กำลังลบโพสต์เก่า...',
-                style: TextStyle(fontFamily: 'NotoSansThai'))),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).deletingOldPosts,
+              style: const TextStyle(fontFamily: 'NotoSansThai')),
+        ),
       );
 
       final freshCount = await CleanupService.manualCleanup();
@@ -455,16 +432,17 @@ class _ListScreenState extends State<ListScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ ลบเสร็จแล้ว! เหลือโพสต์สดใหม่ $freshCount รายการ',
-              style: TextStyle(fontFamily: 'NotoSansThai')),
+          content: Text(AppLocalizations.of(context).deleteComplete(freshCount),
+              style: const TextStyle(fontFamily: 'NotoSansThai')),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('เกิดข้อผิดพลาดในการลบ: $e',
-                style: TextStyle(fontFamily: 'NotoSansThai'))),
+          content: Text(AppLocalizations.of(context).deleteError(e.toString()),
+              style: const TextStyle(fontFamily: 'NotoSansThai')),
+        ),
       );
     }
   }
@@ -629,7 +607,7 @@ class _ListScreenState extends State<ListScreen> {
             // ทั้งหมด
             _buildFilterOption(
               emoji: '📋',
-              title: 'ทั้งหมด',
+              title: AppLocalizations.of(context).allCategories,
               isSelected: _selectedCategory == null && !_showMyPostsOnly,
               onTap: () {
                 setState(() {
@@ -645,7 +623,7 @@ class _ListScreenState extends State<ListScreen> {
             ...EventCategory.values.map(
               (category) => _buildFilterOption(
                 emoji: category.emoji,
-                title: category.label,
+                title: category.label(context),
                 isSelected: _selectedCategory == category,
                 onTap: () {
                   setState(() {
@@ -664,7 +642,7 @@ class _ListScreenState extends State<ListScreen> {
             // โพสต์ของฉัน
             _buildFilterOption(
               emoji: '👤',
-              title: 'โพสต์ของฉัน',
+              title: AppLocalizations.of(context).myPosts,
               isSelected: _showMyPostsOnly,
               onTap: () {
                 setState(() {
@@ -720,535 +698,609 @@ class _ListScreenState extends State<ListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEDF0F7),
-      appBar: AppBar(
-        title: const Text(
-          'ใกล้ฉัน',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-            fontFamily: 'NotoSansThai',
+    return WillPopScope(
+      onWillPop: () async {
+        // จัดการ back button อย่างปลอดภัย
+        try {
+          print('🔔 ListScreen: Back button pressed');
+
+          // รีเซ็ต notification flags
+          _hasProcessedArguments = false;
+
+          // ปิด comment sheet ที่อาจเปิดอยู่
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+            return false; // ไม่ให้ pop screen หลัก
+          }
+
+          return true; // อนุญาตให้ pop screen หลัก
+        } catch (e) {
+          print('❌ ListScreen: Error handling back button: $e');
+          return true; // อนุญาตให้ pop ในกรณีเกิดข้อผิดพลาด
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFEDF0F7),
+        appBar: AppBar(
+          title: Text(
+            AppLocalizations.of(context).nearMeTitle,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+              fontFamily: 'NotoSansThai',
+            ),
           ),
-        ),
-        centerTitle: true, // ให้ข้อความอยู่กลาง
-        backgroundColor: const Color(0xFFFDC621),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: Colors.black,
+          centerTitle: true, // ให้ข้อความอยู่กลาง
+          backgroundColor: const Color(0xFFFDC621),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              // จัดการปุ่มย้อนกลับอย่างปลอดภัย
+              try {
+                print('🔔 ListScreen: Back button in AppBar pressed');
+
+                // รีเซ็ต flags
+                _hasProcessedArguments = false;
+
+                Navigator.of(context).pop();
+              } catch (e) {
+                print('❌ ListScreen: Error handling AppBar back button: $e');
+                Navigator.of(context).pop();
+              }
+            },
           ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          // 🎯 Filter Popover ด้านขวา (ขยับไปซ้าย)
-          Padding(
-            padding: const EdgeInsets.only(right: 20), // ขยับปุ่มไปซ้าย 20px
-            child: Builder(
-              builder: (context) => IconButton(
-                onPressed: () => _showFilterPopover(context),
-                icon: Stack(
-                  children: [
-                    const Icon(
-                      Icons.filter_list,
-                      color: Colors.black,
-                      size: 24,
-                    ),
-                    // แสดง badge เมื่อมี filter ทำงาน
-                    if (_selectedCategory != null || _showMyPostsOnly)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
+          actions: [
+            // 🎯 Filter Popover ด้านขวา (ขยับไปซ้าย)
+            Padding(
+              padding: const EdgeInsets.only(right: 20), // ขยับปุ่มไปซ้าย 20px
+              child: Builder(
+                builder: (context) => IconButton(
+                  onPressed: () => _showFilterPopover(context),
+                  icon: Stack(
+                    children: [
+                      const Icon(
+                        Icons.filter_list,
+                        color: Colors.black,
+                        size: 24,
+                      ),
+                      // แสดง badge เมื่อมี filter ทำงาน
+                      if (_selectedCategory != null || _showMyPostsOnly)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ปุ่มดูสถิติและลบโพสต์เก่า (แสดงเฉพาะในโหมด debug/dev)
-          if (kDebugMode) // แสดงเฉพาะใน debug mode
-            IconButton(
-              onPressed: _showCleanupStats,
-              icon: const Icon(
-                Icons.info_outline,
-                color: Colors.black,
-              ),
-              tooltip: 'ดูสถิติโพสต์ (Dev Only)',
-            ),
-          // แสดงสถานะการโหลดตำแหน่ง
-          if (_isLoadingLocation)
-            const Padding(
-              padding: EdgeInsets.only(right: 16.0),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ],
                   ),
                 ),
               ),
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Main Content (ลบ Filter Chips Section ออก)
-          Expanded(
-            child: RefreshIndicator(
-              color: const Color(0xFFFF9800),
-              onRefresh: () async {
-                // รีเซ็ต pagination และโหลดใหม่
-                _allDocuments.clear();
-                _lastDocument = null;
-                _hasMoreData = true;
-                await _loadMoreData();
-              },
-              child: _allDocuments.isEmpty && !_isLoadingMore
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.inbox_outlined,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'ยังไม่มีรายการแจ้งเหตุ',
-                            style: TextStyle(
-                              fontSize: 18,
+
+            // ปุ่มดูสถิติและลบโพสต์เก่า (แสดงเฉพาะในโหมด debug/dev)
+            if (kDebugMode) // แสดงเฉพาะใน debug mode
+              IconButton(
+                onPressed: _showCleanupStats,
+                icon: const Icon(
+                  Icons.info_outline,
+                  color: Colors.black,
+                ),
+                tooltip: AppLocalizations.of(context).devOnly,
+              ),
+            // แสดงสถานะการโหลดตำแหน่ง
+            if (_isLoadingLocation)
+              const Padding(
+                padding: EdgeInsets.only(right: 16.0),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Main Content (ลบ Filter Chips Section ออก)
+            Expanded(
+              child: RefreshIndicator(
+                color: const Color(0xFFFF9800),
+                onRefresh: () async {
+                  // รีเซ็ต pagination และโหลดใหม่
+                  _allDocuments.clear();
+                  _lastDocument = null;
+                  _hasMoreData = true;
+                  await _loadMoreData();
+                },
+                child: _allDocuments.isEmpty && !_isLoadingMore
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.inbox_outlined,
+                              size: 64,
                               color: Colors.grey,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'NotoSansThai',
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'เริ่มต้นด้วยการแจ้งเหตุครั้งแรกของคุณ',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                              fontFamily: 'NotoSansThai',
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(8.0),
-                      itemCount: _allDocuments.length + (_hasMoreData ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        // แสดง loading indicator ที่ด้านล่าง
-                        if (index == _allDocuments.length) {
-                          if (!_isLoadingMore && _hasMoreData) {
-                            // Trigger load more เมื่อเลื่อนถึงด้านล่าง
-                            Future.delayed(Duration.zero, _loadMoreData);
-                          }
-                          return const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFFFF9800)),
+                            const SizedBox(height: 16),
+                            Text(
+                              AppLocalizations.of(context).noReportsYet,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'NotoSansThai',
                               ),
                             ),
-                          );
-                        }
-
-                        final doc = _allDocuments[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        final reportId = doc.id;
-
-                        // กรองด้วยระยะทาง 30km + จังหวัดเดียวกัน
-                        if (!_isWithinRange(data)) {
-                          return const SizedBox
-                              .shrink(); // ซ่อนโพสต์ที่ไม่อยู่ในเงื่อนไข
-                        }
-
-                        // 🎯 Filter by category
-                        if (_selectedCategory != null) {
-                          final postCategory =
-                              data['category'] ?? data['type'] ?? 'other';
-                          final eventCategory =
-                              _getCachedCategory(postCategory);
-                          if (eventCategory != _selectedCategory) {
-                            return const SizedBox.shrink();
+                            const SizedBox(height: 8),
+                            Text(
+                              AppLocalizations.of(context).startWithFirstReport,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                fontFamily: 'NotoSansThai',
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(8.0),
+                        itemCount:
+                            _allDocuments.length + (_hasMoreData ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          // แสดง loading indicator ที่ด้านล่าง
+                          if (index == _allDocuments.length) {
+                            if (!_isLoadingMore && _hasMoreData) {
+                              // Trigger load more เมื่อเลื่อนถึงด้านล่าง
+                              Future.delayed(Duration.zero, _loadMoreData);
+                            }
+                            return const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFFFF9800)),
+                                ),
+                              ),
+                            );
                           }
-                        }
 
-                        // 🎯 Filter by "My Posts Only"
-                        if (_showMyPostsOnly) {
-                          final postUserId = data['userId'] as String?;
-                          final currentUserId = AuthService.currentUser?.uid;
-                          if (postUserId != currentUserId) {
-                            return const SizedBox.shrink();
+                          final doc = _allDocuments[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          final reportId = doc.id;
+
+                          // กรองด้วยระยะทาง 30km + จังหวัดเดียวกัน
+                          if (!_isWithinRange(data)) {
+                            return const SizedBox
+                                .shrink(); // ซ่อนโพสต์ที่ไม่อยู่ในเงื่อนไข
                           }
-                        }
 
-                        final title = data['title'] ??
-                            data['description']
-                                ?.toString()
-                                .split(' ')
-                                .take(3)
-                                .join(' ') ??
-                            'ไม่มีหัวข้อ';
-                        final imageUrl = data['imageUrl'] as String?;
-                        final timestamp = data['timestamp'] as Timestamp?;
-                        final category = data['category'] ??
-                            data['type'] ??
-                            'other'; // fallback ถ้าไม่มี category
+                          // 🎯 Filter by category
+                          if (_selectedCategory != null) {
+                            final postCategory =
+                                data['category'] ?? data['type'] ?? 'other';
+                            final eventCategory =
+                                _getCachedCategory(postCategory);
+                            if (eventCategory != _selectedCategory) {
+                              return const SizedBox.shrink();
+                            }
+                          }
 
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8.0),
-                          elevation: 2,
-                          color: Colors.white, // เปลี่ยนพื้นหลังเป็นสีขาว
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Main content
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    16.0, 16.0, 16.0, 8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // แถวที่ 1: emoji + หัวข้อเหตุการณ์ + เวลาที่ผ่านมา
-                                    Row(
-                                      children: [
-                                        Text(
-                                          _getCategoryEmoji(category),
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontFamily: 'NotoSansThai',
-                                            fontWeight:
-                                                FontWeight.w500, // Medium
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            _getCategoryName(category),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight:
-                                                  FontWeight.w500, // Medium
-                                              color: Colors.black87,
-                                              fontFamily: 'NotoSansThai',
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        // เวลาที่ผ่านมา
-                                        if (timestamp != null) ...[
-                                          Text(
-                                            DateTimeFormatters.formatTimestamp(
-                                                timestamp),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w400,
-                                              fontFamily: 'NotoSansThai',
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
+                          // 🎯 Filter by "My Posts Only"
+                          if (_showMyPostsOnly) {
+                            final postUserId = data['userId'] as String?;
+                            final currentUserId = AuthService.currentUser?.uid;
+                            if (postUserId != currentUserId) {
+                              return const SizedBox.shrink();
+                            }
+                          }
 
-                                    // แถวที่ 2: รายละเอียด (ถ้ามี)
-                                    if (data['description'] != null &&
-                                        data['description']
-                                            .toString()
-                                            .isNotEmpty) ...[
-                                      const SizedBox(height: 5),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFF9800)
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: const Color(0xFFFF9800)
-                                                .withValues(alpha: 0.3),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '${data['description']}',
-                                          style: const TextStyle(
-                                            fontSize: 17,
-                                            color: Colors.black,
-                                            height: 1.3,
-                                            fontFamily: 'NotoSansThai',
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
+                          final title = data['title'] ??
+                              data['description']
+                                  ?.toString()
+                                  .split(' ')
+                                  .take(3)
+                                  .join(' ') ??
+                              AppLocalizations.of(context).noTitle;
+                          final imageUrl = data['imageUrl'] as String?;
+                          final timestamp = data['timestamp'] as Timestamp?;
+                          final category = data['category'] ??
+                              data['type'] ??
+                              'other'; // fallback ถ้าไม่มี category
 
-                                    // แถวที่ 3: ตำแหน่ง/สถานที่ + ระยะทาง
-                                    if (data['location'] != null &&
-                                        data['location']
-                                            .toString()
-                                            .isNotEmpty) ...[
-                                      const SizedBox(height: 5),
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8.0),
+                            elevation: 2,
+                            color: Colors.white, // เปลี่ยนพื้นหลังเป็นสีขาว
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Main content
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16.0, 16.0, 16.0, 8.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // แถวที่ 1: emoji + หัวข้อเหตุการณ์ + เวลาที่ผ่านมา
                                       Row(
                                         children: [
-                                          const Text(
-                                            '📍',
-                                            style: TextStyle(
-                                              fontSize: 13,
+                                          Text(
+                                            _getCategoryEmoji(category),
+                                            style: const TextStyle(
+                                              fontSize: 20,
                                               fontFamily: 'NotoSansThai',
                                               fontWeight:
-                                                  FontWeight.w400, // Regular
+                                                  FontWeight.w500, // Medium
                                             ),
                                           ),
-                                          const SizedBox(width: 6),
+                                          const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              '${data['location']}${_getDistanceText(data)}',
+                                              _getCategoryName(
+                                                  category, context),
                                               style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black,
+                                                fontSize: 16,
                                                 fontWeight:
-                                                    FontWeight.w400, // Regular
+                                                    FontWeight.w500, // Medium
+                                                color: Colors.black87,
                                                 fontFamily: 'NotoSansThai',
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
+                                          // เวลาที่ผ่านมา
+                                          if (timestamp != null) ...[
+                                            Text(
+                                              DateTimeFormatters
+                                                  .formatTimestamp(timestamp),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                                fontWeight: FontWeight.w400,
+                                                fontFamily: 'NotoSansThai',
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
-                                    ],
 
-                                    // แถวที่ 4: ปุ่มดูแผนที่
-                                    const SizedBox(height: 5),
-                                    Row(
-                                      children: [
-                                        // ปุ่มดูแผนที่ด้านซ้าย (ลบการ์ดออก แค่แสดง emoji + text)
-                                        if (data['lat'] != null &&
-                                            data['lng'] != null) ...[
-                                          GestureDetector(
-                                            onTap: () {
-                                              _showMapDialog(
-                                                data['lat'].toDouble(),
-                                                data['lng'].toDouble(),
-                                                data['location']?.toString(),
-                                                category, // เพิ่ม category parameter
-                                              );
-                                            },
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Text(
-                                                  '🗺️',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontFamily: 'NotoSansThai',
-                                                    fontWeight: FontWeight
-                                                        .w400, // Regular
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'ดูแผนที่',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.blue[800],
-                                                    fontWeight: FontWeight
-                                                        .w400, // Regular
-                                                    fontFamily: 'NotoSansThai',
-                                                  ),
-                                                ),
-                                              ],
+                                      // แถวที่ 2: รายละเอียด (ถ้ามี)
+                                      if (data['description'] != null &&
+                                          data['description']
+                                              .toString()
+                                              .isNotEmpty) ...[
+                                        const SizedBox(height: 5),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFF9800)
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: const Color(0xFFFF9800)
+                                                  .withValues(alpha: 0.3),
+                                              width: 1,
                                             ),
                                           ),
-                                        ] else if (data['latitude'] != null &&
-                                            data['longitude'] != null) ...[
-                                          GestureDetector(
-                                            onTap: () {
-                                              _showMapDialog(
-                                                data['latitude'].toDouble(),
-                                                data['longitude'].toDouble(),
-                                                data['location'] ??
-                                                    'ไม่ระบุสถานที่',
-                                                category, // เพิ่ม category parameter
-                                              );
-                                            },
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Text(
-                                                  '🗺️',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontFamily: 'NotoSansThai',
-                                                    fontWeight: FontWeight
-                                                        .w400, // Regular
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'ดูแผนที่',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.blue[800],
-                                                    fontWeight: FontWeight
-                                                        .w400, // Regular
-                                                    fontFamily: 'NotoSansThai',
-                                                  ),
-                                                ),
-                                              ],
+                                          child: Text(
+                                            '${data['description']}',
+                                            style: const TextStyle(
+                                              fontSize: 17,
+                                              color: Colors.black,
+                                              height: 1.3,
+                                              fontFamily: 'NotoSansThai',
+                                              fontWeight: FontWeight.w400,
                                             ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ],
+                                        ),
                                       ],
-                                    ),
 
-                                    // แถวที่ 5: รูปภาพ (ถ้ามี)
-                                    if (imageUrl != null &&
-                                        imageUrl.isNotEmpty &&
-                                        imageUrl.trim() != '') ...[
+                                      // แถวที่ 3: ตำแหน่ง/สถานที่ + ระยะทาง
+                                      if (data['location'] != null &&
+                                          data['location']
+                                              .toString()
+                                              .isNotEmpty) ...[
+                                        const SizedBox(height: 5),
+                                        Row(
+                                          children: [
+                                            const Text(
+                                              '📍',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontFamily: 'NotoSansThai',
+                                                fontWeight:
+                                                    FontWeight.w400, // Regular
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                '${data['location']}${_getDistanceText(data)}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight
+                                                      .w400, // Regular
+                                                  fontFamily: 'NotoSansThai',
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+
+                                      // แถวที่ 4: ปุ่มดูแผนที่
                                       const SizedBox(height: 5),
-                                      GestureDetector(
-                                        onTap: () {
-                                          // แสดงรูปภาพแบบเต็มจอเมื่อคลิก
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => Dialog(
-                                              backgroundColor: Colors.black,
-                                              child: Stack(
+                                      Row(
+                                        children: [
+                                          // ปุ่มดูแผนที่ด้านซ้าย (ลบการ์ดออก แค่แสดง emoji + text)
+                                          if (data['lat'] != null &&
+                                              data['lng'] != null) ...[
+                                            GestureDetector(
+                                              onTap: () {
+                                                _showMapDialog(
+                                                  data['lat'].toDouble(),
+                                                  data['lng'].toDouble(),
+                                                  data['location']?.toString(),
+                                                  category, // เพิ่ม category parameter
+                                                );
+                                              },
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Center(
-                                                    child: Image.network(
-                                                      imageUrl,
-                                                      fit: BoxFit.contain,
-                                                      loadingBuilder: (context,
-                                                          child,
-                                                          loadingProgress) {
-                                                        if (loadingProgress ==
-                                                            null) {
-                                                          return child;
-                                                        }
-                                                        return const Center(
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            color: Colors.white,
-                                                          ),
-                                                        );
-                                                      },
-                                                      errorBuilder: (context,
-                                                          error, stackTrace) {
-                                                        print(
-                                                            'Error loading image: $error');
-                                                        print(
-                                                            'Image URL: $imageUrl');
-                                                        return const Center(
-                                                          child: Column(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              Icon(
-                                                                  Icons
-                                                                      .broken_image,
-                                                                  size: 48,
-                                                                  color: Colors
-                                                                      .white),
-                                                              SizedBox(
-                                                                  height: 8),
-                                                              Text(
-                                                                  'ไม่สามารถโหลดรูปภาพได้',
-                                                                  style: TextStyle(
-                                                                      color: Colors
-                                                                          .white,
-                                                                      fontFamily:
-                                                                          'NotoSansThai')),
-                                                            ],
-                                                          ),
-                                                        );
-                                                      },
+                                                  const Text(
+                                                    '🗺️',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontFamily:
+                                                          'NotoSansThai',
+                                                      fontWeight: FontWeight
+                                                          .w400, // Regular
                                                     ),
                                                   ),
-                                                  Positioned(
-                                                    top: 40,
-                                                    right: 20,
-                                                    child: IconButton(
-                                                      icon: const Icon(
-                                                          Icons.close,
-                                                          color: Colors.white,
-                                                          size: 30),
-                                                      onPressed: () =>
-                                                          Navigator.of(context)
-                                                              .pop(),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    AppLocalizations.of(context)
+                                                        .viewMap,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.blue[800],
+                                                      fontWeight: FontWeight
+                                                          .w400, // Regular
+                                                      fontFamily:
+                                                          'NotoSansThai',
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                          );
-                                        },
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              '📷',
-                                              style: TextStyle(fontSize: 13),
+                                          ] else if (data['latitude'] != null &&
+                                              data['longitude'] != null) ...[
+                                            GestureDetector(
+                                              onTap: () {
+                                                _showMapDialog(
+                                                  data['latitude'].toDouble(),
+                                                  data['longitude'].toDouble(),
+                                                  data['location'] ??
+                                                      AppLocalizations.of(
+                                                              context)
+                                                          .unknownLocation,
+                                                  category, // เพิ่ม category parameter
+                                                );
+                                              },
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Text(
+                                                    '🗺️',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontFamily:
+                                                          'NotoSansThai',
+                                                      fontWeight: FontWeight
+                                                          .w400, // Regular
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    AppLocalizations.of(context)
+                                                        .viewMap,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.blue[800],
+                                                      fontWeight: FontWeight
+                                                          .w400, // Regular
+                                                      fontFamily:
+                                                          'NotoSansThai',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'คลิกดูรูปภาพ',
+                                          ],
+                                        ],
+                                      ),
+
+                                      // แถวที่ 5: รูปภาพ (ถ้ามี)
+                                      if (imageUrl != null &&
+                                          imageUrl.isNotEmpty &&
+                                          imageUrl.trim() != '') ...[
+                                        const SizedBox(height: 5),
+                                        GestureDetector(
+                                          onTap: () {
+                                            // แสดงรูปภาพแบบเต็มจอเมื่อคลิก
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => Dialog(
+                                                backgroundColor: Colors.black,
+                                                child: Stack(
+                                                  children: [
+                                                    Center(
+                                                      child: Image.network(
+                                                        imageUrl,
+                                                        fit: BoxFit.contain,
+                                                        loadingBuilder: (context,
+                                                            child,
+                                                            loadingProgress) {
+                                                          if (loadingProgress ==
+                                                              null) {
+                                                            return child;
+                                                          }
+                                                          return const Center(
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
+                                                          );
+                                                        },
+                                                        errorBuilder: (context,
+                                                            error, stackTrace) {
+                                                          print(
+                                                              'Error loading image: $error');
+                                                          print(
+                                                              'Image URL: $imageUrl');
+                                                          return Center(
+                                                            child: Column(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .center,
+                                                              children: [
+                                                                Icon(
+                                                                    Icons
+                                                                        .broken_image,
+                                                                    size: 48,
+                                                                    color: Colors
+                                                                        .white),
+                                                                SizedBox(
+                                                                    height: 8),
+                                                                Text(
+                                                                    AppLocalizations.of(
+                                                                            context)
+                                                                        .cannotLoadImage,
+                                                                    style: TextStyle(
+                                                                        color: Colors
+                                                                            .white,
+                                                                        fontFamily:
+                                                                            'NotoSansThai')),
+                                                              ],
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      top: 40,
+                                                      right: 20,
+                                                      child: IconButton(
+                                                        icon: const Icon(
+                                                            Icons.close,
+                                                            color: Colors.white,
+                                                            size: 30),
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                                    context)
+                                                                .pop(),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Text(
+                                                '📷',
+                                                style: TextStyle(fontSize: 13),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                AppLocalizations.of(context)
+                                                    .clickToViewImage,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.black87,
+                                                  fontFamily: 'NotoSansThai',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+
+                                      // แถวที่ 6: วันเดือนปี เวลาที่โพสต์
+                                      if (timestamp != null) ...[
+                                        const SizedBox(height: 5),
+                                        Row(
+                                          children: [
+                                            const Text(
+                                              '🗓️',
                                               style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                                color: Colors.black87,
+                                                fontSize: 13,
                                                 fontFamily: 'NotoSansThai',
+                                                fontWeight:
+                                                    FontWeight.w400, // Regular
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              DateTimeFormatters.formatDate(
+                                                  timestamp),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black,
+                                                fontFamily: 'NotoSansThai',
+                                                fontWeight:
+                                                    FontWeight.w400, // Regular
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
+                                      ],
 
-                                    // แถวที่ 6: วันเดือนปี เวลาที่โพสต์
-                                    if (timestamp != null) ...[
+                                      // แถวที่ 7: ชื่อคนโพส
                                       const SizedBox(height: 5),
                                       Row(
                                         children: [
-                                          const Text(
-                                            '🗓️',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontFamily: 'NotoSansThai',
-                                              fontWeight:
-                                                  FontWeight.w400, // Regular
-                                            ),
+                                          const Icon(
+                                            Icons.person_outline,
+                                            size: 16,
+                                            color: Colors.red,
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            DateTimeFormatters.formatDate(
-                                                timestamp),
+                                            _getMaskedPosterName(data),
                                             style: const TextStyle(
                                               fontSize: 13,
                                               color: Colors.black,
@@ -1260,113 +1312,97 @@ class _ListScreenState extends State<ListScreen> {
                                         ],
                                       ),
                                     ],
-
-                                    // แถวที่ 7: ชื่อคนโพส
-                                    const SizedBox(height: 5),
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.person_outline,
-                                          size: 16,
-                                          color: Colors.red,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _getMaskedPosterName(data),
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.black,
-                                            fontFamily: 'NotoSansThai',
-                                            fontWeight:
-                                                FontWeight.w400, // Regular
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
 
-                              // Comment button for all posts (moved to bottom)
-                              const Divider(height: 1),
-                              FutureBuilder<QuerySnapshot>(
-                                future: FirebaseFirestore.instance
-                                    .collection('reports')
-                                    .doc(reportId)
-                                    .collection('comments')
-                                    .get(),
-                                builder: (context, snapshot) {
-                                  int commentCount = 0;
-                                  if (snapshot.hasData) {
-                                    commentCount = snapshot.data!.docs.length;
-                                  }
-                                  return Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 9),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        // ส่วนที่ไม่สามารถกดได้
-                                        const Spacer(),
-                                        // ส่วนที่กดได้ (เฉพาะไอคอนและข้อความ)
-                                        InkWell(
-                                          onTap: () => _showCommentSheet(
-                                              reportId, title, category),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 4),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                  Icons.chat_bubble_outline,
-                                                  size: 16,
-                                                  color: Color(0xFFFF9800),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                const Text(
-                                                  'ความคิดเห็น',
-                                                  style: TextStyle(
+                                // Comment button for all posts (moved to bottom)
+                                const Divider(height: 1),
+                                FutureBuilder<QuerySnapshot>(
+                                  future: FirebaseFirestore.instance
+                                      .collection('reports')
+                                      .doc(reportId)
+                                      .collection('comments')
+                                      .get(),
+                                  builder: (context, snapshot) {
+                                    int commentCount = 0;
+                                    if (snapshot.hasData) {
+                                      commentCount = snapshot.data!.docs.length;
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 9),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          // ส่วนที่ไม่สามารถกดได้
+                                          const Spacer(),
+                                          // ส่วนที่กดได้ (เฉพาะไอคอนและข้อความ)
+                                          InkWell(
+                                            onTap: () => _showCommentSheet(
+                                                reportId, title, category),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.chat_bubble_outline,
+                                                    size: 16,
                                                     color: Color(0xFFFF9800),
-                                                    fontWeight: FontWeight.w200,
-                                                    fontSize: 14,
-                                                    fontFamily: 'NotoSansThai',
                                                   ),
-                                                ),
-                                                if (commentCount > 0) ...[
-                                                  const SizedBox(width: 0),
+                                                  const SizedBox(width: 4),
                                                   Text(
-                                                    ' ($commentCount)',
+                                                    AppLocalizations.of(context)
+                                                        .comments,
                                                     style: const TextStyle(
                                                       color: Color(0xFFFF9800),
-                                                      fontSize: 14,
                                                       fontWeight:
-                                                          FontWeight.bold,
+                                                          FontWeight.w200,
+                                                      fontSize: 14,
+                                                      fontFamily:
+                                                          'NotoSansThai',
                                                     ),
                                                   ),
+                                                  if (commentCount > 0) ...[
+                                                    const SizedBox(width: 0),
+                                                    Text(
+                                                      ' ($commentCount)',
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFFFF9800),
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ],
-                                              ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(
-                                            width: 16), // เพิ่ม margin ขวา
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                                          const SizedBox(
+                                              width: 16), // เพิ่ม margin ขวา
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      ), // ปิด WillPopScope child (Scaffold)
+    ); // ปิด WillPopScope
   }
 }

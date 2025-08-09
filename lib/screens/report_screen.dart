@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 import 'dart:io';
 import 'dart:async';
 import '../models/event_model.dart';
@@ -84,15 +85,15 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  String? _validateRequiredFields() {
+  String? _validateRequiredFields(BuildContext context) {
     if (selectedCategory == null) {
-      return 'ประเภทเหตุการณ์';
+      return AppLocalizations.of(context).eventLocation;
     }
     if (_detailController.text.trim().isEmpty) {
-      return 'รายละเอียด';
+      return AppLocalizations.of(context).detailsField;
     }
     if (!hasUserSelectedLocation || selectedLocation == null) {
-      return 'ตำแหน่งเหตุการณ์';
+      return AppLocalizations.of(context).eventLocation;
     }
     return null;
   }
@@ -251,6 +252,7 @@ class _ReportScreenState extends State<ReportScreen> {
           initialLocation:
               initialLocation, // ส่งตำแหน่งปัจจุบันหรือตำแหน่งที่เลือกไว้แล้ว
           autoLocateToCurrentPosition: true, // เด้งไปหาตำแหน่งปัจจุบันเลย
+          title: AppLocalizations.of(context).selectLocation,
         ),
       ),
     );
@@ -284,18 +286,18 @@ class _ReportScreenState extends State<ReportScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
-            'เลือกแหล่งรูปภาพ',
-            style: TextStyle(fontFamily: 'NotoSansThai'),
+          title: Text(
+            AppLocalizations.of(context).selectImageSource,
+            style: const TextStyle(fontFamily: 'NotoSansThai'),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library),
-                title: const Text(
-                  'แกลเลอรี่',
-                  style: TextStyle(fontFamily: 'NotoSansThai'),
+                title: Text(
+                  AppLocalizations.of(context).gallery,
+                  style: const TextStyle(fontFamily: 'NotoSansThai'),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -304,9 +306,9 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt),
-                title: const Text(
-                  'กล้อง',
-                  style: TextStyle(fontFamily: 'NotoSansThai'),
+                title: Text(
+                  AppLocalizations.of(context).camera,
+                  style: const TextStyle(fontFamily: 'NotoSansThai'),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -330,9 +332,9 @@ class _ReportScreenState extends State<ReportScreen> {
       },
     )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content:
-              Text('การตรวจสอบความปลอดภัยล้มเหลว ไม่สามารถอัปโหลดรูปภาพได้'),
+              Text(AppLocalizations.of(context).securityValidationFailedImage),
           backgroundColor: Colors.red,
         ),
       );
@@ -347,10 +349,10 @@ class _ReportScreenState extends State<ReportScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -358,14 +360,14 @@ class _ReportScreenState extends State<ReportScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Text(
-                    'WebP Compression...',
-                    style: TextStyle(fontFamily: 'NotoSansThai'),
+                    AppLocalizations.of(context).webpCompression,
+                    style: const TextStyle(fontFamily: 'NotoSansThai'),
                   ),
                 ],
               ),
-              duration: Duration(seconds: 10),
+              duration: const Duration(seconds: 10),
             ),
           );
         }
@@ -384,7 +386,7 @@ class _ReportScreenState extends State<ReportScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'อัพโหลดรูปภาพสำเร็จ!',
+                AppLocalizations.of(context).imageUploadSuccess,
                 style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
               backgroundColor: Colors.green,
@@ -394,10 +396,10 @@ class _ReportScreenState extends State<ReportScreen> {
         } else if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'ไม่สามารถประมวลผลรูปภาพได้',
-                style: TextStyle(fontFamily: 'NotoSansThai'),
+                AppLocalizations.of(context).cannotProcessImage,
+                style: const TextStyle(fontFamily: 'NotoSansThai'),
               ),
               backgroundColor: Colors.red,
             ),
@@ -411,7 +413,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'เกิดข้อผิดพลาดในการเลือกรูปภาพ: $e',
+              AppLocalizations.of(context).imageSelectionError(e.toString()),
               style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
@@ -442,8 +444,9 @@ class _ReportScreenState extends State<ReportScreen> {
       },
     )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('การตรวจสอบความปลอดภัยล้มเหลว กรุณาลองใหม่อีกครั้ง'),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context).securityValidationFailedGeneral),
           backgroundColor: Colors.red,
         ),
       );
@@ -455,7 +458,7 @@ class _ReportScreenState extends State<ReportScreen> {
       return;
     }
 
-    String? missingField = _validateRequiredFields();
+    String? missingField = _validateRequiredFields(context);
     if (missingField != null) {
       String errorMessage;
       if (missingField == 'ตำแหน่งเหตุการณ์') {
@@ -655,9 +658,9 @@ class _ReportScreenState extends State<ReportScreen> {
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
-          title: const Text(
-            'แจ้งอะไร?',
-            style: TextStyle(
+          title: Text(
+            AppLocalizations.of(context).reportScreenTitle,
+            style: const TextStyle(
               fontFamily: 'NotoSansThai',
               fontWeight: FontWeight.w600,
               color: Colors.black,
@@ -701,9 +704,9 @@ class _ReportScreenState extends State<ReportScreen> {
                       child: DropdownButton<EventCategory>(
                         isExpanded: true,
                         underline: const SizedBox(),
-                        hint: const Text(
-                          'เลือกประเภทเหตุการณ์ *',
-                          style: TextStyle(
+                        hint: Text(
+                          AppLocalizations.of(context).selectEventType,
+                          style: const TextStyle(
                             fontFamily: 'NotoSansThai',
                             color: Colors.black,
                           ),
@@ -738,7 +741,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      category.label,
+                                      category.label(context),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
@@ -769,9 +772,9 @@ class _ReportScreenState extends State<ReportScreen> {
                       child: TextField(
                         controller: _detailController,
                         maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'รายละเอียด *',
-                          hintStyle: TextStyle(
+                        decoration: InputDecoration(
+                          hintText: AppLocalizations.of(context).detailsField,
+                          hintStyle: const TextStyle(
                             fontFamily: 'NotoSansThai',
                             color: Colors.black,
                           ),
@@ -885,7 +888,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                               selectedLocationInfo != null
                                                   ? _getDisplayAddress(
                                                       selectedLocationInfo!)
-                                                  : 'กำลังโหลดข้อมูลที่อยู่...',
+                                                  : AppLocalizations.of(context)
+                                                      .loadingAddressInfo,
                                               style: const TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
@@ -896,7 +900,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                             Text(
-                                              'แตะเพื่อเปลี่ยนตำแหน่ง',
+                                              AppLocalizations.of(context)
+                                                  .tapToChangeLocation,
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.white
@@ -954,7 +959,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          'กำลังค้นหาตำแหน่งปัจจุบัน...',
+                                          AppLocalizations.of(context)
+                                              .findingCurrentLocation,
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Colors.grey.shade600,
@@ -981,8 +987,9 @@ class _ReportScreenState extends State<ReportScreen> {
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          'คลิกเพื่อเลือกตำแหน่ง',
-                                          style: TextStyle(
+                                          AppLocalizations.of(context)
+                                              .clickToSelectLocation,
+                                          style: const TextStyle(
                                             fontSize: 18,
                                             color: Colors.black,
                                             fontWeight: FontWeight.w500,
@@ -992,7 +999,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'จะพาไปที่ตำแหน่งปัจจุบันของคุณ *',
+                                          AppLocalizations.of(context)
+                                              .willTakeToCurrentLocation,
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Colors.grey.shade600,
@@ -1030,7 +1038,8 @@ class _ReportScreenState extends State<ReportScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'สามารถแนบรูปภาพได้เฉพาะในหัวข้อ "สัตว์หาย" เท่านั้น\nเพื่อป้องกันเนื้อหาที่ไม่เหมาะสม',
+                                AppLocalizations.of(context)
+                                    .imageOnlyForLostAnimals,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.blue.shade700,
@@ -1107,18 +1116,19 @@ class _ReportScreenState extends State<ReportScreen> {
                                         ),
                                         child: GestureDetector(
                                           onTap: _showImageSourceDialog,
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(
+                                              const Icon(
                                                 Icons.edit,
                                                 color: Colors.white,
                                                 size: 16,
                                               ),
-                                              SizedBox(width: 4),
+                                              const SizedBox(width: 4),
                                               Text(
-                                                'เปลี่ยน',
-                                                style: TextStyle(
+                                                AppLocalizations.of(context)
+                                                    .change,
+                                                style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 12,
                                                   fontFamily: 'NotoSansThai',
@@ -1147,9 +1157,9 @@ class _ReportScreenState extends State<ReportScreen> {
                                       color: Colors.blue.shade600,
                                     ),
                                   ),
-                                  label: const Text(
-                                    'เพิ่มรูปภาพ (ไม่บังคับ)',
-                                    style: TextStyle(
+                                  label: Text(
+                                    AppLocalizations.of(context).addImage,
+                                    style: const TextStyle(
                                       fontFamily: 'NotoSansThai',
                                       fontSize: 16,
                                       color: Colors.black,
@@ -1182,16 +1192,18 @@ class _ReportScreenState extends State<ReportScreen> {
                         : () async {
                             if (selectedCategory == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('กรุณาเลือกประเภทเหตุการณ์')),
+                                SnackBar(
+                                    content: Text(AppLocalizations.of(context)
+                                        .pleaseSelectEventType)),
                               );
                               return;
                             }
 
                             if (_detailController.text.trim().isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('กรุณากรอกรายละเอียด')),
+                                SnackBar(
+                                    content: Text(AppLocalizations.of(context)
+                                        .pleaseFillDetails)),
                               );
                               return;
                             }
@@ -1207,10 +1219,10 @@ class _ReportScreenState extends State<ReportScreen> {
                           borderRadius: BorderRadius.circular(12)),
                     ),
                     child: isSubmitting
-                        ? const Row(
+                        ? Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -1218,10 +1230,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                   strokeWidth: 2,
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Text(
-                                'กำลังส่ง...',
-                                style: TextStyle(
+                                AppLocalizations.of(context).sending,
+                                style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   fontFamily: 'NotoSansThai',
@@ -1230,9 +1242,9 @@ class _ReportScreenState extends State<ReportScreen> {
                               ),
                             ],
                           )
-                        : const Text(
-                            'บันทึก',
-                            style: TextStyle(
+                        : Text(
+                            AppLocalizations.of(context).save,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'NotoSansThai',

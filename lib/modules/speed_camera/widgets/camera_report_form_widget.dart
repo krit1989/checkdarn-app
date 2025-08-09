@@ -8,6 +8,7 @@ import '../services/speed_camera_service.dart';
 import '../models/camera_report_model.dart';
 import '../models/speed_camera_model.dart';
 import 'camera_selection_map_widget.dart'; // ใช้ widget ใหม่
+import '../../../generated/gen_l10n/app_localizations.dart';
 
 class CameraReportFormWidget extends StatefulWidget {
   final LatLng? initialLocation;
@@ -139,9 +140,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'รายงานกล้องจับความเร็ว',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).cameraReportFormTitle,
+                    style: const TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -151,9 +152,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   const SizedBox(height: 16),
 
                   // Report type selection
-                  const Text(
-                    'ประเภทการรายงาน',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).reportTypeLabel,
+                    style: const TextStyle(
                       fontFamily: 'NotoSansThai',
                       fontWeight: FontWeight.w500,
                       color: Colors.black, // เปลี่ยนเป็นสีดำ
@@ -209,9 +210,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   // Location/Camera selection based on type
                   if (_selectedType == CameraReportType.newCamera) ...[
                     // สำหรับกล้องใหม่ - เลือกตำแหน่งบนแผนที่
-                    const Text(
-                      'ตำแหน่งกล้องใหม่',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).newCameraLocationLabel,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
                         color: Colors.black, // เปลี่ยนเป็นสีดำ
@@ -226,7 +227,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                           MaterialPageRoute(
                             builder: (context) => LocationPickerScreen(
                               initialLocation: _selectedLocation,
-                              title: 'เลือกตำแหน่งกล้องใหม่',
+                              title: AppLocalizations.of(context)
+                                  .selectNewCameraLocation,
                               autoLocateToCurrentPosition:
                                   true, // เด้งไปหาตำแหน่งปัจจุบันเลย
                             ),
@@ -272,8 +274,10 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                 children: [
                                   Text(
                                     _selectedLocation != null
-                                        ? 'ตำแหน่งที่เลือก'
-                                        : 'แตะเพื่อเลือกตำแหน่งบนแผนที่',
+                                        ? AppLocalizations.of(context)
+                                            .selectedLocationLabel
+                                        : AppLocalizations.of(context)
+                                            .tapToSelectLocationOnMap,
                                     style: TextStyle(
                                       fontFamily: 'NotoSansThai',
                                       fontSize: 14,
@@ -290,7 +294,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                     const SizedBox(height: 4),
                                     Text(
                                       _selectedLocationInfo?.shortAddress ??
-                                          'ไม่พบข้อมูลสถานที่',
+                                          AppLocalizations.of(context)
+                                              .noLocationDataFound,
                                       style: const TextStyle(
                                         fontFamily: 'NotoSansThai',
                                         fontSize: 13,
@@ -300,7 +305,13 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'ละติจูด: ${_selectedLocation!.latitude.toStringAsFixed(6)}, ลองจิจูด: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
+                                      AppLocalizations.of(context)
+                                          .coordinatesFormat(
+                                        _selectedLocation!.latitude
+                                            .toStringAsFixed(6),
+                                        _selectedLocation!.longitude
+                                            .toStringAsFixed(6),
+                                      ),
                                       style: const TextStyle(
                                         fontFamily: 'NotoSansThai',
                                         fontSize: 11,
@@ -327,7 +338,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          'กรุณาเลือกตำแหน่งบนแผนที่',
+                          AppLocalizations.of(context).selectLocationOnMap,
                           style: TextStyle(
                             fontFamily: 'NotoSansThai',
                             fontSize: 12,
@@ -337,9 +348,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       ),
                   ] else ...[
                     // สำหรับประเภทอื่น - เลือกกล้องที่มีอยู่ในระบบ
-                    const Text(
-                      'เลือกกล้องที่มีอยู่ในระบบ',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).selectExistingCameraLabel,
+                      style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
                         color: Colors.black, // เปลี่ยนเป็นสีดำ
@@ -367,9 +378,9 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Text(
-                              'กำลังโหลดข้อมูลกล้อง...',
-                              style: TextStyle(
+                            Text(
+                              AppLocalizations.of(context).loadingCameraData,
+                              style: const TextStyle(
                                 fontFamily: 'NotoSansThai',
                                 fontSize: 14,
                                 color: Colors.black, // เปลี่ยนเป็นสีดำ
@@ -391,10 +402,10 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                             const Icon(Icons.info_outline,
                                 color: Colors.black), // เปลี่ยนเป็นสีดำ
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'ไม่พบข้อมูลกล้องในระบบ',
-                                style: TextStyle(
+                                AppLocalizations.of(context).noCameraDataFound,
+                                style: const TextStyle(
                                   fontFamily: 'NotoSansThai',
                                   fontSize: 14,
                                   color: Colors.black, // เปลี่ยนเป็นสีดำ
@@ -431,8 +442,10 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                                   children: [
                                     Text(
                                       _selectedExistingCamera != null
-                                          ? 'กล้องที่เลือก'
-                                          : 'แตะเพื่อเลือกกล้องจากแผนที่',
+                                          ? AppLocalizations.of(context)
+                                              .selectedCamera
+                                          : AppLocalizations.of(context)
+                                              .tapToSelectCameraFromMap,
                                       style: TextStyle(
                                         fontFamily: 'NotoSansThai',
                                         fontSize: 14,
@@ -489,7 +502,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          'กรุณาเลือกกล้องจากแผนที่',
+                          AppLocalizations.of(context)
+                              .pleaseSelectCameraFromMap,
                           style: TextStyle(
                             fontFamily: 'NotoSansThai',
                             fontSize: 12,
@@ -507,7 +521,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                     readOnly: _selectedType == CameraReportType.removedCamera ||
                         _selectedType == CameraReportType.speedChanged,
                     decoration: InputDecoration(
-                      labelText: 'ชื่อถนน',
+                      labelText: AppLocalizations.of(context).roadNameLabel,
                       labelStyle: TextStyle(
                         fontFamily: 'NotoSansThai',
                         color: (_selectedType ==
@@ -558,7 +572,7 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'กรุณากรอกชื่อถนน';
+                        return AppLocalizations.of(context).pleaseEnterRoadName;
                       }
                       return null;
                     },
@@ -571,8 +585,8 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                       _selectedType == CameraReportType.speedChanged) ...[
                     Text(
                       _selectedType == CameraReportType.speedChanged
-                          ? 'จำกัดความเร็วใหม่ (km/h)'
-                          : 'จำกัดความเร็ว (km/h)',
+                          ? AppLocalizations.of(context).newSpeedLimitLabel
+                          : AppLocalizations.of(context).speedLimitLabel,
                       style: const TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontWeight: FontWeight.w500,
@@ -621,7 +635,10 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'ความเร็วเดิม: ${_selectedExistingCamera!.speedLimit} km/h → ใหม่: $_selectedSpeedLimit km/h',
+                                AppLocalizations.of(context).oldSpeedToNewSpeed(
+                                  _selectedExistingCamera!.speedLimit,
+                                  _selectedSpeedLimit,
+                                ),
                                 style: TextStyle(
                                   fontFamily: 'NotoSansThai',
                                   fontSize: 12,
@@ -640,11 +657,12 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                   // Description
                   TextFormField(
                     controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'รายละเอียดที่ตั้งและจุดสังเกต',
-                      labelStyle: TextStyle(fontFamily: 'NotoSansThai'),
+                    decoration: InputDecoration(
+                      labelText:
+                          AppLocalizations.of(context).locationDetailsLabel,
+                      labelStyle: const TextStyle(fontFamily: 'NotoSansThai'),
                       hintText:
-                          'เช่น ใกล้ห้าแยกโรบินสัน, หน้าโรงเรียน, ตรงข้ามปั๊มน้ำมัน, บริเวณสะพาน',
+                          AppLocalizations.of(context).locationExampleHint,
                       hintStyle: TextStyle(
                         fontFamily: 'NotoSansThai',
                         fontSize: 12,
@@ -656,10 +674,12 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
                     maxLines: 3,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'กรุณาระบุรายละเอียดที่ตั้งและจุดสังเกต';
+                        return AppLocalizations.of(context)
+                            .pleaseProvideLocationDetails;
                       }
                       if (value.trim().length < 10) {
-                        return 'กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร';
+                        return AppLocalizations.of(context)
+                            .pleaseProvideAtLeast10Characters;
                       }
                       return null;
                     },
@@ -711,22 +731,22 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
   String _getReportTypeDisplayName(CameraReportType type) {
     switch (type) {
       case CameraReportType.newCamera:
-        return '📷 รายงานกล้องใหม่';
+        return '📷 ${AppLocalizations.of(context).reportNewCamera}';
       case CameraReportType.removedCamera:
-        return '❌ รายงานกล้องที่ถูกถอน';
+        return '❌ ${AppLocalizations.of(context).reportRemovedCamera}';
       case CameraReportType.speedChanged:
-        return '⚡ รายงานการเปลี่ยนจำกัดความเร็ว';
+        return '⚡ ${AppLocalizations.of(context).reportSpeedChanged}';
     }
   }
 
   String _getSubmitButtonText() {
     switch (_selectedType) {
       case CameraReportType.newCamera:
-        return 'รายงานกล้องใหม่';
+        return AppLocalizations.of(context).reportNewCamera;
       case CameraReportType.removedCamera:
-        return 'รายงานกล้องที่ถูกถอน';
+        return AppLocalizations.of(context).reportRemovedCamera;
       case CameraReportType.speedChanged:
-        return 'รายงานเปลี่ยนความเร็ว';
+        return AppLocalizations.of(context).reportSpeedChanged;
     }
   }
 
@@ -740,9 +760,10 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
       final success = await AuthService.showLoginDialog(context);
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('กรุณาล็อกอินก่อนรายงานกล้อง',
-                style: TextStyle(fontFamily: 'NotoSansThai')),
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context).pleaseLoginBeforeReportingCamera,
+                style: const TextStyle(fontFamily: 'NotoSansThai')),
             backgroundColor: Colors.orange,
           ),
         );
