@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // ปิดใช้งานชั่วคราว
 import 'notification_service.dart';
-import 'auth_service.dart';
+// import 'auth_service.dart'; // ปิดใช้งานชั่วคราว
 
 /// 🔔 **Push Notification Service - Business Logic**
 /// ระบบจัดการ Push Notification ระดับ Business Logic
@@ -12,7 +12,7 @@ import 'auth_service.dart';
 /// - จัดการ notification preferences
 /// - Integration กับ UI components
 class PushNotificationService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // static final FirebaseFirestore _firestore = FirebaseFirestore.instance; // ปิดใช้งานชั่วคราว
 
   // ตัวแปรเก็บสถานะ
   static bool _isInitialized = false;
@@ -39,6 +39,7 @@ class PushNotificationService {
   }
 
   /// 📱 **จัดการ Notification ที่เข้ามา**
+  /// ⚠️ **อัพเดท:** ปิดระบบ auto-navigation เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
   static void _handleNotificationReceived(dynamic message) {
     try {
       print('🔔 PushNotificationService: Notification received');
@@ -50,241 +51,253 @@ class PushNotificationService {
 
       print('🔔 Notification type: $type, reportId: $reportId');
 
-      // Handle based on notification type
-      switch (type) {
-        case 'new_post':
-          _handleNewPostNotification(reportId);
-          break;
+      // ✅ **ไม่ทำ auto-navigation เมื่อผู้ใช้อยู่ในแอพ**
+      // ให้แสดงแค่ notification ปกติจากระบบ
+      // ผู้ใช้สามารถเลือกแตะ notification เมื่อต้องการดูข้อมูล
 
-        case 'new_comment':
-          _handleNewCommentNotification(reportId);
-          break;
+      print(
+          '✅ PushNotificationService: Notification logged (no auto-navigation to avoid disruption)');
 
-        default:
-          print('⚠️ Unknown notification type: $type');
-      }
+      // เก็บไว้เป็น comment สำหรับการ debug หรือเปิดใช้ในอนาคต
+      // switch (type) {
+      //   case 'new_post':
+      //     _handleNewPostNotification(reportId);
+      //     break;
+      //   case 'new_comment':
+      //     _handleNewCommentNotification(reportId);
+      //     break;
+      //   default:
+      //     print('⚠️ Unknown notification type: $type');
+      // }
     } catch (e) {
       print('❌ PushNotificationService: Error handling notification: $e');
     }
   }
 
   /// 📄 **จัดการ Notification สำหรับโพสใหม่**
-  static void _handleNewPostNotification(String? reportId) {
-    try {
-      print('🔔 PushNotificationService: Handling new post notification');
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static void _handleNewPostNotification(String? reportId) {
+  //   try {
+  //     print('🔔 PushNotificationService: Handling new post notification');
 
-      if (reportId != null) {
-        // นำทางไปยัง List Screen
-        _navigateToListScreen();
-      }
-    } catch (e) {
-      print(
-          '❌ PushNotificationService: Error handling new post notification: $e');
-    }
-  }
+  //     if (reportId != null) {
+  //       // นำทางไปยัง List Screen
+  //       _navigateToListScreen();
+  //     }
+  //   } catch (e) {
+  //     print(
+  //         '❌ PushNotificationService: Error handling new post notification: $e');
+  //   }
+  // }
 
   /// 💬 **จัดการ Notification สำหรับคอมเม้นใหม่**
-  static void _handleNewCommentNotification(String? reportId) {
-    try {
-      print('🔔 PushNotificationService: Handling new comment notification');
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static void _handleNewCommentNotification(String? reportId) {
+  //   try {
+  //     print('🔔 PushNotificationService: Handling new comment notification');
 
-      if (reportId != null) {
-        // เก็บ reportId เพื่อเปิด comment sheet ภายหลัง
-        _pendingReportId = reportId;
+  //     if (reportId != null) {
+  //       // เก็บ reportId เพื่อเปิด comment sheet ภายหลัง
+  //       _pendingReportId = reportId;
 
-        // นำทางไปยัง List Screen และเปิด comment
-        _navigateToListScreenWithComment(reportId);
-      }
-    } catch (e) {
-      print(
-          '❌ PushNotificationService: Error handling new comment notification: $e');
-    }
-  }
+  //       // นำทางไปยัง List Screen และเปิด comment
+  //       _navigateToListScreenWithComment(reportId);
+  //     }
+  //   } catch (e) {
+  //     print(
+  //         '❌ PushNotificationService: Error handling new comment notification: $e');
+  //   }
+  // }
 
   /// 📄 **นำทางไปยัง List Screen**
-  static void _navigateToListScreen() {
-    try {
-      final BuildContext? context =
-          NotificationService.navigatorKey.currentContext;
-      if (context == null) {
-        print(
-            '⚠️ PushNotificationService: No context available for navigation');
-        return;
-      }
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static void _navigateToListScreen() {
+  //   try {
+  //     final BuildContext? context =
+  //         NotificationService.navigatorKey.currentContext;
+  //     if (context == null) {
+  //       print(
+  //           '⚠️ PushNotificationService: No context available for navigation');
+  //       return;
+  //     }
 
-      // ตรวจสอบ route ปัจจุบัน
-      final String? currentRoute = ModalRoute.of(context)?.settings.name;
-      print('🔔 Current route: $currentRoute');
+  //     // ตรวจสอบ route ปัจจุบัน
+  //     final String? currentRoute = ModalRoute.of(context)?.settings.name;
+  //     print('🔔 Current route: $currentRoute');
 
-      // ถ้าไม่ได้อยู่ที่ List Screen ให้ไป
-      if (currentRoute != '/list') {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/list',
-          (route) => route.settings.name == '/',
-        );
-      }
-    } catch (e) {
-      print('❌ PushNotificationService: Error navigating to List Screen: $e');
-    }
-  }
+  //     // ถ้าไม่ได้อยู่ที่ List Screen ให้ไป
+  //     if (currentRoute != '/list') {
+  //       Navigator.of(context).pushNamedAndRemoveUntil(
+  //         '/list',
+  //         (route) => route.settings.name == '/',
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print('❌ PushNotificationService: Error navigating to List Screen: $e');
+  //   }
+  // }
 
   /// 💬 **นำทางไปยัง List Screen และเปิด Comment**
-  static void _navigateToListScreenWithComment(String reportId) {
-    try {
-      final BuildContext? context =
-          NotificationService.navigatorKey.currentContext;
-      if (context == null) {
-        print(
-            '⚠️ PushNotificationService: No context available for navigation');
-        return;
-      }
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static void _navigateToListScreenWithComment(String reportId) {
+  //   try {
+  //     final BuildContext? context =
+  //         NotificationService.navigatorKey.currentContext;
+  //     if (context == null) {
+  //       print(
+  //           '⚠️ PushNotificationService: No context available for navigation');
+  //       return;
+  //     }
 
-      // ไปที่ List Screen ก่อน
-      _navigateToListScreen();
+  //     // ไปที่ List Screen ก่อน
+  //     _navigateToListScreen();
 
-      // รอให้หน้าโหลดเสร็จ แล้วเปิด comment sheet
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        _openCommentSheet(context, reportId);
-      });
-    } catch (e) {
-      print('❌ PushNotificationService: Error navigating to comment: $e');
-    }
-  }
+  //     // รอให้หน้าโหลดเสร็จ แล้วเปิด comment sheet
+  //     Future.delayed(const Duration(milliseconds: 1000), () {
+  //       _openCommentSheet(context, reportId);
+  //     });
+  //   } catch (e) {
+  //     print('❌ PushNotificationService: Error navigating to comment: $e');
+  //   }
+  // }
 
   /// 💬 **เปิด Comment Sheet สำหรับ Report ID ที่กำหนด**
-  static Future<void> _openCommentSheet(
-      BuildContext context, String reportId) async {
-    try {
-      print(
-          '🔔 PushNotificationService: Opening comment sheet for reportId: $reportId');
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static Future<void> _openCommentSheet(
+  //     BuildContext context, String reportId) async {
+  //   try {
+  //     print(
+  //         '🔔 PushNotificationService: Opening comment sheet for reportId: $reportId');
 
-      // ดึงข้อมูลโพสต์เพื่อเอา title และ category
-      final DocumentSnapshot reportDoc =
-          await _firestore.collection('reports').doc(reportId).get();
+  //     // ดึงข้อมูลโพสต์เพื่อเอา title และ category
+  //     final DocumentSnapshot reportDoc =
+  //         await _firestore.collection('reports').doc(reportId).get();
 
-      if (!reportDoc.exists) {
-        print('❌ Report not found: $reportId');
-        return;
-      }
+  //     if (!reportDoc.exists) {
+  //       print('❌ Report not found: $reportId');
+  //       return;
+  //     }
 
-      final Map<String, dynamic> data =
-          reportDoc.data() as Map<String, dynamic>;
-      final String title = data['title'] ??
-          data['description']?.toString().split(' ').take(3).join(' ') ??
-          'ไม่มีหัวข้อ';
-      final String category = data['category'] ?? data['type'] ?? 'other';
+  //     final Map<String, dynamic> data =
+  //         reportDoc.data() as Map<String, dynamic>;
+  //     final String title = data['title'] ??
+  //         data['description']?.toString().split(' ').take(3).join(' ') ??
+  //         'ไม่มีหัวข้อ';
+  //     final String category = data['category'] ?? data['type'] ?? 'other';
 
-      // เปิด Comment Bottom Sheet (ต้องใช้ dynamic import)
-      _showCommentBottomSheet(context, reportId, title, category);
-    } catch (e) {
-      print('❌ PushNotificationService: Error opening comment sheet: $e');
-    }
-  }
+  //     // เปิด Comment Bottom Sheet (ต้องใช้ dynamic import)
+  //     _showCommentBottomSheet(context, reportId, title, category);
+  //   } catch (e) {
+  //     print('❌ PushNotificationService: Error opening comment sheet: $e');
+  //   }
+  // }
 
   /// 💬 **แสดง Comment Bottom Sheet**
-  static void _showCommentBottomSheet(
-      BuildContext context, String reportId, String title, String category) {
-    try {
-      // ใช้ showModalBottomSheet เหมือนใน list_screen.dart
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        useRootNavigator: true,
-        backgroundColor: Colors.transparent,
-        barrierColor: Colors.black54,
-        isDismissible: true,
-        enableDrag: true,
-        useSafeArea: true,
-        clipBehavior: Clip.antiAlias,
-        builder: (context) {
-          // สร้าง Comment Bottom Sheet แบบ dynamic
-          return _buildCommentBottomSheet(reportId, category);
-        },
-      );
-    } catch (e) {
-      print(
-          '❌ PushNotificationService: Error showing comment bottom sheet: $e');
-    }
-  }
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static void _showCommentBottomSheet(
+  //     BuildContext context, String reportId, String title, String category) {
+  //   try {
+  //     // ใช้ showModalBottomSheet เหมือนใน list_screen.dart
+  //     showModalBottomSheet(
+  //       context: context,
+  //       isScrollControlled: true,
+  //       useRootNavigator: true,
+  //       backgroundColor: Colors.transparent,
+  //       barrierColor: Colors.black54,
+  //       isDismissible: true,
+  //       enableDrag: true,
+  //       useSafeArea: true,
+  //       clipBehavior: Clip.antiAlias,
+  //       builder: (context) {
+  //         // สร้าง Comment Bottom Sheet แบบ dynamic
+  //         return _buildCommentBottomSheet(reportId, category);
+  //       },
+  //     );
+  //   } catch (e) {
+  //     print(
+  //         '❌ PushNotificationService: Error showing comment bottom sheet: $e');
+  //   }
+  // }
 
   /// 🏗️ **สร้าง Comment Bottom Sheet Widget**
-  static Widget _buildCommentBottomSheet(String reportId, String category) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.chat_bubble_outline, color: Color(0xFFFF9800)),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'ความคิดเห็น',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'NotoSansThai',
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(
-                          NotificationService.navigatorKey.currentContext!)
-                      .pop(),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-          ),
+  /// ⚠️ **ปิดใช้งาน:** เพื่อไม่รบกวนผู้ใช้ที่กำลังใช้แอพ
+  // static Widget _buildCommentBottomSheet(String reportId, String category) {
+  //   return Container(
+  //     decoration: const BoxDecoration(
+  //       color: Colors.white,
+  //       borderRadius: BorderRadius.only(
+  //         topLeft: Radius.circular(20),
+  //         topRight: Radius.circular(20),
+  //       ),
+  //     ),
+  //     child: Column(
+  //       mainAxisSize: MainAxisSize.min,
+  //       children: [
+  //         // Header
+  //         Container(
+  //           padding: const EdgeInsets.all(16),
+  //           decoration: BoxDecoration(
+  //             color: Colors.grey[100],
+  //             borderRadius: const BorderRadius.only(
+  //               topLeft: Radius.circular(20),
+  //               topRight: Radius.circular(20),
+  //             ),
+  //           ),
+  //           child: Row(
+  //             children: [
+  //               const Icon(Icons.chat_bubble_outline, color: Color(0xFFFF9800)),
+  //               const SizedBox(width: 8),
+  //               const Expanded(
+  //                 child: Text(
+  //                   'ความคิดเห็น',
+  //                   style: TextStyle(
+  //                     fontSize: 18,
+  //                     fontWeight: FontWeight.w600,
+  //                     fontFamily: 'NotoSansThai',
+  //                   ),
+  //                 ),
+  //               ),
+  //               IconButton(
+  //                 onPressed: () => Navigator.of(
+  //                         NotificationService.navigatorKey.currentContext!)
+  //                     .pop(),
+  //                 icon: const Icon(Icons.close),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
 
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                const Icon(Icons.chat, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  'กำลังโหลดความคิดเห็น...',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                    fontFamily: 'NotoSansThai',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Report ID: $reportId',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    fontFamily: 'NotoSansThai',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  //         // Content
+  //         Padding(
+  //           padding: const EdgeInsets.all(16),
+  //           child: Column(
+  //             children: [
+  //               const Icon(Icons.chat, size: 64, color: Colors.grey),
+  //               const SizedBox(height: 16),
+  //               Text(
+  //                 'กำลังโหลดความคิดเห็น...',
+  //                 style: const TextStyle(
+  //                   fontSize: 16,
+  //                   color: Colors.grey,
+  //                   fontFamily: 'NotoSansThai',
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 16),
+  //               Text(
+  //                 'Report ID: $reportId',
+  //                 style: const TextStyle(
+  //                   fontSize: 12,
+  //                   color: Colors.grey,
+  //                   fontFamily: 'NotoSansThai',
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   /// 🔄 **Refresh Notifications**
   static Future<void> refreshNotifications() async {

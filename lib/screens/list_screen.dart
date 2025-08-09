@@ -62,12 +62,15 @@ class _ListScreenState extends State<ListScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // 🔔 ตรวจสอบ arguments จาก notification navigation (เพียงครั้งเดียว)
+    // ✅ **ปิดการประมวลผล notification arguments เพื่อไม่รบกวนผู้ใช้**
+    // ระบบจะไม่ทำการ auto-navigate หรือ auto-open คุณสมบัติใดๆ อีกต่อไป
+    // ผู้ใช้สามารถเข้าใช้งานได้ตามปกติผ่าน UI ของแอพ
+
+    // อ่าน arguments แต่ไม่ทำอะไร (สำหรับ debug หากจำเป็น)
     if (!_hasProcessedArguments) {
       final arguments =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      // ✅ ปิดการเปิดคอมเมนต์อัตโนมัติ - ให้ผู้ใช้เลือกเปิดเอง
-      // if (arguments != null && arguments['shouldOpenComment'] == true) {
+
       if (arguments != null) {
         final String? reportId = arguments['reportId'];
         final String? commentId = arguments['commentId'];
@@ -75,10 +78,10 @@ class _ListScreenState extends State<ListScreen> {
         final bool fromNotification = arguments['fromNotification'] == true;
 
         print(
-            '🔔 ListScreen: Received notification arguments - reportId: $reportId, commentId: $commentId, autoOpen: $autoOpenComments, fromNotification: $fromNotification');
+            '🔔 ListScreen: Received notification arguments (ignored for user experience) - reportId: $reportId, commentId: $commentId, autoOpen: $autoOpenComments, fromNotification: $fromNotification');
 
-        // ✅ ปิดการเปิดคอมเมนต์อัตโนมัติ - ให้ผู้ใช้เลือกเปิดเอง
-        // โค้ดเปิดคอมเมนต์อัตโนมัติถูกลบออกแล้ว เพื่อให้ผู้ใช้เปิดเองผ่านปุ่มด้านล่างโพส
+        // ⚠️ **ไม่ทำการ auto-open หรือ auto-navigate ใดๆ**
+        // ให้ผู้ใช้เลือกใช้งานเองผ่าน UI ปกติ
       }
       _hasProcessedArguments = true;
     }

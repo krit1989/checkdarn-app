@@ -426,6 +426,8 @@ class NotificationService {
   }
 
   /// ⚡ **จัดการ Action ของ Notification**
+  /// ⚠️ **หมายเหตุ:** ฟังก์ชันนี้จะทำงานเฉพาะเมื่อผู้ใช้แตะ notification เท่านั้น
+  /// ไม่ใช่เมื่อ notification มาถึงขณะที่กำลังใช้แอพ
   static void _handleNotificationAction(RemoteMessage message) {
     try {
       final Map<String, dynamic> data = message.data;
@@ -434,7 +436,7 @@ class NotificationService {
       final String? action = data['action'];
 
       print(
-          '🔔 NotificationService: Handling action - Type: $type, Action: $action, ReportId: $reportId');
+          '🔔 NotificationService: User tapped notification - Type: $type, Action: $action, ReportId: $reportId');
 
       final BuildContext? context = navigatorKey.currentContext;
       if (context == null) {
@@ -442,9 +444,11 @@ class NotificationService {
         return;
       }
 
+      // ✅ เฉพาะเมื่อผู้ใช้แตะ notification ให้นำทางไปหน้า List Screen
+      // แต่ไม่เปิด Comment อัตโนมัติเพื่อไม่รบกวนการใช้งาน
       switch (action) {
         case 'open_comment':
-          // ✅ นำทางไปยังหน้า List Screen แบบปกติ (ไม่เปิด Comment อัตโนมัติ)
+          // นำทางไปยังหน้า List Screen แบบปกติ (ไม่เปิด Comment อัตโนมัติ)
           _navigateToListScreen(context);
           break;
 
@@ -457,7 +461,7 @@ class NotificationService {
           // Legacy support - ใช้ type แทน action
           switch (type) {
             case 'new_comment':
-              // ✅ นำทางไปยังหน้า List Screen แบบปกติ (ไม่เปิด Comment อัตโนมัติ)
+              // นำทางไปยังหน้า List Screen แบบปกติ (ไม่เปิด Comment อัตโนมัติ)
               _navigateToListScreen(context);
               break;
             case 'new_post':
