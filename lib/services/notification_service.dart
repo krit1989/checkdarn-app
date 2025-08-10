@@ -68,6 +68,13 @@ class NotificationService {
       // ขอสิทธิ์การแจ้งเตือน
       await _requestPermission();
 
+      // ✅ **ตั้งค่าให้แสดง notification ใน foreground**
+      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+        alert: true, // แสดง alert
+        badge: true, // แสดง badge
+        sound: true, // เล่นเสียง
+      );
+
       // ตั้งค่า foreground message handler
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
@@ -481,23 +488,31 @@ class NotificationService {
   /// 📄 **นำทางไปยัง List Screen**
   static void _navigateToListScreen(BuildContext context) {
     try {
+      print('🔔 NotificationService: Attempting to navigate to List Screen');
+
       // ตรวจสอบว่าอยู่ที่หน้า List Screen อยู่แล้วหรือไม่
       final String currentRoute = ModalRoute.of(context)?.settings.name ?? '';
+      print('🔔 Current route: $currentRoute');
+
       if (currentRoute.contains('list') || currentRoute == '/list') {
         print('🔔 NotificationService: Already on List Screen');
         return;
       }
 
-      // ใช้ pushReplacementNamed แทนเพื่อป้องกัน navigation stack ผิดปกติ
-      Navigator.of(context).pushReplacementNamed('/list');
+      // ✅ ใช้ pushNamedAndRemoveUntil เพื่อให้แน่ใจว่าไปถึง List Screen
+      // และไม่มี route อื่นแทรกขวาง
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/list',
+        (Route<dynamic> route) => route.settings.name == '/' || route.isFirst,
+      );
+
+      print('✅ NotificationService: Navigation to List Screen requested');
     } catch (e) {
       print('❌ NotificationService: Error navigating to List Screen: $e');
-      // ถ้าเกิดข้อผิดพลาด ลองใช้ pushNamedAndRemoveUntil
+      // ถ้าเกิดข้อผิดพลาด ลองใช้วิธีง่ายๆ
       try {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/list',
-          (route) => route.isFirst,
-        );
+        Navigator.of(context).pushNamed('/list');
+        print('✅ NotificationService: Fallback navigation to List Screen');
       } catch (fallbackError) {
         print(
             '❌ NotificationService: Fallback navigation also failed: $fallbackError');
