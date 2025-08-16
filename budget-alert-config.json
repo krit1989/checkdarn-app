@@ -1,0 +1,38 @@
+{
+  "project_id": "checkdarn-app",
+  "budgets": [
+    {
+      "name": "firebase-storage-budget-warning",
+      "amount": 10.0,
+      "currency": "USD",
+      "threshold_percent": 50,
+      "description": "แจ้งเตือนเมื่อใช้ Firebase Storage ครึ่งหนึ่งของ budget"
+    },
+    {
+      "name": "firebase-storage-budget-critical",
+      "amount": 10.0,
+      "currency": "USD",
+      "threshold_percent": 80,
+      "description": "แจ้งเตือนเมื่อใช้ Firebase Storage เกือบเต็ม budget"
+    },
+    {
+      "name": "firebase-firestore-budget",
+      "amount": 5.0,
+      "currency": "USD",
+      "threshold_percent": 75,
+      "description": "แจ้งเตือนเมื่อใช้ Firestore เกิน budget"
+    },
+    {
+      "name": "firebase-total-monthly-budget",
+      "amount": 25.0,
+      "currency": "USD",
+      "threshold_percent": 90,
+      "description": "แจ้งเตือนเมื่อใช้ Firebase รวมเกือบเต็ม budget รายเดือน"
+    }
+  ],
+  "notification_emails": [
+    "admin@checkdarn.com",
+    "kritchapon1989@gmail.com"
+  ],
+  "slack_webhook": null
+}

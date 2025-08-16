@@ -12,6 +12,8 @@ import 'services/cleanup_service.dart';
 import 'services/enhanced_cache_service.dart';
 import 'services/notification_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/smart_location_service.dart';
+import 'services/topic_subscription_service.dart';
 import 'providers/language_provider.dart';
 import 'generated/gen_l10n/app_localizations.dart';
 
@@ -60,6 +62,12 @@ void _initializeBackgroundServices() async {
     await NotificationService.initialize();
     await PushNotificationService.initialize();
 
+    // 🗺️ เริ่ม Topic Subscription Service (ประหยัดค่าใช้จ่าย 99.9%!)
+    _startTopicSubscriptionService();
+
+    // 🌍 เริ่ม Smart Location Service (Geographic Targeting)
+    _startSmartLocationService();
+
     // 🚀 เริ่ม Smart Prefetch System
     _startSmartPrefetch();
 
@@ -78,6 +86,62 @@ void _startSmartPrefetch() {
   Future.delayed(const Duration(seconds: 2), () {
     FirebaseService.prefetchRecentReports();
     print('🚀 Smart prefetch started - data will load instantly!');
+  });
+}
+
+/// 🗺️ **Topic Subscription Service Starter**
+/// เริ่ม Auto Subscribe Topics ตามตำแหน่ง เพื่อประหยัดค่าใช้จ่าย 99.9%
+void _startTopicSubscriptionService() {
+  // เริ่มหลังจาก app โหลดเสร็จ 3 วินาที เพื่อไม่รบกวน startup
+  Future.delayed(const Duration(seconds: 3), () async {
+    try {
+      List<String> topics =
+          await TopicSubscriptionService.subscribeToLocationTopics();
+      if (topics.isNotEmpty) {
+        print('🎯 Topic subscription updated successfully - Cost optimized!');
+
+        // แสดงข้อมูล topics ปัจจุบัน
+        Map<String, dynamic> stats =
+            await TopicSubscriptionService.getTopicStats();
+        print('📊 Current topics: ${topics}');
+        print('💰 Saving 99.9% compared to mass broadcasting!');
+        print('📈 Stats: ${stats}');
+      } else {
+        print('⚠️ Topic subscription update failed, will retry later');
+
+        // Retry หลังจาก 30 วินาที
+        Future.delayed(const Duration(seconds: 30), () {
+          TopicSubscriptionService.subscribeToLocationTopics();
+        });
+      }
+    } catch (e) {
+      print('❌ Error starting topic subscription service: $e');
+    }
+  });
+}
+
+/// 🌍 **Smart Location Service Starter**
+/// เริ่มระบบติดตามตำแหน่งอย่างฉลาดสำหรับ Geographic Targeting
+void _startSmartLocationService() {
+  // เริ่มหลังจาก app โหลดเสร็จ 4 วินาที เพื่อไม่รบกวน startup
+  Future.delayed(const Duration(seconds: 4), () async {
+    try {
+      // อัปเดตตำแหน่งครั้งแรก
+      bool success =
+          await SmartLocationService.updateUserLocation(forceUpdate: true);
+      if (success) {
+        print(
+            '🌍 Smart Location Service: Initial location updated successfully');
+
+        // เริ่มติดตามตำแหน่งแบบเรียลไทม์
+        SmartLocationService.startLocationTracking();
+        print('🎯 Smart Location Service: Real-time tracking started');
+      } else {
+        print('⚠️ Smart Location Service: Initial location update failed');
+      }
+    } catch (e) {
+      print('❌ Error starting Smart Location Service: $e');
+    }
   });
 }
 

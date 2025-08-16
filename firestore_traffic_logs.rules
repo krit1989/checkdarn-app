@@ -1,0 +1,51 @@
+# Security Rules สำหรับ Traffic Logs Collection
+# ตาม พ.ร.บ.คอมพิวเตอร์ 2560 มาตรา 26
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Traffic Logs Collection - อ่านเขียนได้เฉพาะ Server-side เท่านั้น
+    match /traffic_logs/{logId} {
+      // ไม่อนุญาตให้ client เข้าถึงโดยตรง
+      allow read, write: if false;
+      
+      // อนุญาตเฉพาะ Cloud Functions เท่านั้น
+      // (Firebase Admin SDK ไม่ถูกจำกัดด้วย Security Rules)
+    }
+    
+    // Audit Logs Collection - สำหรับ compliance tracking
+    match /audit_logs/{auditId} {
+      // อ่านได้เฉพาะ admin เท่านั้น
+      allow read: if isAdmin();
+      // เขียนได้เฉพาะ server-side
+      allow write: if false;
+    }
+    
+    // Helper function: ตรวจสอบว่าเป็น admin หรือไม่
+    function isAdmin() {
+      return request.auth != null &&
+             request.auth.uid != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users Collection - สำหรับตรวจสอบ role
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // อื่นๆ... (rules เดิมของแอป)
+    match /camera_reports/{reportId} {
+      // Rules เดิมของ camera reports
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /comments/{commentId} {
+      // Rules เดิมของ comments
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

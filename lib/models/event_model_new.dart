@@ -7,7 +7,7 @@ enum EventCategory {
   floodRain, // ฝนตก/น้ำท่วม 🌧
   tsunami, // สึนามิ 🌊
   earthquake, // แผ่นดินไหว 🌍
-  animalLost, // สัตว์หาย 🐶
+  animalLost, // สัตว์เลี้ยงหาย 🐶
 }
 
 extension EventCategoryExtension on EventCategory {
@@ -26,7 +26,7 @@ extension EventCategoryExtension on EventCategory {
       case EventCategory.earthquake:
         return "แผ่นดินไหว";
       case EventCategory.animalLost:
-        return "สัตว์หาย";
+        return "สัตว์เลี้ยงหาย";
     }
   }
 

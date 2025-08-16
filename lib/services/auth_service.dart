@@ -34,11 +34,15 @@ class AuthService {
   // Local cache สำหรับสถานะล็อกอิน
   static bool _isUserLoggedIn = false;
   static bool _isInitialized = false;
+  static bool _isInitializing = false; // เพิ่ม flag สำหรับการ initializing
+
+  // ตรวจสอบว่า AuthService ถูก initialize แล้วหรือยัง
+  static bool get isInitialized => _isInitialized;
 
   // ตรวจสอบว่าผู้ใช้ล็อกอินอยู่หรือไม่ (ใช้ local cache)
   static bool get isLoggedIn {
-    if (!_isInitialized) {
-      print('WARNING: AuthService not initialized yet, forcing check...');
+    if (!_isInitialized && !_isInitializing) {
+      print('WARNING: AuthService not initialized yet, forcing quick check...');
       final currentUser = _auth.currentUser;
       _isUserLoggedIn = currentUser != null;
       print('Force check result: $_isUserLoggedIn (user: ${currentUser?.uid})');
@@ -94,6 +98,13 @@ class AuthService {
 
   // เริ่มต้น AuthService และตั้งค่า auth state listener
   static Future<void> initialize() async {
+    if (_isInitialized || _isInitializing) {
+      print('AuthService already initialized or initializing, skipping...');
+      return;
+    }
+
+    _isInitializing = true; // ตั้ง flag ว่ากำลัง initialize
+
     try {
       print('Starting AuthService initialization...');
 
@@ -158,7 +169,10 @@ class AuthService {
       // Check current user and force sync state
       final currentUser = _auth.currentUser;
       _isUserLoggedIn = currentUser != null;
+
+      // Mark as initialized
       _isInitialized = true;
+      _isInitializing = false;
 
       print('AuthService initialized: $_isUserLoggedIn (FIXED)');
       if (currentUser != null) {
@@ -186,6 +200,7 @@ class AuthService {
       print('Error initializing AuthService: $e');
       _isUserLoggedIn = false;
       _isInitialized = true;
+      _isInitializing = false; // Reset flag on error
     }
   }
 

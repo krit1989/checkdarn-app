@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../../../generated/gen_l10n/app_localizations.dart';
 
 class CircularSpeedWidget extends StatefulWidget {
   final double currentSpeed;
@@ -30,7 +29,7 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
 
     // Animation controller สำหรับ progress แบบ smooth
     _progressController = AnimationController(
-      duration: const Duration(milliseconds: 200), // ตอบสนองเร็วขึ้น
+      duration: const Duration(milliseconds: 100), // ลดเวลาให้ตอบสนองเร็วขึ้น
       vsync: this,
     );
 
@@ -42,8 +41,8 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
   void didUpdateWidget(CircularSpeedWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // อัปเดต progress เมื่อความเร็วเปลี่ยน
-    if (widget.currentSpeed != oldWidget.currentSpeed) {
+    // อัปเดต progress เมื่อความเร็วเปลี่ยน - ลดการตรวจสอบให้ละเอียดขึ้น
+    if ((widget.currentSpeed - oldWidget.currentSpeed).abs() > 0.01) {
       _updateProgress();
     }
   }
@@ -54,15 +53,17 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
 
     // ปรับ Animation Duration ตามความเร็ว - เร็วขึ้นเมื่อความเร็วสูง
     int animationDuration;
-    if (widget.currentSpeed > 100) {
-      animationDuration = 100; // ความเร็วสูงมาก = animation เร็ว (100ms)
+    if (widget.currentSpeed > 80) {
+      animationDuration = 50; // ความเร็วสูงมาก = animation เร็วที่สุด (50ms)
     } else if (widget.currentSpeed > 60) {
-      animationDuration = 150; // ความเร็วสูง = animation ปานกลาง (150ms)
+      animationDuration = 75; // ความเร็วสูง = animation เร็ว (75ms)
     } else if (widget.currentSpeed > 30) {
-      animationDuration = 200; // ความเร็วปานกลาง = animation ปกติ (200ms)
+      animationDuration = 100; // ความเร็วปานกลาง = animation ปกติ (100ms)
+    } else if (widget.currentSpeed > 10) {
+      animationDuration = 120; // ความเร็วต่ำ = animation ช้า (120ms)
     } else {
       animationDuration =
-          250; // ความเร็วต่ำ = animation ช้า เพื่อความนุ่มนวล (250ms)
+          150; // ความเร็วต่ำมาก = animation ช้าที่สุด เพื่อความนุ่มนวล (150ms)
     }
 
     // Debug logging สำหรับตรวจสอบการ Sync
@@ -179,29 +180,6 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
                 ],
               ),
             ),
-
-            // จำกัดความเร็ว (หากมี) - ย้ายออกมาด้านล่างวงกลม
-            if (widget.speedLimit != null) ...[
-              const SizedBox(height: 8), // เพิ่มระยะห่าง
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(6), // ลดความโค้งจาก 12 เป็น 6
-                  border: Border.all(color: Colors.orange, width: 1),
-                ),
-                child: Text(
-                  '${AppLocalizations.of(context).speedLimitText} ${widget.speedLimit!.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 14, // เพิ่มขนาดจาก 10 เป็น 14
-                    color: Colors.orange,
-                    fontFamily: 'NotoSansThai',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
           ],
         );
       },

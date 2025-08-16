@@ -192,7 +192,7 @@ class AppLocalizationsTh extends AppLocalizations {
   String get categoryEarthquake => 'แผ่นดินไหว';
 
   @override
-  String get categoryAnimalLost => 'สัตว์หาย';
+  String get categoryAnimalLost => 'สัตว์เลี้ยงหาย';
 
   @override
   String get categoryQuestion => 'คำถามทั่วไป';
@@ -547,7 +547,7 @@ class AppLocalizationsTh extends AppLocalizations {
 
   @override
   String get imageOnlyForLostAnimals =>
-      'สามารถแนบรูปภาพได้เฉพาะในหัวข้อ \"สัตว์หาย\" เท่านั้น\nเพื่อป้องกันเนื้อหาที่ไม่เหมาะสม';
+      'สามารถแนบรูปภาพได้เฉพาะในหัวข้อ \"สัตว์เลี้ยงหาย\" เท่านั้น\nเพื่อป้องกันเนื้อหาที่ไม่เหมาะสม';
 
   @override
   String get selectImageSource => 'เลือกแหล่งรูปภาพ';

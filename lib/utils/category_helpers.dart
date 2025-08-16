@@ -52,7 +52,7 @@ class CategoryHelpers {
       case 'earthquake':
         return 'แผ่นดินไหว';
       case 'animalLost':
-        return 'สัตว์หาย';
+        return 'สัตว์เลี้ยงหาย';
       default:
         return 'อื่นๆ';
     }

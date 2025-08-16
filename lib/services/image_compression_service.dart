@@ -3,10 +3,11 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ImageCompressionService {
-  static const int _maxFileSize = 300 * 1024; // 300KB ในหน่วย bytes
-  static const int _defaultQuality = 70; // คุณภาพ 70%
-  static const int _maxWidth = 1080; // ความกว้างสูงสุด 1080px
-  static const int _maxHeight = 1080; // ความสูงสูงสุด 1080px
+  // ปรับการตั้งค่าให้ประหยัด Firebase Storage มากขึ้น (5GB ฟรี)
+  static const int _maxFileSize = 200 * 1024; // ลดเหลือ 200KB (จาก 300KB)
+  static const int _defaultQuality = 60; // ลดเหลือ 60% (จาก 70%)
+  static const int _maxWidth = 800; // ลดเหลือ 800px (จาก 1080px)
+  static const int _maxHeight = 600; // ลดเหลือ 600px (จาก 1080px)
 
   /// บีบอัดรูปภาพให้เล็กกว่า 300KB
   static Future<File?> compressImage(File imageFile) async {

@@ -31,7 +31,8 @@ class AppColors {
   static const Color categoryFire = Color(0xFFFF5722); // แดงส้ม - ไฟไหม้
   static const Color categoryDisaster =
       Color(0xFF1E88E5); // น้ำเงิน - ภัยพิบัติ
-  static const Color categoryLostPet = Color(0xFF43A047); // เขียว - สัตว์หาย
+  static const Color categoryLostPet =
+      Color(0xFF43A047); // เขียว - สัตว์เลี้ยงหาย
   static const Color categoryQuestion = Color(0xFF9C27B0); // ม่วง - คำถามทั่วไป
 
   // UI Element colors
@@ -69,7 +70,7 @@ class EventCategory {
   static const String floodRain = 'floodRain'; // ฝนตก/น้ำท่วม 🌧
   static const String tsunami = 'tsunami'; // สึนามิ 🌊
   static const String earthquake = 'earthquake'; // แผ่นดินไหว 🌍
-  static const String animalLost = 'animalLost'; // สัตว์หาย 🐶
+  static const String animalLost = 'animalLost'; // สัตว์เลี้ยงหาย 🐶
   static const String question = 'question'; // คำถามทั่วไป ❓
 
   static const Map<String, String> categoryNames = {
@@ -79,7 +80,7 @@ class EventCategory {
     floodRain: 'ฝนตก/น้ำท่วม',
     tsunami: 'สึนามิ',
     earthquake: 'แผ่นดินไหว',
-    animalLost: 'สัตว์หาย',
+    animalLost: 'สัตว์เลี้ยงหาย',
     question: 'คำถามทั่วไป',
   };
 
@@ -101,7 +102,7 @@ class EventCategory {
     floodRain: Icons.cloud_circle, // 🌧 ฝนตก/น้ำท่วม
     tsunami: Icons.waves, // 🌊 สึนามิ
     earthquake: Icons.public, // 🌍 แผ่นดินไหว
-    animalLost: Icons.pets, // 🐶 สัตว์หาย
+    animalLost: Icons.pets, // 🐶 สัตว์เลี้ยงหาย
     question: Icons.help_outline, // ❓ คำถามทั่วไป
   };
 

@@ -23,7 +23,17 @@ import '../widgets/speed_camera_marker.dart';
 import '../widgets/circular_speed_widget.dart';
 
 class SpeedCameraScreen extends StatefulWidget {
-  const SpeedCameraScreen({super.key});
+  /// Test flags to prevent background jobs during testing
+  final bool enableBackgroundJobs;
+  final bool showMapTiles;
+  final bool skipGetCurrentLocation;
+
+  const SpeedCameraScreen({
+    super.key,
+    this.enableBackgroundJobs = true,
+    this.showMapTiles = true,
+    this.skipGetCurrentLocation = false,
+  });
 
   @override
   State<SpeedCameraScreen> createState() => _SpeedCameraScreenState();
@@ -64,6 +74,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
   StreamSubscription<Position>? _positionSubscription;
   Timer? _speedUpdateTimer;
   Timer? _arrowUpdateTimer; // Timer เฉพาะสำหรับลูกศรนำทาง
+  Timer? _headingUpdateTimer; // Timer สำหรับอัปเดตการหมุนแผนที่
   Timer? _followModeResetTimer; // Timer สำหรับกลับมา auto-follow
 
   // ระบบ Predict Movement
@@ -167,35 +178,51 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // เริ่มระบบ Smart Security สำหรับ Speed Camera (HIGH RISK)
     _initializeSmartSecurity();
 
-    _getCurrentLocation();
+    // ใช้ test flags เพื่อหลีกเลี่ยงงานเบื้องหลังในเทส
+    if (!widget.skipGetCurrentLocation) {
+      _getCurrentLocation();
+    }
     _loadSpeedCameras();
-    _startSpeedTracking();
-    _initializeSoundManager();
-    _startConnectionMonitoring();
-    _enableWakelock(); // เปิด wakelock เพื่อไม่ให้หน้าจอดับ
-    _startCameraCleanupTimer(); // เริ่มระบบล้างข้อมูลกล้องที่เตือนแล้ว
-    _startResourceMonitoring(); // เริ่มตรวจสอบการใช้ทรัพยากร
-    _initializeSmartLoginDetection(); // เริ่มระบบตรวจจับการใช้งานเพื่อเด้งล็อกอิน
 
-    // เพิ่ม Timer สำหรับอัปเดตหน้าจอให้ราบรื่น (30 FPS)
-    _speedUpdateTimer =
-        Timer.periodic(const Duration(milliseconds: 33), (timer) {
-      if (mounted) {
-        setState(() {
-          // บังคับอัปเดต UI ทุก 33ms เพื่อให้ตัวเลขเคลื่อนไหวได้ราบรื่น
-        });
-      }
-    });
+    if (widget.enableBackgroundJobs) {
+      _startSpeedTracking();
+      _initializeSoundManager();
+      _startConnectionMonitoring();
+      _enableWakelock(); // เปิด wakelock เพื่อไม่ให้หน้าจอดับ
+      _startCameraCleanupTimer(); // เริ่มระบบล้างข้อมูลกล้องที่เตือนแล้ว
+      _startResourceMonitoring(); // เริ่มตรวจสอบการใช้ทรัพยากร
+      _initializeSmartLoginDetection(); // เริ่มระบบตรวจจับการใช้งานเพื่อเด้งล็อกอิน
 
-    // เพิ่ม Timer เฉพาะสำหรับลูกศรนำทางให้ smooth มากขึ้น (60 FPS)
-    _arrowUpdateTimer =
-        Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      if (mounted && currentSpeed > 1.0) {
-        setState(() {
-          // อัปเดตลูกศรนำทางให้นุ่มนวลมากขึ้น ทุก 16ms (60 FPS)
-        });
-      }
-    });
+      // เพิ่ม Timer สำหรับอัปเดตหน้าจอให้ราบรื่น (30 FPS)
+      _speedUpdateTimer =
+          Timer.periodic(const Duration(milliseconds: 33), (timer) {
+        if (mounted) {
+          setState(() {
+            // บังคับอัปเดต UI ทุก 33ms เพื่อให้ตัวเลขเคลื่อนไหวได้ราบรื่น
+          });
+        }
+      });
+
+      // เพิ่ม Timer สำหรับอัปเดตการหมุนแผนที่ให้ราบรื่น (60 FPS)
+      _headingUpdateTimer =
+          Timer.periodic(const Duration(milliseconds: 16), (timer) {
+        if (mounted) {
+          setState(() {
+            // อัปเดตการหมุนแผนที่ตามทิศทางการเดินทาง
+          });
+        }
+      });
+
+      // เพิ่ม Timer เฉพาะสำหรับลูกศรนำทางให้ smooth มากขึ้น (60 FPS)
+      _arrowUpdateTimer =
+          Timer.periodic(const Duration(milliseconds: 16), (timer) {
+        if (mounted && currentSpeed > 1.0) {
+          setState(() {
+            // อัปเดตลูกศรนำทางให้นุ่มนวลมากขึ้น ทุก 16ms (60 FPS)
+          });
+        }
+      });
+    }
 
     // Initialize smart map system หลังจาก widget build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1010,6 +1037,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     _positionSubscription?.cancel();
     _speedUpdateTimer?.cancel();
     _arrowUpdateTimer?.cancel(); // ยกเลิก arrow update timer
+    _headingUpdateTimer?.cancel(); // ยกเลิก heading update timer
     _connectionCheckTimer?.cancel();
     _preloadTimer?.cancel();
     _followModeResetTimer?.cancel(); // เพิ่ม timer ใหม่
@@ -1060,23 +1088,28 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       );
 
       if (mounted) {
+        final actualPosition = LatLng(position.latitude, position.longitude);
         setState(() {
-          currentPosition = LatLng(position.latitude, position.longitude);
+          currentPosition = actualPosition;
           isLoadingLocation = false;
         });
 
-        // ย้ายแผนที่ไปยังตำแหน่งปัจจุบัน (ตรวจสอบว่า FlutterMap render แล้ว)
+        // ย้ายแผนที่ไปยังตำแหน่งปัจจุบัน (ใช้ actualPosition ที่ได้จริง)
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             try {
-              mapController.move(currentPosition, 15.0);
+              mapController.move(actualPosition, 15.0);
+              print(
+                  '📍 Map moved successfully to: ${actualPosition.latitude}, ${actualPosition.longitude}');
             } catch (e) {
               print('MapController not ready yet: $e');
               // ลองอีกครั้งหลัง 1 วินาที
               Future.delayed(const Duration(seconds: 1), () {
                 if (mounted) {
                   try {
-                    mapController.move(currentPosition, 15.0);
+                    mapController.move(actualPosition, 15.0);
+                    print(
+                        '📍 Map moved (retry) to: ${actualPosition.latitude}, ${actualPosition.longitude}');
                   } catch (e) {
                     print('MapController still not ready: $e');
                   }
@@ -1085,6 +1118,9 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
             }
           }
         });
+
+        print(
+            '📍 Initial location loaded successfully: ${actualPosition.latitude}, ${actualPosition.longitude}');
       }
     } catch (e) {
       print('Error getting location: $e');
@@ -2019,16 +2055,20 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
               },
             ),
             children: [
-              TileLayer(
-                tileProvider:
-                    _smartTileProvider, // จะเป็น null ในตอนแรก แต่ Flutter จะจัดการให้
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.checkdarn.app',
-                maxZoom: 18,
-                additionalOptions: const {
-                  'User-Agent': 'CheckDarn Speed Camera App/1.0',
-                },
-              ),
+              // ใช้ test flag เพื่อหลีกเลี่ยง map tiles ในเทส
+              if (widget.showMapTiles)
+                TileLayer(
+                  tileProvider:
+                      _smartTileProvider, // จะเป็น null ในตอนแรก แต่ Flutter จะจัดการให้
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.checkdarn.app',
+                  maxZoom: 18,
+                  additionalOptions: const {
+                    'User-Agent': 'CheckDarn Speed Camera App/1.0',
+                  },
+                ),
+              // หากไม่แสดง map tiles (เทส) ให้แสดง placeholder ที่ไม่เรียก network
+              if (!widget.showMapTiles) const SizedBox.shrink(),
 
               // แสดงเฉพาะกล้องจับความเร็ว - ไม่มีหมุดโพสต์
               if (!isLoadingCameras)

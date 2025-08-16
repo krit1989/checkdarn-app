@@ -11,7 +11,19 @@ class FirebaseService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseStorage _storage = FirebaseStorage.instance;
   static const String _collection = 'reports';
-  static const int _maxPostsPerDay = 10; // จำกัด 10 โพสต์ต่อคนต่อวัน
+
+  // 🛡️ Enhanced Rate Limiting System
+  static const int _maxPostsPerDay = 5; // ปรับเป็น 5 โพสต์ต่อวัน (สมดุล)
+  static const int _maxPostsPerHour = 3; // ปรับเป็น 3 โพสต์ต่อชั่วโมง
+  static const int _maxPostsPerMinute = 1; // คงเดิม: จำกัด 1 โพสต์ต่อนาที
+
+  // 📊 Category-specific limits (ปรับให้เหมาะสมกับ 5 โพสต์/วัน)
+  static const Map<String, int> _categoryDailyLimits = {
+    'animalLost': 3, // สัตว์หาย - เพิ่มเป็น 3 (ควรมีรูปภาพ)
+    'accident': 4, // อุบัติเหตุ - เพิ่มเป็น 4 (สำคัญ)
+    'traffic': 5, // การจราจร - ใช้ได้เต็มที่ (ใช้บ่อย)
+    'other': 3, // อื่นๆ - เพิ่มเป็น 3 (ทั่วไป)
+  };
 
   /// 🚀 Smart Prefetch System - โหลดข้อมูลล่วงหน้าแบบฉลาด
   static Future<void> prefetchRecentReports() async {
@@ -212,28 +224,30 @@ class FirebaseService {
   /// ตรวจสอบว่าผู้ใช้โพสต์เกินขาดวันนี้แล้วหรือยัง
   static Future<bool> canUserPostToday(String userId) async {
     try {
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      // ตรวจสอบหลายระดับ: นาที -> ชั่วโมง -> วัน
+      final canPostMinute = await _checkRateLimit(
+          userId, _maxPostsPerMinute, Duration(minutes: 1));
+      if (!canPostMinute) {
+        print('� Rate limit exceeded: Too many posts in the last minute');
+        return false;
+      }
 
-      print('🔍 Checking daily limit for user: $userId');
-      print(
-          '📅 Date range: ${startOfDay.toIso8601String()} to ${endOfDay.toIso8601String()}');
+      final canPostHour =
+          await _checkRateLimit(userId, _maxPostsPerHour, Duration(hours: 1));
+      if (!canPostHour) {
+        print('🚫 Rate limit exceeded: Too many posts in the last hour');
+        return false;
+      }
 
-      final todayPosts = await _firestore
-          .collection(_collection)
-          .where('userId', isEqualTo: userId)
-          .where('timestamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('timestamp', isLessThan: Timestamp.fromDate(endOfDay))
-          .where('status', isEqualTo: 'active')
-          .get();
+      final canPostDay =
+          await _checkRateLimit(userId, _maxPostsPerDay, Duration(days: 1));
+      if (!canPostDay) {
+        print('🚫 Rate limit exceeded: Too many posts today');
+        return false;
+      }
 
-      final postCount = todayPosts.docs.length;
-      print(
-          '📊 User $userId has posted $postCount times today (limit: $_maxPostsPerDay)');
-
-      return postCount < _maxPostsPerDay;
+      print('✅ User $userId can post (passed all rate limits)');
+      return true;
     } catch (e) {
       print('❌ Error checking daily post limit: $e');
 
@@ -260,6 +274,61 @@ class FirebaseService {
     }
   }
 
+  /// 🛡️ Enhanced Rate Limiting Helper Function
+  static Future<bool> _checkRateLimit(
+      String userId, int maxPosts, Duration timeWindow) async {
+    final now = DateTime.now();
+    final startTime = now.subtract(timeWindow);
+
+    print(
+        '🔍 Checking ${timeWindow.inDays > 0 ? '${timeWindow.inDays}d' : timeWindow.inHours > 0 ? '${timeWindow.inHours}h' : '${timeWindow.inMinutes}m'} limit for user: $userId');
+    print(
+        '⏰ Time range: ${startTime.toIso8601String()} to ${now.toIso8601String()}');
+
+    final recentPosts = await _firestore
+        .collection(_collection)
+        .where('userId', isEqualTo: userId)
+        .where('timestamp', isGreaterThan: Timestamp.fromDate(startTime))
+        .where('status', isEqualTo: 'active')
+        .get();
+
+    final postCount = recentPosts.docs.length;
+    print(
+        '📊 Found $postCount posts in the last ${timeWindow.inDays > 0 ? '${timeWindow.inDays} day(s)' : timeWindow.inHours > 0 ? '${timeWindow.inHours} hour(s)' : '${timeWindow.inMinutes} minute(s)'} (limit: $maxPosts)');
+
+    return postCount < maxPosts;
+  }
+
+  /// 📊 ตรวจสอบ limit ตามประเภทหมวดหมู่
+  static Future<bool> canUserPostCategory(
+      String userId, EventCategory category) async {
+    try {
+      final categoryName = category.name.toLowerCase();
+      final categoryLimit =
+          _categoryDailyLimits[categoryName] ?? _maxPostsPerDay;
+
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+
+      final todayCategoryPosts = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: userId)
+          .where('category', isEqualTo: categoryName)
+          .where('timestamp', isGreaterThan: Timestamp.fromDate(startOfDay))
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      final categoryPostCount = todayCategoryPosts.docs.length;
+      print(
+          '📊 User $userId has posted $categoryPostCount times in category $categoryName today (limit: $categoryLimit)');
+
+      return categoryPostCount < categoryLimit;
+    } catch (e) {
+      print('❌ Error checking category limit: $e');
+      return true; // ถ้าเกิดข้อผิดพลาด ให้อนุญาต
+    }
+  }
+
   /// เพิ่มรายงานเหตุการณ์ใหม่ (รวม TTL และการจำกัดโพสต์)
   static Future<String> submitReport({
     required EventCategory category,
@@ -276,11 +345,22 @@ class FirebaseService {
       final effectiveUserId = userId ?? 'anonymous';
       print('🚀 Starting report submission for user: $effectiveUserId');
 
-      // ตรวจสอบจำนวนโพสต์ต่อวัน
+      // ตรวจสอบจำนวนโพสต์ต่อวัน (ทั่วไป และ ตามหมวดหมู่)
       final canPost = await canUserPostToday(effectiveUserId);
       if (!canPost) {
         throw Exception(
-            'เกินขีดจำกัด: โพสต์ได้สูงสุด $_maxPostsPerDay ครั้งต่อวัน');
+            'เกินขีดจำกัด: โพสต์ได้สูงสุด $_maxPostsPerDay ครั้งต่อวัน กรุณารอ 24 ชั่วโมง');
+      }
+
+      // ตรวจสอบจำนวนโพสต์ตามหมวดหมู่
+      final canPostCategory =
+          await canUserPostCategory(effectiveUserId, category);
+      if (!canPostCategory) {
+        final categoryName = category.name.toLowerCase();
+        final categoryLimit =
+            _categoryDailyLimits[categoryName] ?? _maxPostsPerDay;
+        throw Exception(
+            'เกินขีดจำกัดหมวด ${category.label}: โพสต์ได้สูงสุด $categoryLimit ครั้งต่อวัน');
       }
 
       // สร้าง document อันหนึ่งก่อนเพื่อได้ ID
@@ -349,7 +429,7 @@ class FirebaseService {
               'userId': effectiveUserId, // เพิ่ม userId field สำหรับความชัดเจน
               'lastReportAt': FieldValue.serverTimestamp(),
               'totalReports': FieldValue.increment(1),
-              'lastReportLocation': '$district, $province',
+              'lastReportLocation': _formatLocationString(district, province),
               'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true)); // merge เพื่อไม่ทับข้อมูลเดิม
@@ -545,7 +625,7 @@ class FirebaseService {
       case EventCategory.checkpoint:
         return 'ด่านตรวจ';
       case EventCategory.animalLost:
-        return 'สัตว์หาย';
+        return 'สัตว์เลี้ยงหาย';
       case EventCategory.question:
         return 'คำถาม';
     }
@@ -589,15 +669,19 @@ class FirebaseService {
 
   /// รวม district และ province เป็น location string
   static String _formatLocationString(String district, String province) {
-    if (district.isEmpty && province.isEmpty) {
-      return 'ไม่ระบุตำแหน่ง';
-    } else if (district.isEmpty) {
-      return province;
-    } else if (province.isEmpty) {
-      return district;
-    } else {
-      return '$district, $province';
+    List<String> parts = [];
+
+    // เพิ่ม district ถ้ามี
+    if (district.isNotEmpty) {
+      parts.add(district);
     }
+
+    // เพิ่ม province ถ้ามี
+    if (province.isNotEmpty) {
+      parts.add(province);
+    }
+
+    return parts.isNotEmpty ? parts.join(' ') : 'ไม่ระบุตำแหน่ง';
   }
 
   /// แปลงชื่อเป็น EventCategory
@@ -620,7 +704,7 @@ class FirebaseService {
       case 'ด่านตรวจ':
       case 'ด่าน':
         return EventCategory.checkpoint;
-      case 'สัตว์หาย':
+      case 'สัตว์เลี้ยงหาย':
         return EventCategory.animalLost;
       case 'คำถาม':
       case 'คำถามทั่วไป':

@@ -149,7 +149,7 @@ class CategoryHelpers {
   static String getCategoryName(String category) {
     switch (category) {
       case 'animalLost':
-        return 'สัตว์หาย';
+        return 'สัตว์เลี้ยงหาย';
       case 'incident':
         return 'เหตุการณ์';
       case 'checkpoint':

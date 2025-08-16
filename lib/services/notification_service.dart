@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_service.dart';
+import 'smart_location_service.dart';
 
 /// 🔔 **Notification Service**
 /// ระบบแจ้งเตือน Push Notification ด้วย Firebase Cloud Messaging (FCM)
@@ -169,7 +170,7 @@ class NotificationService {
     }
   }
 
-  /// 💾 **บันทึก Token ลง Firestore**
+  /// 💾 **บันทึก Token ลง Firestore พร้อมข้อมูลตำแหน่ง**
   static Future<void> _saveTokenToFirestore(String token) async {
     try {
       final String? userId = AuthService.currentUser?.uid;
@@ -190,16 +191,32 @@ class NotificationService {
         'platform': Platform.isIOS ? 'ios' : 'android',
       }, SetOptions(merge: true));
 
-      // ✅ บันทึกใน collection 'user_tokens' สำหรับ Cloud Functions (ใหม่)
+      // 🌍 อัปเดตตำแหน่งและดึงข้อมูลตำแหน่งปัจจุบันสำหรับ Smart Geographic Targeting
+      await SmartLocationService.updateUserLocation(forceUpdate: true);
+      Map<String, dynamic> locationData =
+          await SmartLocationService.getCurrentLocationData();
+
+      // ✅ บันทึกใน collection 'user_tokens' สำหรับ Cloud Functions (ใหม่) + ตำแหน่ง
       await _firestore.collection('user_tokens').doc(userId).set({
+        'userId': userId, // ⚠️ สำคัญ! ต้องเซ็ต userId field
         'tokens': [token], // เก็บเป็น array เพื่อรองรับหลาย device
         'lastUpdated': FieldValue.serverTimestamp(),
         'platform': Platform.isIOS ? 'ios' : 'android',
         'isActive': true,
+        // 🌍 Smart Location Data สำหรับ Geographic Targeting
+        'lastKnownLat': locationData['lat'],
+        'lastKnownLng': locationData['lng'],
+        'lastKnownProvince': locationData['province'],
+        'lastKnownDistrict': locationData['district'],
+        'lastKnownSubDistrict': locationData['subDistrict'],
+        'lastLocationUpdate': FieldValue.serverTimestamp(),
+        'locationAccuracy': locationData['accuracy'],
       }, SetOptions(merge: true));
 
       print(
-          '✅ NotificationService: Token saved to both collections successfully');
+          '✅ NotificationService: Token and location saved to both collections successfully');
+      print(
+          '🌍 Location data: ${locationData['province']}, ${locationData['district']}');
     } catch (e) {
       print('❌ NotificationService: Error saving token to Firestore: $e');
     }

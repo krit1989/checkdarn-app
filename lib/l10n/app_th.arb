@@ -110,7 +110,7 @@
   "categoryFloodRain": "ฝนตก/น้ำท่วม",
   "categoryTsunami": "สึนามิ",
   "categoryEarthquake": "แผ่นดินไหว",
-  "categoryAnimalLost": "สัตว์หาย",
+  "categoryAnimalLost": "สัตว์เลี้ยงหาย",
   "categoryQuestion": "คำถามทั่วไป",
   
   "@@comment_settings_screen": "==================== SETTINGS SCREEN ====================",
@@ -274,7 +274,7 @@
   "findingCurrentLocation": "กำลังค้นหาตำแหน่งปัจจุบัน...",
   "loadingAddressInfo": "กำลังโหลดข้อมูลที่อยู่...",
   "tapToChangeLocation": "แตะเพื่อเปลี่ยนตำแหน่ง",
-  "imageOnlyForLostAnimals": "สามารถแนบรูปภาพได้เฉพาะในหัวข้อ \"สัตว์หาย\" เท่านั้น\nเพื่อป้องกันเนื้อหาที่ไม่เหมาะสม",
+  "imageOnlyForLostAnimals": "สามารถแนบรูปภาพได้เฉพาะในหัวข้อ \"สัตว์เลี้ยงหาย\" เท่านั้น\nเพื่อป้องกันเนื้อหาที่ไม่เหมาะสม",
   "selectImageSource": "เลือกแหล่งรูปภาพ",
   "gallery": "แกลเลอรี่",
   "camera": "กล้อง",

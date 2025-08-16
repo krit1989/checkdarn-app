@@ -505,7 +505,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       if (!canPost) {
         throw Exception(
-            'เกินขีดจำกัด: โพสต์ได้สูงสุด 10 ครั้งต่อวัน กรุณารอ 24 ชั่วโมง');
+            'เกินขีดจำกัด: โพสต์ได้สูงสุด 5 ครั้งต่อวัน กรุณารอ 24 ชั่วโมง');
       }
 
       LatLng? finalLocation = selectedLocation;
@@ -1018,7 +1018,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
                     const SizedBox(height: 16),
 
-                    // ข้อความอธิบายเกี่ยวกับการแนบรูปภาพ - แสดงเฉพาะเมื่อไม่ได้เลือก "สัตว์หาย"
+                    // ข้อความอธิบายเกี่ยวกับการแนบรูปภาพ - แสดงเฉพาะเมื่อไม่ได้เลือก "สัตว์เลี้ยงหาย"
                     if (selectedCategory != null &&
                         selectedCategory != EventCategory.animalLost) ...[
                       Container(
@@ -1053,7 +1053,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // เพิ่มรูปภาพ - แสดงเฉพาะสำหรับหมวด "สัตว์หาย" เท่านั้น
+                    // เพิ่มรูปภาพ - แสดงเฉพาะสำหรับหมวด "สัตว์เลี้ยงหาย" เท่านั้น
                     if (selectedCategory == EventCategory.animalLost) ...[
                       DottedBorder(
                         borderType: BorderType.RRect,

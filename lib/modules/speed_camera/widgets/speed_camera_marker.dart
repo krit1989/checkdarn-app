@@ -6,16 +6,28 @@ class SpeedCameraMarker extends StatelessWidget {
   final SpeedCamera camera;
   final VoidCallback? onTap;
   final bool isSelected;
+  final bool isNew; // เพิ่มพารามิเตอร์สำหรับกล้องใหม่
 
   const SpeedCameraMarker({
     Key? key,
     required this.camera,
     this.onTap,
     this.isSelected = false,
+    this.isNew = false, // กล้องใหม่หรือไม่
   }) : super(key: key);
+
+  // ตรวจสอบว่ากล้องได้รับการยืนยันจากชุมชนแล้วหรือไม่ (ไม่ใช้แล้ว)
+  bool get isCommunityVerified {
+    return false; // ปิดการใช้งาน community verification badge
+  }
 
   // สีสำหรับแยกตามความเร็ว
   Color _getCameraColor() {
+    // ถ้าเป็นกล้องใหม่ ให้ใช้สีเขียวหรือสีทอง
+    if (isNew) {
+      return const Color(0xFF4CAF50); // เขียวสำหรับกล้องใหม่
+    }
+
     if (camera.speedLimit <= 60) {
       return const Color(0xFF4CAF50); // เขียว
     } else if (camera.speedLimit <= 90) {
@@ -55,11 +67,11 @@ class SpeedCameraMarker extends StatelessWidget {
       onTap: onTap,
       child: SizedBox(
         width: 60,
-        height: 60,
+        height: 60, // ใช้ความสูงปกติเสมอ
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // วงกลมใหญ่ (พื้นหลังสี) - สีเดียวตามความเร็ว
+            // วงกลมใหญ่ (พื้นหลังสี) - สีเดียวตามความเร็ว หรือสีพิเศษสำหรับกล้องใหม่
             Positioned(
               left: 10,
               top: 10,
@@ -71,16 +83,31 @@ class SpeedCameraMarker extends StatelessWidget {
                       isSelected ? const Color(0xFF1158F2) : _getCameraColor(),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white,
-                    width: 2,
+                    color: isNew
+                        ? const Color(0xFFFFD700)
+                        : Colors.white, // ขอบสีทองสำหรับกล้องใหม่
+                    width: isNew ? 3 : 2, // ขอบหนาขึ้นสำหรับกล้องใหม่
                   ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: isNew
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFFFFD700).withOpacity(0.5),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                          const BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
+                      : [
+                          const BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                 ),
                 child: Center(
                   child: SvgPicture.asset(

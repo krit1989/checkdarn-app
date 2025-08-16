@@ -58,6 +58,8 @@ dependencies:
   crypto: ^3.0.6
   geocoding: ^4.0.0
   wakelock_plus: ^1.2.8
+  device_info_plus: ^11.1.0
+  package_info_plus: ^8.0.2
 
 dev_dependencies:
   flutter_test:
