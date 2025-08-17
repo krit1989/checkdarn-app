@@ -1127,7 +1127,7 @@ abstract class AppLocalizations {
   /// No description provided for @save.
   ///
   /// In en, this message translates to:
-  /// **'Save'**
+  /// **'Submit'**
   String get save;
 
   /// No description provided for @sending.
@@ -1199,7 +1199,7 @@ abstract class AppLocalizations {
   /// No description provided for @dailyLimitExceeded.
   ///
   /// In en, this message translates to:
-  /// **'Limit exceeded: Maximum 10 posts per day. Please wait 24 hours'**
+  /// **'Limit exceeded: 5 posts per day. Please wait 24 hrs'**
   String get dailyLimitExceeded;
 
   /// No description provided for @cannotGetLocation.
@@ -1211,7 +1211,7 @@ abstract class AppLocalizations {
   /// No description provided for @success.
   ///
   /// In en, this message translates to:
-  /// **'Success'**
+  /// **'Submitted successfully'**
   String get success;
 
   /// No description provided for @submitTimeoutError.

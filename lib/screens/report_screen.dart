@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../generated/gen_l10n/app_localizations.dart';
 import 'dart:io';
 import 'dart:async';
@@ -496,6 +497,25 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final userId = currentUser.uid;
       print('👤 User ID: $userId');
+      print('👤 User email: ${currentUser.email}');
+      print('👤 User display name: ${currentUser.displayName}');
+
+      // ทดสอบการเชื่อมต่อ Firebase ก่อน
+      print('🔥 Testing Firebase connection...');
+      try {
+        final firestore = FirebaseFirestore.instance;
+        final testQuery = await firestore
+            .collection('reports')
+            .limit(1)
+            .get()
+            .timeout(const Duration(seconds: 5));
+        print(
+            '✅ Firebase connection successful: ${testQuery.docs.length} docs');
+      } catch (connectionError) {
+        print('❌ Firebase connection failed: $connectionError');
+        throw Exception(
+            'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ต');
+      }
 
       final canPost = await FirebaseService.canUserPostToday(userId).timeout(
         const Duration(seconds: 8), // ลด timeout
@@ -504,8 +524,7 @@ class _ReportScreenState extends State<ReportScreen> {
       );
 
       if (!canPost) {
-        throw Exception(
-            'เกินขีดจำกัด: โพสต์ได้สูงสุด 5 ครั้งต่อวัน กรุณารอ 24 ชั่วโมง');
+        throw AppLocalizations.of(context).dailyLimitExceeded;
       }
 
       LatLng? finalLocation = selectedLocation;
@@ -562,13 +581,13 @@ class _ReportScreenState extends State<ReportScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'สำเร็จ',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).success,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.green,
-            duration: Duration(milliseconds: 800), // แสดงแป๊บเดียว
+            duration: const Duration(milliseconds: 800), // แสดงแป๊บเดียว
           ),
         );
 
@@ -592,50 +611,96 @@ class _ReportScreenState extends State<ReportScreen> {
       print('⏰ Timeout Error: ${e.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'ส่งรายงานไม่สำเร็จ: เกินเวลารอคอย กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
-              style: TextStyle(fontFamily: 'NotoSansThai'),
+              AppLocalizations.of(context).submitTimeoutError,
+              style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     } catch (e) {
       print('❌ Error in _submitReport: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Error string: "${e.toString()}"');
+
       if (mounted) {
         String errorMessage = 'เกิดข้อผิดพลาดในการส่งรายงาน';
 
-        if (e.toString().contains('network') ||
-            e.toString().contains('channel-error')) {
-          errorMessage = 'ปัญหาการเชื่อมต่อเครือข่าย กรุณาตรวจสอบ WiFi/4G';
-        } else if (e.toString().contains('permission')) {
-          errorMessage = 'ไม่มีสิทธิ์ในการอัพโหลด กรุณาติดต่อผู้ดูแลระบบ';
-        } else if (e.toString().contains('storage') ||
-            e.toString().contains('Unable to establish connection')) {
-          errorMessage = 'ปัญหาการอัพโหลดไฟล์ กรุณาลองส่งโดยไม่มีรูปภาพ';
-        } else if (e.toString().contains('exceeded')) {
-          errorMessage = 'ไฟล์รูปใหญ่เกินไป กรุณาลองถ่ายรูปใหม่';
+        // ตรวจสอบประเภท error เพื่อแสดงข้อความที่เหมาะสม
+        final errorString = e.toString().toLowerCase();
+
+        if (errorString.contains('เกินขีดจำกัด') ||
+            errorString.contains('limit') ||
+            errorString.contains('โพสต์ได้สูงสุด')) {
+          errorMessage = e.toString(); // ใช้ข้อความจาก rate limiting โดยตรง
+        } else if (errorString.contains('permission') ||
+            errorString.contains('denied') ||
+            errorString.contains('unauthorized')) {
+          errorMessage = 'ไม่มีสิทธิ์ในการส่งรายงาน กรุณาล็อกอินใหม่';
+        } else if (errorString.contains('network') ||
+            errorString.contains('channel-error') ||
+            errorString.contains('failed to connect')) {
+          errorMessage =
+              'ปัญหาการเชื่อมต่อเครือข่าย กรุณาตรวจสอบ WiFi/4G และลองใหม่';
+        } else if (errorString.contains('index') ||
+            errorString.contains('composite') ||
+            errorString.contains('failed-precondition')) {
+          errorMessage =
+              'ระบบกำลังสร้าง database indexes กรุณารอ 1-2 นาที แล้วลองใหม่';
+        } else if (errorString.contains('storage') && selectedImage != null) {
+          errorMessage =
+              'ปัญหาการอัพโหลดรูปภาพ กรุณาลองเลือกรูปใหม่ หรือส่งโดยไม่มีรูป';
+        } else if (errorString.contains('unable to establish connection') &&
+            selectedImage != null) {
+          errorMessage =
+              'การเชื่อมต่อขาดหาย ไม่สามารถอัพโหลดรูปได้ กรุณาลองส่งโดยไม่มีรูป';
+        } else if (errorString.contains('exceeded') ||
+            errorString.contains('too large')) {
+          errorMessage = selectedImage != null
+              ? 'ไฟล์รูปใหญ่เกินไป กรุณาถ่ายรูปใหม่หรือเลือกรูปอื่น'
+              : 'ข้อมูลมีขนาดใหญ่เกินไป กรุณาลดความยาวของข้อความ';
+        } else if (errorString.contains('timeout')) {
+          errorMessage = selectedImage != null
+              ? 'การอัพโหลดเกินเวลา กรุณาตรวจสอบอินเทอร์เน็ต หรือลองส่งโดยไม่มีรูป'
+              : 'การส่งรายงานเกินเวลา กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+        } else if (errorString.contains('firebase')) {
+          errorMessage = 'ปัญหาระบบฐานข้อมูล กรุณาลองใหม่ในอีกสักครู่';
+        } else if (errorString.contains('auth')) {
+          errorMessage = 'ปัญหาการยืนยันตัวตน กรุณาล็อกอินใหม่';
+        } else {
+          // ข้อผิดพลาดทั่วไป - ไม่แสดงข้อความเกี่ยวกับรูปภาพ
+          errorMessage = selectedImage != null
+              ? 'เกิดข้อผิดพลาดในการส่งรายงาน กรุณาลองใหม่หรือส่งโดยไม่มีรูป'
+              : 'เกิดข้อผิดพลาดในการส่งรายงาน กรุณาตรวจสอบข้อมูลและลองใหม่';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '$errorMessage\n\nหากปัญหายังคงอยู่ ลองส่งโดยไม่มีรูปภาพ',
+              errorMessage,
               style: const TextStyle(fontFamily: 'NotoSansThai'),
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 8),
-            action: SnackBarAction(
-              label: 'ลองใหม่',
-              textColor: Colors.white,
-              onPressed: () {
-                setState(() {
-                  selectedImage = null;
-                });
-              },
-            ),
+            action: (selectedCategory == EventCategory.animalLost &&
+                    selectedImage != null &&
+                    (errorString.contains('storage') ||
+                        errorString.contains('file') ||
+                        errorString.contains('image') ||
+                        errorString.contains('รูป')))
+                ? SnackBarAction(
+                    label: 'ลบรูป',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      setState(() {
+                        selectedImage = null;
+                      });
+                    },
+                  )
+                : null,
           ),
         );
       }
@@ -1017,41 +1082,6 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
 
                     const SizedBox(height: 16),
-
-                    // ข้อความอธิบายเกี่ยวกับการแนบรูปภาพ - แสดงเฉพาะเมื่อไม่ได้เลือก "สัตว์เลี้ยงหาย"
-                    if (selectedCategory != null &&
-                        selectedCategory != EventCategory.animalLost) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.blue.shade600,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                AppLocalizations.of(context)
-                                    .imageOnlyForLostAnimals,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.blue.shade700,
-                                  fontFamily: 'NotoSansThai',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
                     // เพิ่มรูปภาพ - แสดงเฉพาะสำหรับหมวด "สัตว์เลี้ยงหาย" เท่านั้น
                     if (selectedCategory == EventCategory.animalLost) ...[

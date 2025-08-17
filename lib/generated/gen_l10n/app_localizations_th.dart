@@ -565,7 +565,7 @@ class AppLocalizationsTh extends AppLocalizations {
   String get change => 'เปลี่ยน';
 
   @override
-  String get save => 'บันทึก';
+  String get save => 'ส่ง';
 
   @override
   String get sending => 'กำลังส่ง...';
@@ -609,15 +609,14 @@ class AppLocalizationsTh extends AppLocalizations {
   String get userNotFound => 'ไม่พบข้อมูลผู้ใช้ กรุณาล็อกอินใหม่';
 
   @override
-  String get dailyLimitExceeded =>
-      'เกินขีดจำกัด: โพสต์ได้สูงสุด 10 ครั้งต่อวัน กรุณารอ 24 ชั่วโมง';
+  String get dailyLimitExceeded => 'เกินขีดจำกัด 5 โพสต์ต่อวัน กรุณารอ 24 ชม.';
 
   @override
   String get cannotGetLocation =>
       'ไม่สามารถระบุตำแหน่งได้ กรุณาเลือกตำแหน่งด้วยตนเอง';
 
   @override
-  String get success => 'สำเร็จ';
+  String get success => 'ส่งสำเร็จ';
 
   @override
   String get submitTimeoutError =>

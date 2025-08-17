@@ -567,7 +567,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get change => 'Change';
 
   @override
-  String get save => 'Save';
+  String get save => 'Submit';
 
   @override
   String get sending => 'Sending...';
@@ -612,14 +612,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dailyLimitExceeded =>
-      'Limit exceeded: Maximum 10 posts per day. Please wait 24 hours';
+      'Limit exceeded: 5 posts per day. Please wait 24 hrs';
 
   @override
   String get cannotGetLocation =>
       'Cannot determine location. Please select location manually';
 
   @override
-  String get success => 'Success';
+  String get success => 'Submitted successfully';
 
   @override
   String get submitTimeoutError =>
