@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -58,13 +59,22 @@ class LocationManager {
         throw Exception('Location permission denied');
       }
 
-      // เริ่มติดตามตำแหน่ง
+      // เริ่มติดตามตำแหน่ง - ใช้ settings ตามแพลตฟอร์ม
+      final locationSettings = Platform.isAndroid
+          ? AndroidSettings(
+              accuracy: LocationAccuracy.bestForNavigation,
+              distanceFilter: 0,
+              intervalDuration: const Duration(
+                  milliseconds: 300), // 300ms สำหรับ Android - ไวขึ้น
+            )
+          : AppleSettings(
+              accuracy: LocationAccuracy.bestForNavigation,
+              distanceFilter: 1, // ลดแบตบน iOS
+              pauseLocationUpdatesAutomatically: true,
+            );
+
       _positionSubscription = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.bestForNavigation,
-          distanceFilter: 0,
-          timeLimit: Duration(seconds: 3),
-        ),
+        locationSettings: locationSettings,
       ).listen(
         _handlePositionUpdate,
         onError: _handleLocationError,
@@ -110,22 +120,19 @@ class LocationManager {
   /// จัดการการอัปเดตตำแหน่ง
   void _handlePositionUpdate(Position position) {
     try {
-      // ตรวจสอบความน่าเชื่อถือของ GPS
-      if (!_isGpsTrusted(position)) {
-        print('⚠️ LocationManager: Untrusted GPS data, skipping update');
-        return;
-      }
+      // ลดความซับซ้อนของการตรวจสอบ
+      if (!_isGpsTrusted(position)) return;
 
-      // อัปเดตข้อมูลตำแหน่ง
-      final newPosition = LatLng(position.latitude, position.longitude);
-      final newSpeed = position.speed * 3.6; // m/s เป็น km/h
-      final newHeading = position.heading;
+      final newSpeed = position.speed * 3.6; // m/s -> km/h
 
-      // อัปเดต ValueNotifiers
-      currentPositionNotifier.value = newPosition;
+      // อัปเดตค่าแบบ immediate
       currentSpeedNotifier.value = newSpeed;
-      if (newHeading.isFinite && newSpeed > 1.5) {
-        headingNotifier.value = newHeading;
+      currentPositionNotifier.value =
+          LatLng(position.latitude, position.longitude);
+
+      // อัปเดตทิศทางแบบไม่ต้อง interpolate เมื่อความเร็วสูง
+      if (newSpeed > 10 && position.heading.isFinite) {
+        headingNotifier.value = position.heading;
       }
 
       // เพิ่มในประวัติ

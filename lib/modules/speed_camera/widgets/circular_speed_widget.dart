@@ -51,34 +51,27 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
     // คำนวณ progress จาก 0 ถึง 1 โดยใช้ 200 km/h เป็นสูงสุด
     final targetProgress = (widget.currentSpeed / MAX_SPEED).clamp(0.0, 1.0);
 
-    // ปรับ Animation Duration ตามความเร็ว - เร็วขึ้นเมื่อความเร็วสูง
-    int animationDuration;
-    if (widget.currentSpeed > 80) {
-      animationDuration = 50; // ความเร็วสูงมาก = animation เร็วที่สุด (50ms)
-    } else if (widget.currentSpeed > 60) {
-      animationDuration = 75; // ความเร็วสูง = animation เร็ว (75ms)
-    } else if (widget.currentSpeed > 30) {
-      animationDuration = 100; // ความเร็วปานกลาง = animation ปกติ (100ms)
-    } else if (widget.currentSpeed > 10) {
-      animationDuration = 120; // ความเร็วต่ำ = animation ช้า (120ms)
-    } else {
-      animationDuration =
-          150; // ความเร็วต่ำมาก = animation ช้าที่สุด เพื่อความนุ่มนวล (150ms)
+    // คำนวณระยะห่างระหว่างค่าเก่าและใหม่
+    final delta = (targetProgress - _currentProgress).abs();
+
+    // Duration แปรผันตาม delta - ลด min ลงเหลือ 20ms เพื่อ "เกาะสปีดจริง" มากขึ้น
+    final animationDurationMs =
+        (40 + 350 * delta).clamp(20, 120).toInt(); // 20–120ms
+
+    // ใช้ animateTo แทน reset+forward เพื่อความนุ่มนวล
+    _progressController.animateTo(
+      targetProgress,
+      duration: Duration(milliseconds: animationDurationMs),
+      curve: Curves.linear,
+    );
+
+    // Debug logging แบบ throttled (ไม่ log ทุกครั้ง)
+    if (delta > 0.01) {
+      print('=== SPEED WIDGET UPDATE ===');
+      print('Speed: ${widget.currentSpeed.toStringAsFixed(1)} km/h');
+      print('Delta: ${(delta * 100).toStringAsFixed(1)}%');
+      print('Duration: ${animationDurationMs}ms');
     }
-
-    // Debug logging สำหรับตรวจสอบการ Sync
-    print('=== CIRCULAR SPEED WIDGET SYNC ===');
-    print('Speed: ${widget.currentSpeed.toStringAsFixed(2)} km/h');
-    print('Display: ${_getFormattedSpeed()}');
-    print('Progress: ${(targetProgress * 100).toStringAsFixed(1)}%');
-    print('Animation Duration: ${animationDuration}ms');
-    print('Color: ${_getSpeedColor()}');
-
-    // อัปเดต duration ของ _progressController
-    _progressController.duration = Duration(milliseconds: animationDuration);
-
-    _progressController.reset();
-    _progressController.forward();
 
     _currentProgress = targetProgress;
   }
@@ -119,23 +112,27 @@ class _CircularSpeedWidgetState extends State<CircularSpeedWidget>
                 alignment: Alignment.center,
                 children: [
                   // วงแหวนพื้นหลัง
-                  CustomPaint(
-                    size: const Size(120, 120),
-                    painter: SpeedRingPainter(
-                      progress: 1.0,
-                      color: Colors.grey.withValues(alpha: 0.2),
-                      strokeWidth: 8,
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      size: const Size(120, 120),
+                      painter: SpeedRingPainter(
+                        progress: 1.0,
+                        color: Colors.grey.withValues(alpha: 0.2),
+                        strokeWidth: 8,
+                      ),
                     ),
                   ),
 
                   // วงแหวนความเร็ว (Progress Bar - ไม่หมุน)
-                  CustomPaint(
-                    size: const Size(120, 120),
-                    painter: SpeedRingPainter(
-                      progress: _currentProgress,
-                      color: speedColor,
-                      strokeWidth: 8,
-                      hasGlow: widget.isMoving,
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      size: const Size(120, 120),
+                      painter: SpeedRingPainter(
+                        progress: _currentProgress,
+                        color: speedColor,
+                        strokeWidth: 8,
+                        hasGlow: widget.isMoving,
+                      ),
                     ),
                   ),
 
@@ -202,6 +199,14 @@ class SpeedRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // ตรวจสอบ Hardware Acceleration
+    final isHardwareAccelerated =
+        canvas.runtimeType.toString().contains('Skia');
+    if (!isHardwareAccelerated) {
+      debugPrint(
+          '⚠️ Warning: Canvas is not hardware accelerated - may affect performance');
+    }
+
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
@@ -241,7 +246,9 @@ class SpeedRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return oldDelegate != this;
-  }
+  bool shouldRepaint(covariant SpeedRingPainter old) =>
+      old.progress != progress ||
+      old.color != color ||
+      old.strokeWidth != strokeWidth ||
+      old.hasGlow != hasGlow;
 }
