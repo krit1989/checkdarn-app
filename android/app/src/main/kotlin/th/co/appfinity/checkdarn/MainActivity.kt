@@ -1,4 +1,4 @@
-package com.example.check_darn
+package th.co.appfinity.checkdarn
 
 import io.flutter.embedding.android.FlutterActivity
 

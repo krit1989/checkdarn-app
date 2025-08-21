@@ -793,7 +793,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cameraReportTitle => 'Speed Camera Reports';
+  String get cameraReportTitle => 'Add Speed Camera';
 
   @override
   String get switchToNearbyView => 'Switch to nearby view';
@@ -802,7 +802,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get switchToNationwideView => 'Switch to nationwide view';
 
   @override
-  String get newReportTab => 'New Report';
+  String get newReportTab => 'Add New';
 
   @override
   String get votingTab => 'Voting';
@@ -1020,13 +1020,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please provide at least 10 characters';
 
   @override
-  String get reportNewCamera => 'Report New Camera';
+  String get reportNewCamera => 'Add New Camera';
 
   @override
-  String get reportRemovedCamera => 'Report Removed Camera';
+  String get reportRemovedCamera => 'Camera Removed';
 
   @override
-  String get reportSpeedChanged => 'Report Speed Limit Changed';
+  String get reportSpeedChanged => 'Speed Limit Changed';
 
   @override
   String get noLocationDataFound => 'No location data found';

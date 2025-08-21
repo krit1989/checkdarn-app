@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../services/auth_service.dart';
+import '../../../generated/gen_l10n/app_localizations.dart';
 import '../../../widgets/location_picker_screen.dart';
 import '../services/camera_report_service.dart';
 import '../models/camera_report_model.dart';
@@ -351,22 +352,22 @@ class _CameraReportFormWidgetState extends State<CameraReportFormWidget> {
   String _getReportTypeDisplayName(CameraReportType type) {
     switch (type) {
       case CameraReportType.newCamera:
-        return '📷 รายงานกล้องใหม่';
+        return '📷 ${AppLocalizations.of(context).reportNewCamera}';
       case CameraReportType.removedCamera:
-        return '❌ รายงานกล้องที่ถูกถอด';
+        return '❌ ${AppLocalizations.of(context).reportRemovedCamera}';
       case CameraReportType.speedChanged:
-        return '⚡ รายงานการเปลี่ยนจำกัดความเร็ว';
+        return '⚡ ${AppLocalizations.of(context).reportSpeedChanged}';
     }
   }
 
   String _getSubmitButtonText() {
     switch (_selectedType) {
       case CameraReportType.newCamera:
-        return 'รายงานกล้องใหม่';
+        return AppLocalizations.of(context).reportNewCamera;
       case CameraReportType.removedCamera:
-        return 'รายงานกล้องถูกถอด';
+        return AppLocalizations.of(context).reportRemovedCamera;
       case CameraReportType.speedChanged:
-        return 'รายงานเปลี่ยนความเร็ว';
+        return AppLocalizations.of(context).reportSpeedChanged;
     }
   }
 

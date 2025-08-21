@@ -157,7 +157,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<LanguageProvider>(
         builder: (context, languageProvider, child) {
           return MaterialApp(
-            title: 'CheckDarn - แผนที่เหตุการณ์',
+            title: 'เช็กด่าน - แผนที่เหตุการณ์',
             locale: languageProvider.currentLocale,
             localizationsDelegates: const [
               AppLocalizations.delegate,

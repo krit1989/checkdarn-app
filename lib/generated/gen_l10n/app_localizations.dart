@@ -1535,7 +1535,7 @@ abstract class AppLocalizations {
   /// No description provided for @cameraReportTitle.
   ///
   /// In en, this message translates to:
-  /// **'Speed Camera Reports'**
+  /// **'Add Speed Camera'**
   String get cameraReportTitle;
 
   /// No description provided for @switchToNearbyView.
@@ -1553,7 +1553,7 @@ abstract class AppLocalizations {
   /// No description provided for @newReportTab.
   ///
   /// In en, this message translates to:
-  /// **'New Report'**
+  /// **'Add New'**
   String get newReportTab;
 
   /// No description provided for @votingTab.
@@ -1937,19 +1937,19 @@ abstract class AppLocalizations {
   /// No description provided for @reportNewCamera.
   ///
   /// In en, this message translates to:
-  /// **'Report New Camera'**
+  /// **'Add New Camera'**
   String get reportNewCamera;
 
   /// No description provided for @reportRemovedCamera.
   ///
   /// In en, this message translates to:
-  /// **'Report Removed Camera'**
+  /// **'Camera Removed'**
   String get reportRemovedCamera;
 
   /// No description provided for @reportSpeedChanged.
   ///
   /// In en, this message translates to:
-  /// **'Report Speed Limit Changed'**
+  /// **'Speed Limit Changed'**
   String get reportSpeedChanged;
 
   /// No description provided for @noLocationDataFound.

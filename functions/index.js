@@ -354,7 +354,7 @@ const NOTIFICATION_CONFIG = {
   MAINTENANCE_MODE: false,  // โหมดบำรุงรักษา - หยุดส่งแจ้งเตือนชั่วคราว
   ONE_TOKEN_PER_USER: true, // ส่งเพียง 1 token ต่อผู้ใช้เพื่อลดค่าใช้จ่าย
   FAR_USER_PROBABILITY: 0.5, // โอกาสส่งแจ้งเตือนให้ผู้ใช้ที่อยู่ไกล (50%)
-  ENABLE_TOPICS: true,      // เปิดใช้งาน FCM Topics เพื่อประหยัดค่าใช้จ่าย
+  ENABLE_TOPICS: false,      // ปิดใช้งาน FCM Topics ชั่วคราวเพื่อหลีกเลี่ยงการซ้ำ
   TOPIC_USAGE_RATIO: 0.7,  // ใช้ Topics 70% และ Individual tokens 30%
 };
 

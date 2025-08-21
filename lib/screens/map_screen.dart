@@ -302,43 +302,17 @@ class _MapScreenState extends State<MapScreen>
   /// ตรวจสอบ Network และ Sync Topics ถ้าจำเป็น
   Future<void> _checkNetworkAndSyncTopics() async {
     try {
-      // ตรวจสอบว่ามี internet หรือไม่โดยการ ping Firebase
-      final hasInternet = await _checkInternetConnection();
+      // ลบการตรวจสอบอินเทอร์เน็ตออก และทำ sync topics โดยตรง
+      // เพราะถ้าไม่มีเน็ต Firebase จะ handle error เอง
+      await _syncTopicsIfNeeded();
 
-      // ไม่ต้องอัพเดต UI state แล้ว - ทำงานในเบื้องหลังเท่านั้น
-
-      if (hasInternet) {
-        // ถ้ามี internet ให้ตรวจสอบว่า Topic subscriptions ยังใช้งานได้หรือไม่
-        await _syncTopicsIfNeeded();
-
-        if (kDebugMode) {
-          debugPrint('🌐 Internet available - topics synced');
-        }
-      } else {
-        if (kDebugMode) {
-          debugPrint('📴 No internet - using cached data');
-        }
+      if (kDebugMode) {
+        debugPrint('🌐 Topics sync attempted');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ Network check failed: $e');
+        debugPrint('❌ Topics sync failed: $e');
       }
-    }
-  }
-
-  /// ตรวจสอบการเชื่อมต่อ Internet จริง
-  Future<bool> _checkInternetConnection() async {
-    try {
-      // ลองเชื่อมต่อ Firebase แบบสั้นๆ
-      await FirebaseFirestore.instance
-          .collection('test_connection')
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 5));
-
-      return true; // ถ้าเชื่อมต่อได้แสดงว่ามี internet
-    } catch (e) {
-      return false; // ถ้าเชื่อมต่อไม่ได้แสดงว่าไม่มี internet
     }
   }
 
@@ -2264,18 +2238,9 @@ class _MapScreenState extends State<MapScreen>
         debugPrint('🔍 [My Location Button] Starting location search...');
       }
 
-      // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตก่อน
-      bool hasNetwork = await _checkInternetConnection();
-      if (!hasNetwork) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'ไม่มีการเชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบการเชื่อมต่อของคุณ'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+      // ลบการตรวจสอบอินเทอร์เน็ตออก เพราะไม่จำเป็นและทำให้เกิด false positive
+      // การทำงานของ Geolocator ไม่ต้องการอินเทอร์เน็ตสำหรับ GPS
+      // หากต้องการข้อมูลที่อยู่จาก Google Maps API จึงต้องการอินเทอร์เน็ต
 
       // ตรวจสอบ Location Permission ก่อน
       LocationPermission permission = await Geolocator.checkPermission();

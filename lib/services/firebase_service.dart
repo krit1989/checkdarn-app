@@ -14,6 +14,8 @@ class FirebaseService {
 
   // 🛡️ Enhanced Rate Limiting System
   static const int _maxPostsPerDay = 5; // ปรับเป็น 5 โพสต์ต่อวัน (สมดุล)
+  static const int _maxPostsPerHour = 3; // ป้องกัน burst attacks
+  static const int _maxPostsPerMinute = 1; // ป้องกัน spam rapid fire
 
   // 📊 Category-specific limits (ปรับให้เหมาะสมกับ 5 โพสต์/วัน)
   static const Map<String, int> _categoryDailyLimits = {
@@ -219,8 +221,80 @@ class FirebaseService {
     }
   }
 
-  /// ตรวจสอบว่าผู้ใช้โพสต์เกินขาดวันนี้แล้วหรือยัง
+  /// 🛡️ ตรวจสอบขีดจำกัดการโพสต์แบบครบถ้วน (Multi-layer Protection)
   static Future<bool> canUserPostToday(String userId) async {
+    try {
+      // Layer 1: ตรวจสอบ 1 นาทีที่ผ่านมา
+      final canPostMinute = await _checkRateLimit(
+          userId, _maxPostsPerMinute, const Duration(minutes: 1), 'minute');
+
+      if (!canPostMinute) {
+        print('🚫 Rate limit exceeded: Too many posts in the last minute');
+        return false;
+      }
+
+      // Layer 2: ตรวจสอบ 1 ชั่วโมงที่ผ่านมา
+      final canPostHour = await _checkRateLimit(
+          userId, _maxPostsPerHour, const Duration(hours: 1), 'hour');
+
+      if (!canPostHour) {
+        print('🚫 Rate limit exceeded: Too many posts in the last hour');
+        return false;
+      }
+
+      // Layer 3: ตรวจสอบวันนี้
+      final canPostDay = await _checkRateLimit(
+          userId, _maxPostsPerDay, const Duration(days: 1), 'day');
+
+      if (!canPostDay) {
+        print('🚫 Rate limit exceeded: Too many posts today');
+        return false;
+      }
+
+      print('✅ User $userId can post (passed all rate limits)');
+      return true;
+    } catch (e) {
+      print('❌ Error in rate limiting: $e');
+      return false; // ถ้าเกิด error ให้บล็อกเพื่อความปลอดภัย
+    }
+  }
+
+  /// 🛡️ Helper function สำหรับเช็ค rate limit ตามช่วงเวลา
+  static Future<bool> _checkRateLimit(
+    String userId,
+    int maxPosts,
+    Duration timeWindow,
+    String periodName,
+  ) async {
+    try {
+      final now = DateTime.now();
+      final startTime = now.subtract(timeWindow);
+
+      print('🔍 Checking ${periodName} limit for user: $userId');
+      print(
+          '⏰ Time range: ${startTime.toIso8601String()} to ${now.toIso8601String()}');
+
+      final recentPosts = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: userId)
+          .where('timestamp', isGreaterThan: Timestamp.fromDate(startTime))
+          .where('status', isEqualTo: 'active')
+          .get()
+          .timeout(const Duration(seconds: 8));
+
+      final postCount = recentPosts.docs.length;
+      print(
+          '📊 Found $postCount posts in the last ${timeWindow.inDays > 0 ? '${timeWindow.inDays} day(s)' : timeWindow.inHours > 0 ? '${timeWindow.inHours} hour(s)' : '${timeWindow.inMinutes} minute(s)'} (limit: $maxPosts)');
+
+      return postCount < maxPosts;
+    } catch (e) {
+      print('❌ Error checking $periodName rate limit: $e');
+      return false; // ถ้าเกิด error ให้บล็อกเพื่อความปลอดภัย
+    }
+  }
+
+  /// 🛡️ ตรวจสอบขีดจำกัดการโพสต์แบบเดิม (Backup method)
+  static Future<bool> _canUserPostTodayOld(String userId) async {
     try {
       print('🔍 Checking rate limit for user: $userId');
 

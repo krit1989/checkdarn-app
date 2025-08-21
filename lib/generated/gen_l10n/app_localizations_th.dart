@@ -786,7 +786,7 @@ class AppLocalizationsTh extends AppLocalizations {
   }
 
   @override
-  String get cameraReportTitle => 'รายงานกล้องจับความเร็ว';
+  String get cameraReportTitle => 'เพิ่มกล้องจับความเร็ว';
 
   @override
   String get switchToNearbyView => 'เปลี่ยนเป็นดูเฉพาะใกล้เคียง';
@@ -795,7 +795,7 @@ class AppLocalizationsTh extends AppLocalizations {
   String get switchToNationwideView => 'เปลี่ยนเป็นดูทั่วประเทศ';
 
   @override
-  String get newReportTab => 'รายงานใหม่';
+  String get newReportTab => 'เพิ่มใหม่';
 
   @override
   String get votingTab => 'โหวต';
@@ -1010,13 +1010,13 @@ class AppLocalizationsTh extends AppLocalizations {
       'กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร';
 
   @override
-  String get reportNewCamera => 'รายงานกล้องใหม่';
+  String get reportNewCamera => 'เพิ่มกล้องใหม่';
 
   @override
-  String get reportRemovedCamera => 'รายงานกล้องที่ถูกถอน';
+  String get reportRemovedCamera => 'กล้องที่ถูกถอน';
 
   @override
-  String get reportSpeedChanged => 'รายงานเปลี่ยนจำกัดความเร็ว';
+  String get reportSpeedChanged => 'เปลี่ยนจำกัดความเร็ว';
 
   @override
   String get noLocationDataFound => 'ไม่พบข้อมูลสถานที่';
@@ -1395,7 +1395,7 @@ class AppLocalizationsTh extends AppLocalizations {
       'กล้องจับความเร็วข้างหน้า จำกัดความเร็ว 90 กิโลเมตรต่อชั่วโมง';
 
   @override
-  String get noMessage => 'No message';
+  String get noMessage => 'ไม่มีข้อความ';
 
   @override
   String get other => 'อื่นๆ';
@@ -1536,7 +1536,7 @@ class AppLocalizationsTh extends AppLocalizations {
 
   @override
   String get newEventsSubtitle =>
-      'Notify when new events are reported near you';
+      'แจ้งเตือนเมื่อมีเหตุการณ์ใหม่ในบริเวณใกล้คุณ';
 
   @override
   String get commentsSubtitle =>
