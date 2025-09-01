@@ -475,7 +475,7 @@ class _ListScreenState extends State<ListScreen> {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.check_darn',
+                    userAgentPackageName: 'com.checkdarn.app',
                   ),
                   MarkerLayer(
                     markers: [
@@ -977,7 +977,8 @@ class _ListScreenState extends State<ListScreen> {
                                           if (timestamp != null) ...[
                                             Text(
                                               DateTimeFormatters
-                                                  .formatTimestamp(timestamp),
+                                                  .formatTimestamp(
+                                                      timestamp, context),
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.grey[600],
@@ -1279,7 +1280,7 @@ class _ListScreenState extends State<ListScreen> {
                                             const SizedBox(width: 6),
                                             Text(
                                               DateTimeFormatters.formatDate(
-                                                  timestamp),
+                                                  timestamp, context),
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 color: Colors.black,

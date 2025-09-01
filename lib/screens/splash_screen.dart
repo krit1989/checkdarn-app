@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../routes/app_routes.dart';
+import '../generated/gen_l10n/app_localizations.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -128,9 +129,9 @@ class _SplashScreenState extends State<SplashScreen>
                     const SizedBox(height: 32), // ลดจาก 40
 
                     // App name with better typography
-                    const Text(
-                      'ยินดีต้อนรับ',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).welcome,
+                      style: const TextStyle(
                         fontSize:
                             36, // ลดจาก 42 ให้ตรงกับ "CheckDarn" ในหน้า login
                         fontWeight: FontWeight.bold,
@@ -162,7 +163,9 @@ class _SplashScreenState extends State<SplashScreen>
 
                     const SizedBox(height: 24), // ลดจาก 30
 
-                    // App slogan with better design
+                    const Spacer(flex: 3),
+
+                    // App slogan moved to bottom
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10), // ลดจาก 24,12
@@ -178,9 +181,9 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      child: const Text(
-                        '"รู้ก่อน รอดก่อน ปลอดภัยก่อน"',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalizations.of(context).appSlogan,
+                        style: const TextStyle(
                           fontSize: 14, // ลดจาก 16
                           color: Colors.black87, // สีเดิม
                           fontWeight: FontWeight.w500,
@@ -191,20 +194,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
 
-                    const Spacer(flex: 3),
-
-                    // Bottom text without loading
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 40), // ลดจาก 50
-                      child: Text(
-                        'เวอร์ชัน 1.0',
-                        style: TextStyle(
-                          fontSize: 12, // ลดจาก 14
-                          color: Colors.black.withValues(alpha: 0.6), // สีเดิม
-                          fontFamily: 'NotoSansThai',
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 40), // เพิ่มระยะห่างจากด้านล่าง
                   ],
                 ),
               ),

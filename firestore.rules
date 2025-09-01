@@ -2,14 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 🏠 กฎสำหรับ collection reports - เพิ่มการตรวจสอบ rate limiting
+    // 🏠 กฎสำหรับ collection reports 
     match /reports/{reportId} {
       allow read: if true;
-      allow create: if request.auth != null && 
-        // ตรวจสอบว่าไม่เกินขีดจำกัด 5 โพสต์ต่อวัน
-        checkDailyPostLimit(request.auth.uid);
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow write: if request.auth != null;
       
       // 💬 Subcollection comments ภายใน reports เท่านั้น
       match /comments/{commentId} {
@@ -270,20 +266,6 @@ service cloud.firestore {
       allow read: if request.auth != null;  // อ่านได้เฉพาะผู้ล็อกอิน
       allow create: if request.auth != null;  // สร้างได้เฉพาะผู้ล็อกอิน
       allow update, delete: if false;  // ไม่อนุญาตให้แก้ไขหรือลบ traffic log (เพื่อความปลอดภัย)
-    }
-    
-    // 🛡️ ฟังก์ชันตรวจสอบขีดจำกัดการโพสต์ต่อวัน (5 โพสต์) - ใช้ syntax ที่ถูกต้อง
-    function checkDailyPostLimit(userId) {
-      let now = request.time;
-      let startOfDay = timestamp.date(now.year, now.month, now.day);
-      
-      // ไม่สามารถนับ documents ได้โดยตรงใน Firestore Rules
-      // ต้องพึ่งพา client-side validation เป็นหลัก
-      // Rules นี้จะใช้สำหรับการตรวจสอบพื้นฐานเท่านั้น
-      return request.auth != null && 
-             resource == null &&  // การสร้างเอกสารใหม่
-             request.resource.data.userId == userId &&
-             request.resource.data.status == 'active';
     }
   }
 }

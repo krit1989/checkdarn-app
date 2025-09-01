@@ -206,7 +206,7 @@ class _ListScreenState extends State<ListScreen> {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.check_darn',
+                    userAgentPackageName: 'com.checkdarn.app',
                   ),
                   MarkerLayer(
                     markers: [

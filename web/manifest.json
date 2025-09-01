@@ -1,11 +1,11 @@
 {
-    "name": "เช็กด่าน",
-    "short_name": "เช็กด่าน",
+    "name": "check_darn",
+    "short_name": "check_darn",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "เช็กด่าน - แอพพลิเคชั่นเช็กด่านและรายงานเหตุการณ์แบบเรียลไทม์",
+    "description": "A new Flutter project.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

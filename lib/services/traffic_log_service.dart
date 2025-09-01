@@ -11,7 +11,7 @@ import 'auth_service.dart';
 /// ข้อมูลจะถูกเก็บไว้อย่างน้อย 90 วัน และลบอัตโนมัติหลังจากนั้น
 class TrafficLogService {
   static const String _collectionName = 'traffic_logs';
-  
+
   // การกำหนดประเภทของกิจกรรมที่ต้องเก็บ log
   static const String actionLogin = 'user_login';
   static const String actionLogout = 'user_logout';
@@ -24,7 +24,7 @@ class TrafficLogService {
   static const String actionDeleteReport = 'delete_report';
   static const String actionAppStart = 'app_start';
   static const String actionAppResume = 'app_resume';
-  
+
   static String? _currentSessionId;
   static String? _deviceId;
   static String? _appVersion;
@@ -35,10 +35,10 @@ class TrafficLogService {
       await _generateSessionId();
       await _getDeviceInfo();
       await _getAppVersion();
-      
+
       // Log การเปิดแอป
       await logActivity(actionAppStart);
-      
+
       if (kDebugMode) {
         print('🔍 Traffic Log Service initialized');
         print('📱 Session ID: $_currentSessionId');
@@ -68,31 +68,34 @@ class TrafficLogService {
 
       final userId = AuthService.currentUser?.uid;
       final hashedUserId = userId != null ? _hashUserId(userId) : 'anonymous';
-      
+
       final logEntry = {
         // ข้อมูลพื้นฐานตามกฎหมาย
         'timestamp': FieldValue.serverTimestamp(),
         'user_id_hash': hashedUserId, // ใช้ hash แทน user ID จริง
         'action': action,
         'session_id': _currentSessionId ?? 'unknown',
-        
+
         // ข้อมูลอุปกรณ์ (ไม่ระบุตัวตน)
         'device_info': {
           'platform': Platform.isAndroid ? 'android' : 'ios',
           'app_version': _appVersion ?? 'unknown',
-          'device_id_hash': _deviceId != null ? _hashString(_deviceId!) : 'unknown',
+          'device_id_hash':
+              _deviceId != null ? _hashString(_deviceId!) : 'unknown',
         },
-        
+
         // ข้อมูลตำแหน่ง (ระดับเขต/อำเภอ เท่านั้น)
-        'location_general': location != null ? _generalizeLocation(location) : null,
-        
+        'location_general':
+            location != null ? _generalizeLocation(location) : null,
+
         // Metadata เพิ่มเติม
         'metadata': metadata ?? {},
-        
+
         // ข้อมูลเป้าหมาย (ถ้ามี)
-        'target_user_id_hash': targetUserId != null ? _hashUserId(targetUserId) : null,
+        'target_user_id_hash':
+            targetUserId != null ? _hashUserId(targetUserId) : null,
         'target_report_id': targetReportId,
-        
+
         // Flag สำหรับการจัดการข้อมูล
         'retention_days': 90, // จะลบหลัง 90 วัน
         'data_source': 'mobile_app',
@@ -105,7 +108,8 @@ class TrafficLogService {
           .add(logEntry);
 
       if (kDebugMode) {
-        print('📝 Traffic log recorded: $action (user: ${hashedUserId.substring(0, 8)}...)');
+        print(
+            '📝 Traffic log recorded: $action (user: ${hashedUserId.substring(0, 8)}...)');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -227,7 +231,7 @@ class TrafficLogService {
   static Future<void> _getDeviceInfo() async {
     try {
       final deviceInfo = DeviceInfoPlugin();
-      
+
       if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
         _deviceId = androidInfo.id; // Android ID
@@ -269,16 +273,17 @@ class TrafficLogService {
   }
 
   /// ทำให้ตำแหน่งเป็นแบบทั่วไป (ระดับเขต/อำเภอ)
-  static Map<String, dynamic> _generalizeLocation(Map<String, dynamic> location) {
+  static Map<String, dynamic> _generalizeLocation(
+      Map<String, dynamic> location) {
     final lat = location['lat'] as double?;
     final lng = location['lng'] as double?;
-    
+
     if (lat == null || lng == null) return {};
-    
+
     // ปัดเศษพิกัดให้เป็นระดับเขต/อำเภอ (ประมาณ 1-5 km)
     final generalLat = (lat * 100).round() / 100; // ปัด 2 ทศนิยม
     final generalLng = (lng * 100).round() / 100; // ปัด 2 ทศนิยม
-    
+
     return {
       'lat_general': generalLat,
       'lng_general': generalLng,
@@ -307,7 +312,7 @@ class TrafficLogService {
       actionAppStart,
       actionAppResume,
     ];
-    
+
     return requiredActions.contains(action);
   }
 
@@ -318,37 +323,84 @@ class TrafficLogService {
     return 0; // Placeholder
   }
 
-    /// ทำความสะอาดข้อมูล Traffic Log แบบ Dynamic Retention (ปรับตามการใช้งาน)
+  /// ทำความสะอาดข้อมูล Traffic Log แบบ Dynamic Retention (ปรับตามการใช้งาน)
   static Future<void> cleanupOldLogs() async {
     try {
       // ตรวจสอบปริมาณการใช้งานรายวัน
-      final dailyUsage = await getDailyLogCount();
-      
+      final dailyUsage = await _getDailyLogCount();
+
       // คำนวณระยะเวลา retention แบบ dynamic
       int retentionDays;
       if (dailyUsage < 1000) {
-        retentionDays = 90;  // Low usage: 90 วัน
+        retentionDays = 90; // Low usage: 90 วัน
       } else if (dailyUsage < 10000) {
-        retentionDays = 60;  // Medium usage: 60 วัน
+        retentionDays = 60; // Medium usage: 60 วัน
       } else if (dailyUsage < 50000) {
-        retentionDays = 30;  // High usage: 30 วัน
+        retentionDays = 30; // High usage: 30 วัน
       } else {
-        retentionDays = 15;  // Very high usage: 15 วัน
+        retentionDays = 15; // Very high usage: 15 วัน
       }
-      
+
       final cutoffDate = DateTime.now().subtract(Duration(days: retentionDays));
-      
+
       if (kDebugMode) {
         print('� Daily usage: $dailyUsage logs/day');
         print('📅 Dynamic retention: $retentionDays days');
         print('✂️ Cleaning logs older than: ${cutoffDate.toIso8601String()}');
       }
-      
+
       final querySnapshot = await FirebaseFirestore.instance
           .collection(_collectionName)
           .where('timestamp', isLessThan: Timestamp.fromDate(cutoffDate))
           .limit(500) // เพิ่มเป็น 500 records เพื่อทำความสะอาดเร็วขึ้น
           .get();
+
+      // ทำการลบ logs ที่เก่า
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in querySnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await batch.commit();
+
+        if (kDebugMode) {
+          print('🗑️ Cleaned up ${querySnapshot.docs.length} old logs');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error cleaning old logs: $e');
+      }
+    }
+  }
+
+  /// นับจำนวน log entries ต่อวัน (เฉลี่ย 7 วันล่าสุด)
+  static Future<int> _getDailyLogCount() async {
+    try {
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection(_collectionName)
+          .where('timestamp', isGreaterThan: Timestamp.fromDate(sevenDaysAgo))
+          .get();
+
+      final totalLogs = querySnapshot.docs.length;
+      final dailyAverage = (totalLogs / 7).round();
+
+      if (kDebugMode) {
+        print('📊 Total logs (7 days): $totalLogs');
+        print('📈 Daily average: $dailyAverage logs/day');
+      }
+
+      return dailyAverage;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error counting daily logs: $e');
+      }
+      return 1000; // Default to medium usage if error
+    }
+  }
 
   /// ดึงสถิติการใช้งาน (สำหรับ Admin)
   static Future<Map<String, dynamic>> getUsageStatistics({
@@ -358,27 +410,28 @@ class TrafficLogService {
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection(_collectionName)
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('timestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
           .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .get();
-      
+
       final stats = <String, int>{};
       final uniqueUsers = <String>{};
-      
+
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
         final action = data['action'] as String?;
         final userHash = data['user_id_hash'] as String?;
-        
+
         if (action != null) {
           stats[action] = (stats[action] ?? 0) + 1;
         }
-        
+
         if (userHash != null && userHash != 'anonymous') {
           uniqueUsers.add(userHash);
         }
       }
-      
+
       return {
         'total_events': querySnapshot.docs.length,
         'unique_users': uniqueUsers.length,
@@ -393,33 +446,6 @@ class TrafficLogService {
         print('❌ Error getting usage statistics: $e');
       }
       return {};
-    }
-  }
-
-  /// นับจำนวน log entries ต่อวัน (เฉลี่ย 7 วันล่าสุด)
-  static Future<int> _getDailyLogCount() async {
-    try {
-      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
-      
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection(_collectionName)
-          .where('timestamp', isGreaterThan: Timestamp.fromDate(sevenDaysAgo))
-          .get();
-      
-      final totalLogs = querySnapshot.docs.length;
-      final dailyAverage = (totalLogs / 7).round();
-      
-      if (kDebugMode) {
-        print('📊 Total logs (7 days): $totalLogs');
-        print('📈 Daily average: $dailyAverage logs/day');
-      }
-      
-      return dailyAverage;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error counting daily logs: $e');
-      }
-      return 1000; // Default to medium usage if error
     }
   }
 }

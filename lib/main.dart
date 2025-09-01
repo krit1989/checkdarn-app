@@ -11,7 +11,7 @@ import 'services/auth_service.dart';
 import 'services/cleanup_service.dart';
 import 'services/enhanced_cache_service.dart';
 import 'services/notification_service.dart';
-import 'services/push_notification_service.dart';
+// import 'services/push_notification_service.dart'; // ปิดชั่วคราวเพื่อป้องกันการแจ้งเตือนซ้ำ
 import 'services/smart_location_service.dart';
 import 'services/topic_subscription_service.dart';
 import 'providers/language_provider.dart';
@@ -58,9 +58,9 @@ void _initializeBackgroundServices() async {
     await EnhancedCacheService.initialize();
     await FirebaseService.initializeAndMigrate();
 
-    // 🔔 เริ่ม Notification Services
-    await NotificationService.initialize();
-    await PushNotificationService.initialize();
+    // 🔔 เริ่ม Notification Services - Production Mode
+    await NotificationService.initializeProductionMode();
+    // await PushNotificationService.initialize(); // ปิดชั่วคราวเพื่อป้องกันการแจ้งเตือนซ้ำ
 
     // 🗺️ เริ่ม Topic Subscription Service (ประหยัดค่าใช้จ่าย 99.9%!)
     _startTopicSubscriptionService();
@@ -157,7 +157,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<LanguageProvider>(
         builder: (context, languageProvider, child) {
           return MaterialApp(
-            title: 'เช็กด่าน - แผนที่เหตุการณ์',
+            title: 'CheckDarn - แผนที่เหตุการณ์',
             locale: languageProvider.currentLocale,
             localizationsDelegates: const [
               AppLocalizations.delegate,

@@ -354,8 +354,18 @@ const NOTIFICATION_CONFIG = {
   MAINTENANCE_MODE: false,  // โหมดบำรุงรักษา - หยุดส่งแจ้งเตือนชั่วคราว
   ONE_TOKEN_PER_USER: true, // ส่งเพียง 1 token ต่อผู้ใช้เพื่อลดค่าใช้จ่าย
   FAR_USER_PROBABILITY: 0.5, // โอกาสส่งแจ้งเตือนให้ผู้ใช้ที่อยู่ไกล (50%)
-  ENABLE_TOPICS: false,      // ปิดใช้งาน FCM Topics ชั่วคราวเพื่อหลีกเลี่ยงการซ้ำ
+  ENABLE_TOPICS: false,      // ปิดใช้งาน FCM Topics ชั่วคราวเพื่อแก้ปัญหา duplicate
   TOPIC_USAGE_RATIO: 0.7,  // ใช้ Topics 70% และ Individual tokens 30%
+  
+  // 🔧 **Production Token Lifecycle Management**
+  TOKEN_HEALTH_CHECK_ENABLED: true,     // เปิดระบบตรวจสอบ token health
+  TOKEN_FAILURE_THRESHOLD: 3,           // ถ้า token fail 3 ครั้ง ให้ mark เป็น unhealthy
+  TOKEN_HEALTH_CHECK_INTERVAL: 24,      // ตรวจสอบ token health ทุก 24 ชั่วโมง
+  TOKEN_AUTO_REFRESH_DAYS: 30,          // refresh tokens ที่เก่ากว่า 30 วัน
+  ENABLE_TOKEN_VALIDATION: true,        // เปิดระบบ validate tokens ก่อนส่ง
+  TOKEN_BATCH_VALIDATION_SIZE: 500,     // validate tokens ครั้งละ 500 tokens
+  QUARANTINE_UNHEALTHY_TOKENS: true,    // แยก unhealthy tokens ออกจากการส่งชั่วคราว
+  TOKEN_RECOVERY_ATTEMPTS: 5,           // พยายาม recover unhealthy tokens สูงสุด 5 ครั้ง
 };
 
 // 📡 **FCM Topics Configuration** (ประหยัดค่าใช้จ่าย)
@@ -905,7 +915,7 @@ exports.sendNewPostNotification = functions.firestore
         hasDescription: !!reportData.description
       }));
 
-      // �️ ตรวจสอบโหมดบำรุงรักษา
+      // ⚠️ ตรวจสอบโหมดบำรุงรักษา
       if (NOTIFICATION_CONFIG.MAINTENANCE_MODE) {
         console.log('⚠️ System in maintenance mode - notifications disabled');
         return { success: false, reason: 'maintenance_mode' };
@@ -1009,9 +1019,23 @@ exports.sendNewPostNotification = functions.firestore
 
       console.log(`📊 Token summary: ${tokens.length} individual tokens from ${validUserCount} users, ${invalidUserCount} users without valid tokens`);
 
-      // 📡 ส่งแจ้งเตือนผ่าน Topics ก่อน (ถ้าเปิดใช้งาน)
+      // � **Production Token Validation** - ตรวจสอบ tokens ก่อนส่ง
+      let finalTokens = tokens;
+      if (NOTIFICATION_CONFIG.ENABLE_TOKEN_VALIDATION && tokens.length > 50) {
+        console.log('🔍 Performing token validation for large batch...');
+        try {
+          const validationResult = await validateTokensBeforeSending(tokens);
+          finalTokens = validationResult.validTokens;
+          console.log(`🔍 Token validation: ${finalTokens.length}/${tokens.length} tokens are valid (${validationResult.validationRate})`);
+        } catch (validationError) {
+          console.log('⚠️ Token validation failed, proceeding with original tokens:', validationError.message);
+          finalTokens = tokens;
+        }
+      }
+
+      // �📡 ส่งแจ้งเตือนผ่าน Topics ก่อน (ถ้าเปิดใช้งาน)
       let topicResults = [];
-      if (topicSelection.useTopics && topicSelection.topics.length > 0) {
+      if (false && topicSelection.useTopics && topicSelection.topics.length > 0) {
         console.log('� Sending topic notifications...');
         
         const notificationData = {
@@ -1028,7 +1052,7 @@ exports.sendNewPostNotification = functions.firestore
       }
 
       // ตรวจสอบว่ายังมี individual tokens ให้ส่งหรือไม่
-      if (tokens.length === 0) {
+      if (finalTokens.length === 0) {
         console.log('📭 No individual tokens to send, only topic notifications');
         return { 
           success: true, 
@@ -1051,14 +1075,14 @@ exports.sendNewPostNotification = functions.firestore
 
       // � ตรวจสอบโควต้าการส่งรายวัน
       console.log('📊 Checking daily quota...');
-      const quotaCheck = await checkAndUpdateDailyQuota(tokens.length);
+      const quotaCheck = await checkAndUpdateDailyQuota(finalTokens.length);
       
       if (!quotaCheck.allowed) {
         console.log(`⚠️ Daily quota exceeded! Current: ${quotaCheck.currentCount}, Remaining: ${quotaCheck.remaining}, Would exceed: ${quotaCheck.wouldExceed}`);
         
         // ส่งเฉพาะจำนวนที่เหลือถ้ามี
         if (quotaCheck.remaining > 0) {
-          const allowedTokens = tokens.slice(0, quotaCheck.remaining);
+          const allowedTokens = finalTokens.slice(0, quotaCheck.remaining);
           console.log(`📤 Sending to remaining quota: ${allowedTokens.length} notifications`);
           
           // อัปเดตโควต้าสำหรับจำนวนที่จะส่งจริง
@@ -1066,7 +1090,7 @@ exports.sendNewPostNotification = functions.firestore
           
           return await sendNotificationsInBatches(allowedTokens, reportData, reportId, {
             quotaLimited: true,
-            originalTokenCount: tokens.length,
+            originalTokenCount: finalTokens.length,
             allowedTokenCount: allowedTokens.length
           });
         } else {
@@ -1081,7 +1105,7 @@ exports.sendNewPostNotification = functions.firestore
       console.log(`✅ Daily quota check passed: ${quotaCheck.currentCount}/${NOTIFICATION_CONFIG.MAX_DAILY_NOTIFICATIONS}`);
 
       // 🚀 ส่งแจ้งเตือนแบบ batch
-      return await sendNotificationsInBatches(tokens, reportData, reportId, {
+      return await sendNotificationsInBatches(finalTokens, reportData, reportId, {
         quotaInfo: quotaCheck,
         geographicFilterUsed: NOTIFICATION_CONFIG.ENABLE_GEOGRAPHIC_FILTER,
         oneTokenPerUser: NOTIFICATION_CONFIG.ONE_TOKEN_PER_USER
@@ -2845,3 +2869,654 @@ exports.getEnhancedSystemHealth = functions.https.onRequest(async (req, res) => 
     });
   }
   });
+
+// 🏥 **Production Token Health Management System**
+// ระบบจัดการ token lifecycle สำหรับ production
+
+/**
+ * 🔍 **Token Health Checker** - ตรวจสอบ tokens ที่มีปัญหา
+ * รันทุกวันเพื่อหา tokens ที่ fail บ่อย ๆ
+ */
+exports.checkTokenHealth = functions.pubsub
+  .schedule('every 24 hours')
+  .timeZone('Asia/Bangkok')
+  .onRun(async (context) => {
+    if (!NOTIFICATION_CONFIG.TOKEN_HEALTH_CHECK_ENABLED) {
+      console.log('🏥 Token health check is disabled');
+      return { success: true, reason: 'disabled' };
+    }
+
+    try {
+      console.log('🏥 Starting token health check...');
+      
+      const now = new Date();
+      const checkPeriod = new Date(now - (NOTIFICATION_CONFIG.TOKEN_HEALTH_CHECK_INTERVAL * 60 * 60 * 1000));
+
+      // ค้นหา tokens ที่ fail บ่อย ๆ ใน dead_letters
+      const deadLettersSnapshot = await admin.firestore()
+        .collection('dead_letters')
+        .where('createdAt', '>=', checkPeriod)
+        .get();
+
+      const tokenFailureCounts = {};
+      
+      deadLettersSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.tokens && Array.isArray(data.tokens)) {
+          data.tokens.forEach(token => {
+            tokenFailureCounts[token] = (tokenFailureCounts[token] || 0) + 1;
+          });
+        }
+      });
+
+      // หา tokens ที่ fail เกิน threshold
+      const unhealthyTokens = [];
+      for (const [token, failCount] of Object.entries(tokenFailureCounts)) {
+        if (failCount >= NOTIFICATION_CONFIG.TOKEN_FAILURE_THRESHOLD) {
+          unhealthyTokens.push({ token, failCount });
+        }
+      }
+
+      console.log(`🏥 Found ${unhealthyTokens.length} unhealthy tokens`);
+
+      if (unhealthyTokens.length > 0) {
+        // บันทึก unhealthy tokens
+        const batch = admin.firestore().batch();
+        
+        unhealthyTokens.forEach(({ token, failCount }) => {
+          const unhealthyRef = admin.firestore()
+            .collection('unhealthy_tokens')
+            .doc(token);
+          
+          batch.set(unhealthyRef, {
+            token: token,
+            failureCount: failCount,
+            quarantinedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastFailureCheck: admin.firestore.FieldValue.serverTimestamp(),
+            recoveryAttempts: 0,
+            isQuarantined: NOTIFICATION_CONFIG.QUARANTINE_UNHEALTHY_TOKENS,
+            detectedBy: 'health_check_scheduler'
+          });
+        });
+
+        await batch.commit();
+
+        // ลบ unhealthy tokens จาก user_tokens collection
+        if (NOTIFICATION_CONFIG.QUARANTINE_UNHEALTHY_TOKENS) {
+          await removeUnhealthyTokensFromUsers(unhealthyTokens.map(t => t.token));
+        }
+      }
+
+      // 📊 บันทึก telemetry
+      await updateTelemetry('token_health_check', {
+        totalTokensChecked: Object.keys(tokenFailureCounts).length,
+        unhealthyTokensFound: unhealthyTokens.length,
+        quarantineEnabled: NOTIFICATION_CONFIG.QUARANTINE_UNHEALTHY_TOKENS,
+        checkPeriodHours: NOTIFICATION_CONFIG.TOKEN_HEALTH_CHECK_INTERVAL
+      });
+
+      return {
+        success: true,
+        totalTokensChecked: Object.keys(tokenFailureCounts).length,
+        unhealthyTokensFound: unhealthyTokens.length,
+        quarantined: NOTIFICATION_CONFIG.QUARANTINE_UNHEALTHY_TOKENS
+      };
+
+    } catch (error) {
+      console.error('❌ Error in token health check:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+/**
+ * 🔄 **Token Recovery System** - พยายาม recover tokens ที่ถูก quarantine
+ * รันทุกสัปดาห์เพื่อให้โอกาส tokens ที่อาจจะกลับมา active ได้
+ */
+exports.recoverQuarantinedTokens = functions.pubsub
+  .schedule('every 7 days')
+  .timeZone('Asia/Bangkok')
+  .onRun(async (context) => {
+    try {
+      console.log('🔄 Starting token recovery process...');
+
+      const snapshot = await admin.firestore()
+        .collection('unhealthy_tokens')
+        .where('isQuarantined', '==', true)
+        .where('recoveryAttempts', '<', NOTIFICATION_CONFIG.TOKEN_RECOVERY_ATTEMPTS)
+        .get();
+
+      console.log(`🔄 Found ${snapshot.size} tokens to attempt recovery`);
+
+      if (snapshot.empty) {
+        return { success: true, recoveredTokens: 0, reason: 'no_tokens_to_recover' };
+      }
+
+      let recoveredCount = 0;
+      const batch = admin.firestore().batch();
+
+      for (const doc of snapshot.docs) {
+        const tokenData = doc.data();
+        const token = tokenData.token;
+
+        try {
+          // ทดสอบส่ง notification เบา ๆ เพื่อดูว่า token ยัง active ไหม
+          const testMessage = {
+            data: {
+              type: 'health_check',
+              timestamp: Date.now().toString()
+            },
+            token: token
+          };
+
+          await admin.messaging().send(testMessage);
+          
+          // ถ้าส่งสำเร็จ = token กลับมา healthy แล้ว
+          console.log(`✅ Token recovered: ${token.substring(0, 20)}...`);
+          
+          // ลบออกจาก unhealthy_tokens
+          batch.delete(doc.ref);
+          
+          // คืน token กลับไปใน user_tokens (ถ้าหาเจ้าของได้)
+          await restoreHealthyTokenToUser(token);
+          
+          recoveredCount++;
+
+        } catch (error) {
+          // ถ้ายังส่งไม่ได้ = ยัง unhealthy อยู่
+          console.log(`❌ Token still unhealthy: ${token.substring(0, 20)}...`);
+          
+          // เพิ่ม recovery attempts
+          batch.update(doc.ref, {
+            recoveryAttempts: admin.firestore.FieldValue.increment(1),
+            lastRecoveryAttempt: admin.firestore.FieldValue.serverTimestamp(),
+            lastRecoveryError: error.code || error.message
+          });
+
+          // ถ้าครบ max attempts แล้ว ให้ลบทิ้ง
+          if (tokenData.recoveryAttempts + 1 >= NOTIFICATION_CONFIG.TOKEN_RECOVERY_ATTEMPTS) {
+            console.log(`🗑️ Permanently removing token after ${NOTIFICATION_CONFIG.TOKEN_RECOVERY_ATTEMPTS} failed recovery attempts`);
+            batch.delete(doc.ref);
+          }
+        }
+      }
+
+      await batch.commit();
+
+      console.log(`🔄 Recovery completed: ${recoveredCount} tokens recovered`);
+
+      // 📊 บันทึก telemetry
+      await updateTelemetry('token_recovery', {
+        tokensAttempted: snapshot.size,
+        tokensRecovered: recoveredCount,
+        successRate: snapshot.size > 0 ? (recoveredCount / snapshot.size * 100).toFixed(1) + '%' : '0%'
+      });
+
+      return {
+        success: true,
+        tokensAttempted: snapshot.size,
+        tokensRecovered: recoveredCount
+      };
+
+    } catch (error) {
+      console.error('❌ Error in token recovery:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+/**
+ * 🔧 **Token Validation System** - validate tokens ก่อนส่ง notifications
+ * ใช้สำหรับ validate tokens ก่อนส่ง batch ใหญ่ ๆ
+ */
+exports.validateTokensBatch = functions.https.onCall(async (data, context) => {
+  try {
+    const { tokens } = data;
+    
+    if (!tokens || !Array.isArray(tokens)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Tokens array is required');
+    }
+
+    if (!NOTIFICATION_CONFIG.ENABLE_TOKEN_VALIDATION) {
+      return { 
+        success: true, 
+        validTokens: tokens, 
+        invalidTokens: [],
+        reason: 'validation_disabled' 
+      };
+    }
+
+    console.log(`🔍 Validating ${tokens.length} tokens...`);
+
+    const validTokens = [];
+    const invalidTokens = [];
+    const batchSize = NOTIFICATION_CONFIG.TOKEN_BATCH_VALIDATION_SIZE;
+
+    // แบ่ง validate เป็น batches
+    for (let i = 0; i < tokens.length; i += batchSize) {
+      const batch = tokens.slice(i, i + batchSize);
+      
+      for (const token of batch) {
+        try {
+          // ใช้ dry run เพื่อ validate โดยไม่ส่งจริง
+          const message = {
+            data: { type: 'validation' },
+            token: token
+          };
+
+          await admin.messaging().send(message, true); // dry run = true
+          validTokens.push(token);
+
+        } catch (error) {
+          console.log(`❌ Invalid token: ${token.substring(0, 20)}... (${error.code})`);
+          invalidTokens.push({
+            token: token,
+            error: error.code,
+            message: error.message
+          });
+        }
+      }
+
+      // หน่วงเวลาเล็กน้อยระหว่าง batch
+      if (i + batchSize < tokens.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log(`🔍 Validation complete: ${validTokens.length} valid, ${invalidTokens.length} invalid`);
+
+    // ลบ invalid tokens ออกจาก database
+    if (invalidTokens.length > 0) {
+      await removeInvalidTokens(invalidTokens.map(t => t.token));
+    }
+
+    return {
+      success: true,
+      validTokens: validTokens,
+      invalidTokens: invalidTokens,
+      validationRate: tokens.length > 0 ? (validTokens.length / tokens.length * 100).toFixed(1) + '%' : '0%'
+    };
+
+  } catch (error) {
+    console.error('❌ Error in token validation:', error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});
+
+/**
+ * 🧹 **ลบ unhealthy tokens ออกจาก user_tokens collection**
+ */
+async function removeUnhealthyTokensFromUsers(unhealthyTokens) {
+  try {
+    console.log(`🧹 Removing ${unhealthyTokens.length} unhealthy tokens from users...`);
+
+    const usersSnapshot = await admin.firestore()
+      .collection('user_tokens')
+      .get();
+
+    const batch = admin.firestore().batch();
+    let removedCount = 0;
+
+    usersSnapshot.docs.forEach(doc => {
+      const userData = doc.data();
+      let tokens = userData.tokens || [];
+      
+      if (Array.isArray(tokens)) {
+        const cleanTokens = tokens.filter(token => !unhealthyTokens.includes(token));
+        
+        if (cleanTokens.length !== tokens.length) {
+          batch.update(doc.ref, {
+            tokens: cleanTokens,
+            lastTokenCleanup: admin.firestore.FieldValue.serverTimestamp()
+          });
+          removedCount++;
+        }
+      }
+    });
+
+    if (removedCount > 0) {
+      await batch.commit();
+    }
+
+    console.log(`✅ Removed unhealthy tokens from ${removedCount} users`);
+    return removedCount;
+
+  } catch (error) {
+    console.error('❌ Error removing unhealthy tokens from users:', error);
+    throw error;
+  }
+}
+
+/**
+ * 🔄 **คืน healthy token กลับไปให้ user**
+ */
+async function restoreHealthyTokenToUser(token) {
+  try {
+    // หา user ที่เคยมี token นี้
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('fcmToken', '==', token)
+      .limit(1)
+      .get();
+
+    if (!usersSnapshot.empty) {
+      const userId = usersSnapshot.docs[0].id;
+      
+      // คืน token กลับไปใน user_tokens
+      await admin.firestore()
+        .collection('user_tokens')
+        .doc(userId)
+        .update({
+          tokens: admin.firestore.FieldValue.arrayUnion(token),
+          tokenRecoveredAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+      console.log(`🔄 Restored token to user ${userId}`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error restoring token to user:', error);
+  }
+}
+
+/**
+ * 🔍 **Helper function สำหรับ validate tokens ก่อนส่ง**
+ * ใช้เฉพาะ batch ขนาดใหญ่เท่านั้น เพื่อประหยัด quota
+ */
+async function validateTokensBeforeSending(tokens) {
+  const sampleSize = Math.min(tokens.length, 100); // ตรวจสอบแค่ 100 tokens แรก
+  const sampleTokens = tokens.slice(0, sampleSize);
+  
+  console.log(`🔍 Validating sample of ${sampleSize} tokens from ${tokens.length} total...`);
+  
+  const validTokens = [];
+  const invalidTokens = [];
+  
+  for (const token of sampleTokens) {
+    try {
+      // ใช้ dry run เพื่อ validate
+      const testMessage = {
+        data: { type: 'validation', timestamp: Date.now().toString() },
+        token: token
+      };
+      
+      await admin.messaging().send(testMessage, true); // dry run = true
+      validTokens.push(token);
+    } catch (error) {
+      invalidTokens.push(token);
+      
+      // บันทึก invalid token สำหรับ cleanup ภายหลัง
+      if (isInvalidTokenError(error.code)) {
+        console.log(`🗑️ Invalid token detected: ${token.substring(0, 20)}...`);
+      }
+    }
+  }
+  
+  const validationRate = sampleSize > 0 ? (validTokens.length / sampleSize) : 1;
+  
+  // ถ้า validation rate ต่ำกว่า 50% ให้ filter tokens ก่อนส่ง
+  if (validationRate < 0.5) {
+    console.log(`⚠️ Low validation rate (${(validationRate * 100).toFixed(1)}%), filtering tokens...`);
+    
+    // Filter เฉพาะ tokens ที่อยู่ใน quarantine list
+    const quarantinedTokens = await getQuarantinedTokens();
+    const cleanTokens = tokens.filter(token => !quarantinedTokens.includes(token));
+    
+    return {
+      validTokens: cleanTokens,
+      validationRate: `${(validationRate * 100).toFixed(1)}%`,
+      sampleSize: sampleSize,
+      filtered: tokens.length - cleanTokens.length
+    };
+  }
+  
+  // ถ้า validation rate ดี ให้ใช้ tokens ทั้งหมด
+  console.log(`✅ Good validation rate (${(validationRate * 100).toFixed(1)}%), using all tokens`);
+  
+  return {
+    validTokens: tokens,
+    validationRate: `${(validationRate * 100).toFixed(1)}%`,
+    sampleSize: sampleSize,
+    filtered: 0
+  };
+}
+
+/**
+ * 🚫 **ดึงรายการ tokens ที่ถูก quarantine**
+ */
+async function getQuarantinedTokens() {
+  try {
+    const snapshot = await admin.firestore()
+      .collection('unhealthy_tokens')
+      .where('isQuarantined', '==', true)
+      .select('token')
+      .get();
+    
+    return snapshot.docs.map(doc => doc.data().token);
+  } catch (error) {
+    console.error('❌ Error getting quarantined tokens:', error);
+    return [];
+  }
+}
+
+// 📊 **Production Health Monitoring Dashboard**
+
+/**
+ * 📊 **Token Health Dashboard** - แดชบอร์ดสำหรับดู token health
+ */
+exports.getTokenHealthDashboard = functions.https.onRequest(async (req, res) => {
+  try {
+    // ดึงข้อมูล active tokens
+    const activeTokensSnapshot = await admin.firestore()
+      .collection('user_tokens')
+      .get();
+
+    let totalUsers = 0;
+    let totalTokens = 0;
+    let usersWithoutTokens = 0;
+
+    activeTokensSnapshot.docs.forEach(doc => {
+      const userData = doc.data();
+      totalUsers++;
+      
+      const tokens = userData.tokens || [];
+      if (tokens.length === 0) {
+        usersWithoutTokens++;
+      } else {
+        totalTokens += tokens.length;
+      }
+    });
+
+    // ดึงข้อมูล unhealthy tokens
+    const unhealthySnapshot = await admin.firestore()
+      .collection('unhealthy_tokens')
+      .get();
+
+    const unhealthyStats = {
+      total: unhealthySnapshot.size,
+      quarantined: 0,
+      recovering: 0
+    };
+
+    unhealthySnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.isQuarantined) {
+        unhealthyStats.quarantined++;
+      }
+      if (data.recoveryAttempts > 0) {
+        unhealthyStats.recovering++;
+      }
+    });
+
+    // ดึงข้อมูล notification ล่าสุด
+    const recentTelemetry = await admin.firestore()
+      .collection('telemetry')
+      .where('event', 'in', ['notification_sent', 'token_health_check', 'token_recovery'])
+      .orderBy('timestamp', 'desc')
+      .limit(10)
+      .get();
+
+    // คำนวณ success rate จาก telemetry ล่าสุด
+    let totalSentLast24h = 0;
+    let totalFailedLast24h = 0;
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    recentTelemetry.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.timestamp && data.timestamp.toDate() > yesterday) {
+        if (data.metrics && data.metrics.totalSent) {
+          totalSentLast24h += data.metrics.totalSent;
+        }
+        if (data.metrics && data.metrics.totalFailed) {
+          totalFailedLast24h += data.metrics.totalFailed;
+        }
+      }
+    });
+
+    const successRate = totalSentLast24h + totalFailedLast24h > 0 
+      ? (totalSentLast24h / (totalSentLast24h + totalFailedLast24h) * 100).toFixed(1)
+      : 'N/A';
+
+    // สถานะระบบโดยรวม
+    const systemHealth = {
+      status: successRate === 'N/A' ? 'unknown' : 
+              parseFloat(successRate) > 80 ? 'healthy' :
+              parseFloat(successRate) > 50 ? 'warning' : 'critical',
+      successRate: successRate + '%',
+      recommendation: successRate === 'N/A' ? 'No recent data' :
+                     parseFloat(successRate) > 80 ? 'System operating normally' :
+                     parseFloat(successRate) > 50 ? 'Monitor token health - some cleanup may be needed' :
+                     'Immediate attention required - high token failure rate'
+    };
+
+    res.json({
+      success: true,
+      lastUpdated: new Date().toISOString(),
+      tokenHealth: {
+        totalUsers: totalUsers,
+        totalTokens: totalTokens,
+        usersWithoutTokens: usersWithoutTokens,
+        averageTokensPerUser: totalUsers > 0 ? (totalTokens / totalUsers).toFixed(2) : 0,
+        healthyTokensPercentage: totalTokens > 0 ? 
+          ((totalTokens - unhealthyStats.total) / totalTokens * 100).toFixed(1) + '%' : 'N/A'
+      },
+      unhealthyTokens: unhealthyStats,
+      recentPerformance: {
+        last24Hours: {
+          notificationsSent: totalSentLast24h,
+          notificationsFailed: totalFailedLast24h,
+          successRate: successRate + '%'
+        }
+      },
+      systemHealth: systemHealth,
+      productionReadiness: {
+        tokenValidationEnabled: NOTIFICATION_CONFIG.ENABLE_TOKEN_VALIDATION,
+        healthCheckEnabled: NOTIFICATION_CONFIG.TOKEN_HEALTH_CHECK_ENABLED,
+        quarantineEnabled: NOTIFICATION_CONFIG.QUARANTINE_UNHEALTHY_TOKENS,
+        autoRecoveryEnabled: true,
+        recommendedForProduction: 
+          NOTIFICATION_CONFIG.ENABLE_TOKEN_VALIDATION && 
+          NOTIFICATION_CONFIG.TOKEN_HEALTH_CHECK_ENABLED && 
+          NOTIFICATION_CONFIG.QUARANTINE_UNHEALTHY_TOKENS
+      },
+      recommendations: [
+        totalTokens === 0 ? "⚠️ No tokens found - users need to reinstall app and grant permissions" : null,
+        usersWithoutTokens > totalUsers * 0.3 ? "⚠️ High percentage of users without tokens - check notification setup" : null,
+        parseFloat(successRate) < 70 ? "⚠️ Low success rate - run token cleanup immediately" : null,
+        unhealthyStats.quarantined > 100 ? "ℹ️ High number of quarantined tokens - consider running recovery process" : null
+      ].filter(Boolean)
+    });
+
+  } catch (error) {
+    console.error('❌ Error getting token health dashboard:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 🚨 **Emergency Token Cleanup** - สำหรับกรณีฉุกเฉิน
+ * ใช้เมื่อ success rate ต่ำมาก
+ */
+exports.emergencyTokenCleanup = functions.https.onCall(async (data, context) => {
+  // ต้องมีสิทธิ์ admin เท่านั้น
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  try {
+    console.log('🚨 Emergency token cleanup initiated by:', context.auth.uid);
+
+    // 1. ลบ tokens ทั้งหมดที่อยู่ใน unhealthy_tokens
+    const unhealthySnapshot = await admin.firestore()
+      .collection('unhealthy_tokens')
+      .get();
+
+    let batch = admin.firestore().batch();
+    let batchCount = 0;
+
+    unhealthySnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      batchCount++;
+
+      // Commit ทุก 500 operations
+      if (batchCount % 500 === 0) {
+        batch.commit();
+        batch = admin.firestore().batch();
+      }
+    });
+
+    if (batchCount % 500 !== 0) {
+      await batch.commit();
+    }
+
+    console.log(`🗑️ Deleted ${unhealthySnapshot.size} unhealthy tokens`);
+
+    // 2. ล้าง tokens array ทั้งหมดใน user_tokens และให้ user generate ใหม่
+    const usersSnapshot = await admin.firestore()
+      .collection('user_tokens')
+      .get();
+
+    batch = admin.firestore().batch();
+    batchCount = 0;
+
+    usersSnapshot.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        tokens: [],
+        lastEmergencyCleanup: admin.firestore.FieldValue.serverTimestamp(),
+        cleanupReason: 'emergency_cleanup'
+      });
+      batchCount++;
+
+      if (batchCount % 500 === 0) {
+        batch.commit();
+        batch = admin.firestore().batch();
+      }
+    });
+
+    if (batchCount % 500 !== 0) {
+      await batch.commit();
+    }
+
+    console.log(`🧹 Cleared tokens for ${usersSnapshot.size} users`);
+
+    // 3. บันทึก emergency cleanup event
+    await updateTelemetry('emergency_cleanup', {
+      unhealthyTokensRemoved: unhealthySnapshot.size,
+      usersAffected: usersSnapshot.size,
+      initiatedBy: context.auth.uid,
+      cleanupType: 'full_reset'
+    });
+
+    return {
+      success: true,
+      unhealthyTokensRemoved: unhealthySnapshot.size,
+      usersAffected: usersSnapshot.size,
+      message: 'Emergency cleanup completed. Users will need to reopen app to regenerate tokens.'
+    };
+
+  } catch (error) {
+    console.error('❌ Error in emergency cleanup:', error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});

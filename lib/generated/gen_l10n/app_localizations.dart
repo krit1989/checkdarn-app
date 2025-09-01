@@ -1199,7 +1199,7 @@ abstract class AppLocalizations {
   /// No description provided for @dailyLimitExceeded.
   ///
   /// In en, this message translates to:
-  /// **'Limit exceeded: 5 posts per day. Please wait 24 hrs'**
+  /// **'Maximum 5 posts per day. Please wait 24 hours'**
   String get dailyLimitExceeded;
 
   /// No description provided for @cannotGetLocation.
@@ -1211,7 +1211,7 @@ abstract class AppLocalizations {
   /// No description provided for @success.
   ///
   /// In en, this message translates to:
-  /// **'Submitted successfully'**
+  /// **'Success'**
   String get success;
 
   /// No description provided for @submitTimeoutError.
@@ -2999,7 +2999,7 @@ abstract class AppLocalizations {
   /// No description provided for @appSlogan.
   ///
   /// In en, this message translates to:
-  /// **'\"Know First, Survive First, Safe First\"'**
+  /// **'\"Stay Aware, Stay Ahead, Stay Safe\"'**
   String get appSlogan;
 
   /// No description provided for @appVersion.
@@ -3007,180 +3007,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version 1.0'**
   String get appVersion;
-
-  /// No description provided for @readyToTest.
-  ///
-  /// In en, this message translates to:
-  /// **'Ready to test'**
-  String get readyToTest;
-
-  /// No description provided for @alreadyLoggedIn.
-  ///
-  /// In en, this message translates to:
-  /// **'Already logged in'**
-  String get alreadyLoggedIn;
-
-  /// No description provided for @notLoggedIn.
-  ///
-  /// In en, this message translates to:
-  /// **'Not logged in'**
-  String get notLoggedIn;
-
-  /// No description provided for @testingLogin.
-  ///
-  /// In en, this message translates to:
-  /// **'Testing login...'**
-  String get testingLogin;
-
-  /// No description provided for @startLoginTest.
-  ///
-  /// In en, this message translates to:
-  /// **'🧪 Starting login test...'**
-  String get startLoginTest;
-
-  /// No description provided for @loginSuccessEmail.
-  ///
-  /// In en, this message translates to:
-  /// **'Login successful: {email}'**
-  String loginSuccessEmail(String email);
-
-  /// No description provided for @loginSuccessName.
-  ///
-  /// In en, this message translates to:
-  /// **'Login successful: {name}'**
-  String loginSuccessName(String name);
-
-  /// No description provided for @userCancelledLogin.
-  ///
-  /// In en, this message translates to:
-  /// **'User cancelled login'**
-  String get userCancelledLogin;
-
-  /// No description provided for @loginTestFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'❌ Login test failed: {error}'**
-  String loginTestFailed(String error);
-
-  /// No description provided for @loginFailedGeneral.
-  ///
-  /// In en, this message translates to:
-  /// **'Login failed: {error}'**
-  String loginFailedGeneral(String error);
-
-  /// No description provided for @loggedOut.
-  ///
-  /// In en, this message translates to:
-  /// **'Logged out'**
-  String get loggedOut;
-
-  /// No description provided for @logoutSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout successful'**
-  String get logoutSuccess;
-
-  /// No description provided for @logoutFailedError.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout failed: {error}'**
-  String logoutFailedError(String error);
-
-  /// No description provided for @loginTestTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Login Test'**
-  String get loginTestTitle;
-
-  /// No description provided for @loginStatusTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Login Status'**
-  String get loginStatusTitle;
-
-  /// No description provided for @userDataTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'User Data'**
-  String get userDataTitle;
-
-  /// No description provided for @testingTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Testing'**
-  String get testingTitle;
-
-  /// No description provided for @testing.
-  ///
-  /// In en, this message translates to:
-  /// **'Testing...'**
-  String get testing;
-
-  /// No description provided for @testLogin.
-  ///
-  /// In en, this message translates to:
-  /// **'Test Login'**
-  String get testLogin;
-
-  /// No description provided for @logoutButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
-  String get logoutButton;
-
-  /// No description provided for @notesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes:'**
-  String get notesTitle;
-
-  /// No description provided for @debugConsole.
-  ///
-  /// In en, this message translates to:
-  /// **'• Check Console/Log for debug details'**
-  String get debugConsole;
-
-  /// No description provided for @checkGoogleServices.
-  ///
-  /// In en, this message translates to:
-  /// **'• Check Google Services and Firebase Console'**
-  String get checkGoogleServices;
-
-  /// No description provided for @checkSHA1.
-  ///
-  /// In en, this message translates to:
-  /// **'• Check SHA-1 fingerprint in Firebase'**
-  String get checkSHA1;
-
-  /// No description provided for @testOnDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'• Test on real device, not Emulator'**
-  String get testOnDevice;
-
-  /// No description provided for @simpleTestReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Ready to test'**
-  String get simpleTestReady;
-
-  /// No description provided for @simpleTesting.
-  ///
-  /// In en, this message translates to:
-  /// **'Testing...'**
-  String get simpleTesting;
-
-  /// No description provided for @simpleTestStart.
-  ///
-  /// In en, this message translates to:
-  /// **'🧪 === Starting login test ==='**
-  String get simpleTestStart;
-
-  /// No description provided for @authServiceInitialized.
-  ///
-  /// In en, this message translates to:
-  /// **'AuthService initialized\nLogin status: {status}'**
-  String authServiceInitialized(bool status);
 
   /// No description provided for @categoryWithCount.
   ///
@@ -3445,6 +3271,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to submit report: Timeout. Please check your internet connection'**
   String get reportTimeoutError;
+
+  /// No description provided for @noTimeData.
+  ///
+  /// In en, this message translates to:
+  /// **'No time data'**
+  String get noTimeData;
+
+  /// No description provided for @daysAgoFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days ago'**
+  String daysAgoFormat(int days);
+
+  /// No description provided for @hoursShort.
+  ///
+  /// In en, this message translates to:
+  /// **'hrs'**
+  String get hoursShort;
+
+  /// No description provided for @minutesAgoFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} minutes ago'**
+  String minutesAgoFormat(int minutes);
+
+  /// No description provided for @justMoments.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get justMoments;
 }
 
 class _AppLocalizationsDelegate

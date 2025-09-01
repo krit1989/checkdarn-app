@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "1051005565361",
+    "project_id": "checkdarn-app",
+    "storage_bucket": "checkdarn-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051005565361:android:20f4884cab5d629a57e590",
+        "android_client_info": {
+          "package_name": "com.example.check_darn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1051005565361-7i2is3o72e5rr7i0dq2k1h5iqobo356l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.check_darn",
+            "certificate_hash": "61dbc86a2b4b1ba4c13139b906028c9c212c13b7"
+          }
+        },
+        {
+          "client_id": "1051005565361-qb8vp3hmaptbcs2o84scag8pr4vtai1b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.check_darn",
+            "certificate_hash": "bb771073fea8f0240af42d1c737379bae794ffb5"
+          }
+        },
+        {
+          "client_id": "1051005565361-hm04gtf41djmr25gu0uvmckabc00a3j3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmfosvws-kxETQL7QnslQ1ik0hQ_w5UeM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1051005565361-hm04gtf41djmr25gu0uvmckabc00a3j3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1051005565361-do8c9g82ahktd4mmpoc71tnq45jpie6i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.checkDarn"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

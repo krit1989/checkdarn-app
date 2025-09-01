@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
 import 'dart:io';
@@ -14,8 +15,6 @@ class FirebaseService {
 
   // 🛡️ Enhanced Rate Limiting System
   static const int _maxPostsPerDay = 5; // ปรับเป็น 5 โพสต์ต่อวัน (สมดุล)
-  static const int _maxPostsPerHour = 3; // ป้องกัน burst attacks
-  static const int _maxPostsPerMinute = 1; // ป้องกัน spam rapid fire
 
   // 📊 Category-specific limits (ปรับให้เหมาะสมกับ 5 โพสต์/วัน)
   static const Map<String, int> _categoryDailyLimits = {
@@ -33,7 +32,8 @@ class FirebaseService {
       // Check if we have valid cached data first
       final cachedReports =
           await EnhancedCacheService.get<List<Map<String, dynamic>>>(
-              'reports_recent');
+            'reports_recent',
+          );
       if (cachedReports != null) {
         print('✅ Using cached prefetch data: ${cachedReports.length} reports');
         return;
@@ -50,10 +50,7 @@ class FirebaseService {
 
       // Convert to serializable format and cache
       final reportsData = snapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                'data': doc.data(),
-              })
+          .map((doc) => {'id': doc.id, 'data': doc.data()})
           .toList();
 
       await EnhancedCacheService.set(
@@ -83,7 +80,8 @@ class FirebaseService {
   }) async {
     try {
       print(
-          '📤 Starting image upload (attempt $currentAttempt/$maxRetries)...');
+        '📤 Starting image upload (attempt $currentAttempt/$maxRetries)...',
+      );
 
       // ตรวจสอบว่าไฟล์มีอยู่จริง
       if (!await imageFile.exists()) {
@@ -104,8 +102,10 @@ class FirebaseService {
       // สร้าง path สำหรับเก็บรูปภาพ
       final String fileName =
           'report_${reportId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final Reference ref =
-          _storage.ref().child('report_images').child(fileName);
+      final Reference ref = _storage
+          .ref()
+          .child('report_images')
+          .child(fileName);
 
       print('🌐 Uploading to: report_images/$fileName');
 
@@ -123,20 +123,24 @@ class FirebaseService {
       final UploadTask uploadTask = ref.putFile(imageFile, metadata);
 
       // ติดตาม progress (แต่ไม่บล็อก)
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        final progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        print('📈 Upload progress: ${progress.toInt()}%');
-      }, onError: (error) {
-        print('⚠️ Upload progress error: $error');
-      });
+      uploadTask.snapshotEvents.listen(
+        (TaskSnapshot snapshot) {
+          final progress =
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          print('📈 Upload progress: ${progress.toInt()}%');
+        },
+        onError: (error) {
+          print('⚠️ Upload progress error: $error');
+        },
+      );
 
       // เพิ่มเวลา timeout และจัดการข้อผิดพลาดให้ดีขึ้น
       final TaskSnapshot snapshot = await uploadTask.timeout(
         const Duration(seconds: 30), // ลดเวลาลงเพื่อล้ม fast fail
         onTimeout: () => throw TimeoutException(
-            'Image upload timeout - network may be slow',
-            const Duration(seconds: 30)),
+          'Image upload timeout - network may be slow',
+          const Duration(seconds: 30),
+        ),
       );
 
       // ดึง download URL
@@ -151,7 +155,8 @@ class FirebaseService {
       if (currentAttempt < maxRetries) {
         print('🔄 Retrying upload... ($currentAttempt/$maxRetries)');
         await Future.delayed(
-            const Duration(seconds: 2)); // รอ 2 วินาทีก่อน retry
+          const Duration(seconds: 2),
+        ); // รอ 2 วินาทีก่อน retry
         return _uploadImageWithRetry(
           imageFile,
           reportId,
@@ -173,7 +178,8 @@ class FirebaseService {
         // ลอง retry สำหรับ network issues
         if (currentAttempt < maxRetries) {
           print(
-              '🔄 Retrying upload after network error... ($currentAttempt/$maxRetries)');
+            '🔄 Retrying upload after network error... ($currentAttempt/$maxRetries)',
+          );
           await Future.delayed(const Duration(seconds: 3));
           return _uploadImageWithRetry(
             imageFile,
@@ -197,7 +203,8 @@ class FirebaseService {
         // ลอง retry สำหรับ channel errors (Xiaomi issue)
         if (currentAttempt < maxRetries) {
           print(
-              '🔄 Retrying upload after channel error... ($currentAttempt/$maxRetries)');
+            '🔄 Retrying upload after channel error... ($currentAttempt/$maxRetries)',
+          );
           await Future.delayed(const Duration(seconds: 2));
           return _uploadImageWithRetry(
             imageFile,
@@ -221,80 +228,8 @@ class FirebaseService {
     }
   }
 
-  /// 🛡️ ตรวจสอบขีดจำกัดการโพสต์แบบครบถ้วน (Multi-layer Protection)
+  /// ตรวจสอบว่าผู้ใช้โพสต์เกินขาดวันนี้แล้วหรือยัง
   static Future<bool> canUserPostToday(String userId) async {
-    try {
-      // Layer 1: ตรวจสอบ 1 นาทีที่ผ่านมา
-      final canPostMinute = await _checkRateLimit(
-          userId, _maxPostsPerMinute, const Duration(minutes: 1), 'minute');
-
-      if (!canPostMinute) {
-        print('🚫 Rate limit exceeded: Too many posts in the last minute');
-        return false;
-      }
-
-      // Layer 2: ตรวจสอบ 1 ชั่วโมงที่ผ่านมา
-      final canPostHour = await _checkRateLimit(
-          userId, _maxPostsPerHour, const Duration(hours: 1), 'hour');
-
-      if (!canPostHour) {
-        print('🚫 Rate limit exceeded: Too many posts in the last hour');
-        return false;
-      }
-
-      // Layer 3: ตรวจสอบวันนี้
-      final canPostDay = await _checkRateLimit(
-          userId, _maxPostsPerDay, const Duration(days: 1), 'day');
-
-      if (!canPostDay) {
-        print('🚫 Rate limit exceeded: Too many posts today');
-        return false;
-      }
-
-      print('✅ User $userId can post (passed all rate limits)');
-      return true;
-    } catch (e) {
-      print('❌ Error in rate limiting: $e');
-      return false; // ถ้าเกิด error ให้บล็อกเพื่อความปลอดภัย
-    }
-  }
-
-  /// 🛡️ Helper function สำหรับเช็ค rate limit ตามช่วงเวลา
-  static Future<bool> _checkRateLimit(
-    String userId,
-    int maxPosts,
-    Duration timeWindow,
-    String periodName,
-  ) async {
-    try {
-      final now = DateTime.now();
-      final startTime = now.subtract(timeWindow);
-
-      print('🔍 Checking ${periodName} limit for user: $userId');
-      print(
-          '⏰ Time range: ${startTime.toIso8601String()} to ${now.toIso8601String()}');
-
-      final recentPosts = await _firestore
-          .collection(_collection)
-          .where('userId', isEqualTo: userId)
-          .where('timestamp', isGreaterThan: Timestamp.fromDate(startTime))
-          .where('status', isEqualTo: 'active')
-          .get()
-          .timeout(const Duration(seconds: 8));
-
-      final postCount = recentPosts.docs.length;
-      print(
-          '📊 Found $postCount posts in the last ${timeWindow.inDays > 0 ? '${timeWindow.inDays} day(s)' : timeWindow.inHours > 0 ? '${timeWindow.inHours} hour(s)' : '${timeWindow.inMinutes} minute(s)'} (limit: $maxPosts)');
-
-      return postCount < maxPosts;
-    } catch (e) {
-      print('❌ Error checking $periodName rate limit: $e');
-      return false; // ถ้าเกิด error ให้บล็อกเพื่อความปลอดภัย
-    }
-  }
-
-  /// 🛡️ ตรวจสอบขีดจำกัดการโพสต์แบบเดิม (Backup method)
-  static Future<bool> _canUserPostTodayOld(String userId) async {
     try {
       print('🔍 Checking rate limit for user: $userId');
 
@@ -302,7 +237,8 @@ class FirebaseService {
       final startOfDay = DateTime(now.year, now.month, now.day);
 
       print(
-          '📅 Date range: ${startOfDay.toIso8601String()} to ${now.toIso8601String()}');
+        '📅 Date range: ${startOfDay.toIso8601String()} to ${now.toIso8601String()}',
+      );
 
       // ใช้ query ที่ง่ายกว่าและไม่ต้องการ composite index ซับซ้อน
       final recentPosts = await _firestore
@@ -313,13 +249,15 @@ class FirebaseService {
           .limit(10) // เอาแค่ 10 โพสต์ล่าสุดมาตรวจสอบ
           .get()
           .timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {
-          print('⏰ Rate limit check timeout');
-          throw TimeoutException(
-              'Rate limit check timeout', const Duration(seconds: 8));
-        },
-      );
+            const Duration(seconds: 8),
+            onTimeout: () {
+              print('⏰ Rate limit check timeout');
+              throw TimeoutException(
+                'Rate limit check timeout',
+                const Duration(seconds: 8),
+              );
+            },
+          );
 
       print('📊 Found ${recentPosts.docs.length} recent posts');
 
@@ -339,11 +277,13 @@ class FirebaseService {
       }
 
       print(
-          '📊 User $userId has posted $todayPostCount times today (limit: $_maxPostsPerDay)');
+        '📊 User $userId has posted $todayPostCount times today (limit: $_maxPostsPerDay)',
+      );
 
       if (todayPostCount >= _maxPostsPerDay) {
         print(
-            '🚫 Rate limit exceeded: $todayPostCount/$_maxPostsPerDay posts today');
+          '🚫 Rate limit exceeded: $todayPostCount/$_maxPostsPerDay posts today',
+        );
         return false;
       }
 
@@ -392,7 +332,9 @@ class FirebaseService {
   /// 🛡️ Enhanced Rate Limiting Helper Function
   /// 📊 ตรวจสอบ limit ตามประเภทหมวดหมู่
   static Future<bool> canUserPostCategory(
-      String userId, EventCategory category) async {
+    String userId,
+    EventCategory category,
+  ) async {
     try {
       final categoryName = category.name.toLowerCase();
       final categoryLimit =
@@ -411,7 +353,8 @@ class FirebaseService {
 
       final categoryPostCount = todayCategoryPosts.docs.length;
       print(
-          '📊 User $userId has posted $categoryPostCount times in category $categoryName today (limit: $categoryLimit)');
+        '📊 User $userId has posted $categoryPostCount times in category $categoryName today (limit: $categoryLimit)',
+      );
 
       return categoryPostCount < categoryLimit;
     } catch (e) {
@@ -434,6 +377,36 @@ class FirebaseService {
   }) async {
     try {
       final effectiveUserId = userId ?? 'anonymous';
+
+      // 🔍 Enhanced Debug Logging for Rate Limiting
+      print('🔍 === DETAILED RATE LIMIT DEBUG ===');
+      print('👤 Effective User ID: $effectiveUserId');
+      print('👤 Original User ID from parameter: $userId');
+      print('👤 User Name: $userName');
+
+      // เพิ่มการเช็ค Firebase Auth
+      final currentAuthUser = FirebaseAuth.instance.currentUser;
+      if (currentAuthUser != null) {
+        print('👤 Firebase Auth User ID: ${currentAuthUser.uid}');
+        print('📧 Firebase Auth User Email: ${currentAuthUser.email}');
+        print('📛 Firebase Auth Display Name: ${currentAuthUser.displayName}');
+        print(
+          '🔑 Auth Provider: ${currentAuthUser.providerData.map((p) => p.providerId).toList()}',
+        );
+
+        // ตรวจสอบว่า UID ที่ใช้ตรงกับ Auth หรือไม่
+        if (effectiveUserId != currentAuthUser.uid) {
+          print('⚠️ WARNING: effectiveUserId != currentAuthUser.uid');
+          print('⚠️ Using Auth UID instead: ${currentAuthUser.uid}');
+          // อัปเดต effectiveUserId เป็น UID จริงจาก Auth
+          final correctedUserId = currentAuthUser.uid;
+          print('✅ Corrected User ID: $correctedUserId');
+        }
+      } else {
+        print('❌ No Firebase Auth user found!');
+      }
+      print('🔍 === END RATE LIMIT DEBUG ===');
+
       print('🚀 Starting report submission for user: $effectiveUserId');
       print('📝 Category: ${category.name}');
       print('📍 Location: $location');
@@ -445,21 +418,25 @@ class FirebaseService {
       if (!canPost) {
         print('🚫 Daily limit exceeded');
         throw Exception(
-            'เกินขีดจำกัด: โพสต์ได้สูงสุด $_maxPostsPerDay ครั้งต่อวัน กรุณารอ 24 ชั่วโมง');
+          'เกินขีดจำกัด: โพสต์ได้สูงสุด $_maxPostsPerDay ครั้งต่อวัน กรุณารอ 24 ชั่วโมง',
+        );
       }
       print('✅ Daily limit check passed');
 
       // ตรวจสอบจำนวนโพสต์ตามหมวดหมู่
       print('🔍 Checking category limit...');
-      final canPostCategory =
-          await canUserPostCategory(effectiveUserId, category);
+      final canPostCategory = await canUserPostCategory(
+        effectiveUserId,
+        category,
+      );
       if (!canPostCategory) {
         final categoryName = category.name.toLowerCase();
         final categoryLimit =
             _categoryDailyLimits[categoryName] ?? _maxPostsPerDay;
         print('🚫 Category limit exceeded');
         throw Exception(
-            'เกินขีดจำกัดหมวด ${category.label}: โพสต์ได้สูงสุด $categoryLimit ครั้งต่อวัน');
+          'เกินขีดจำกัดหมวด ${category.label}: โพสต์ได้สูงสุด $categoryLimit ครั้งต่อวัน',
+        );
       }
       print('✅ Category limit check passed');
 
@@ -499,48 +476,49 @@ class FirebaseService {
       print('💾 Saving report with TURBO Transaction mode...');
 
       // 🚀 ใช้ Transaction แทน Batch สำหรับความเร็วสูงสุด
-      await _firestore.runTransaction((transaction) async {
-        // บันทึกข้อมูลรายงานหลัก
-        transaction.set(docRef, {
-          'title': _generateTitle(category, description),
-          'description': description,
-          'category': _getCategoryKey(category),
-          'type': _getCategoryName(category),
-          'timestamp': FieldValue.serverTimestamp(), // เวลาจากเซิร์ฟเวอร์
-          'lat': location.latitude,
-          'lng': location.longitude,
-          'location': _formatLocationString(district, province),
-          'district': district,
-          'province': province,
-          'imageUrl': finalImageUrl ?? '',
-          'userId': effectiveUserId,
-          'userName': userName ?? 'ไม่ระบุชื่อ',
-          'displayName': userName ?? 'ไม่ระบุชื่อ',
-          'status': 'active',
-          'expireAt': Timestamp.fromDate(expireAt),
-        });
+      await _firestore
+          .runTransaction((transaction) async {
+            // บันทึกข้อมูลรายงานหลัก
+            transaction.set(docRef, {
+              'title': _generateTitle(category, description),
+              'description': description,
+              'category': _getCategoryKey(category),
+              'type': _getCategoryName(category),
+              'timestamp': FieldValue.serverTimestamp(), // เวลาจากเซิร์ฟเวอร์
+              'lat': location.latitude,
+              'lng': location.longitude,
+              'location': _formatLocationString(district, province),
+              'district': district,
+              'province': province,
+              'imageUrl': finalImageUrl ?? '',
+              'userId': effectiveUserId,
+              'userName': userName ?? 'ไม่ระบุชื่อ',
+              'displayName': userName ?? 'ไม่ระบุชื่อ',
+              'status': 'active',
+              'expireAt': Timestamp.fromDate(expireAt),
+            });
 
-        // อัปเดต user stats พร้อมกัน - ใช้ UID เป็น document ID ตาม Firebase Rules
-        final userStatsRef =
-            _firestore.collection('user_stats').doc(effectiveUserId);
-        transaction.set(
-            userStatsRef,
-            {
+            // อัปเดต user stats พร้อมกัน - ใช้ UID เป็น document ID ตาม Firebase Rules
+            final userStatsRef = _firestore
+                .collection('user_stats')
+                .doc(effectiveUserId);
+            transaction.set(userStatsRef, {
               'userId': effectiveUserId, // เพิ่ม userId field สำหรับความชัดเจน
               'lastReportAt': FieldValue.serverTimestamp(),
               'totalReports': FieldValue.increment(1),
               'lastReportLocation': _formatLocationString(district, province),
               'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true)); // merge เพื่อไม่ทับข้อมูลเดิม
+            }, SetOptions(merge: true)); // merge เพื่อไม่ทับข้อมูลเดิม
 
-        print('🚀 Transaction completed - ultra fast atomic operation!');
-      }).timeout(
-        const Duration(seconds: 12), // ลด timeout สำหรับ transaction
-        onTimeout: () => throw TimeoutException(
-            'Transaction timeout - ultra fast mode',
-            const Duration(seconds: 12)),
-      );
+            print('🚀 Transaction completed - ultra fast atomic operation!');
+          })
+          .timeout(
+            const Duration(seconds: 12), // ลด timeout สำหรับ transaction
+            onTimeout: () => throw TimeoutException(
+              'Transaction timeout - ultra fast mode',
+              const Duration(seconds: 12),
+            ),
+          );
 
       print('✅ Report submitted successfully with ID: ${docRef.id}');
       print('⏰ Report will auto-delete after: $expireAt');
@@ -856,7 +834,8 @@ class FirebaseService {
     final double dLat = _degToRad(lat2 - lat1);
     final double dLon = _degToRad(lon2 - lon1);
 
-    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final double a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_degToRad(lat1)) *
             math.cos(_degToRad(lat2)) *
             math.sin(dLon / 2) *

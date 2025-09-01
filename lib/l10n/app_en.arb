@@ -313,9 +313,9 @@
   },
   "eventLocation": "Event Location",
   "userNotFound": "User not found. Please login again",
-  "dailyLimitExceeded": "Limit exceeded: 5 posts per day. Please wait 24 hrs",
+  "dailyLimitExceeded": "Maximum 5 posts per day. Please wait 24 hours",
   "cannotGetLocation": "Cannot determine location. Please select location manually",
-  "success": "Submitted successfully",
+  "success": "Success",
   "submitTimeoutError": "Failed to submit report: Timeout. Please check your internet connection",
   "submitError": "Error submitting report",
   "networkError": "Network connection problem. Please check WiFi/4G",
@@ -930,83 +930,9 @@
   
   "@@comment_splash_screen": "==================== SPLASH SCREEN ====================",
   "welcome": "Welcome",
-  "appSlogan": "\"Know First, Survive First, Safe First\"",
+  "appSlogan": "\"Stay Aware, Stay Ahead, Stay Safe\"",
   "appVersion": "Version 1.0",
   
-  "@@comment_login_test": "==================== LOGIN TEST SCREEN ====================",
-  "readyToTest": "Ready to test",
-  "alreadyLoggedIn": "Already logged in",
-  "notLoggedIn": "Not logged in",
-  "testingLogin": "Testing login...",
-  "startLoginTest": "🧪 Starting login test...",
-  "loginSuccessEmail": "Login successful: {email}",
-  "@loginSuccessEmail": {
-    "placeholders": {
-      "email": {
-        "type": "String"
-      }
-    }
-  },
-  "loginSuccessName": "Login successful: {name}",
-  "@loginSuccessName": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "userCancelledLogin": "User cancelled login",
-  "loginTestFailed": "❌ Login test failed: {error}",
-  "@loginTestFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "loginFailedGeneral": "Login failed: {error}",
-  "@loginFailedGeneral": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "loggedOut": "Logged out",
-  "logoutSuccess": "Logout successful",
-  "logoutFailedError": "Logout failed: {error}",
-  "@logoutFailedError": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "loginTestTitle": "Login Test",
-  "loginStatusTitle": "Login Status",
-  "userDataTitle": "User Data",
-  "testingTitle": "Testing",
-  "testing": "Testing...",
-  "testLogin": "Test Login",
-  "logoutButton": "Logout",
-  "notesTitle": "Notes:",
-  "debugConsole": "• Check Console/Log for debug details",
-  "checkGoogleServices": "• Check Google Services and Firebase Console",
-  "checkSHA1": "• Check SHA-1 fingerprint in Firebase",
-  "testOnDevice": "• Test on real device, not Emulator",
-  
-  "@@comment_simple_login_test": "==================== SIMPLE LOGIN TEST ====================",
-  "simpleTestReady": "Ready to test",
-  "simpleTesting": "Testing...",
-  "simpleTestStart": "🧪 === Starting login test ===",
-  "authServiceInitialized": "AuthService initialized\nLogin status: {status}",
-  "@authServiceInitialized": {
-    "placeholders": {
-      "status": {
-        "type": "bool"
-      }
-    }
-  },
   
   "@@comment_bottom_bar_extended": "==================== BOTTOM BAR EXTENDED ====================",
   "categoryWithCount": "Category ({count})",
@@ -1144,5 +1070,26 @@
   "cannotGetLocationManual": "Cannot determine location. Please select location manually",
   "reportTimeoutWarning": "Report submission timeout. Please check internet connection",
   "reportSuccessTitle": "Success",
-  "reportTimeoutError": "Failed to submit report: Timeout. Please check your internet connection"
+  "reportTimeoutError": "Failed to submit report: Timeout. Please check your internet connection",
+  
+  "@@comment_time_formatting": "==================== TIME FORMATTING ====================",
+  "noTimeData": "No time data",
+  "daysAgoFormat": "{days} days ago",
+  "@daysAgoFormat": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursShort": "hrs",
+  "minutesAgoFormat": "{minutes} minutes ago", 
+  "@minutesAgoFormat": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "justMoments": "Just now"
 }

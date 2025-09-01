@@ -4,35 +4,121 @@ import 'package:intl/intl.dart';
 
 class DateTimeFormatters {
   // ⭐ แปลง Timestamp เป็นเวลาท้องถิ่น + Time Zone support (null-safe)
-  static String formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return 'ไม่มีข้อมูลเวลา';
+  static String formatTimestamp(Timestamp? timestamp, [BuildContext? context]) {
+    if (timestamp == null) {
+      return context != null
+          ? _getLocalizedText(context, 'noTimeData')
+          : 'No time data';
+    }
 
     final now = DateTime.now().toLocal(); // ใช้เวลาท้องถิ่น
     final date = timestamp.toDate().toLocal(); // แปลงเป็นเวลาท้องถิ่น
     final difference = now.difference(date);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays} วันที่แล้ว';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชม.';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} นาทีที่แล้ว';
+    if (context != null) {
+      if (difference.inDays > 0) {
+        return _getLocalizedText(context, 'daysAgo', args: [difference.inDays]);
+      } else if (difference.inHours > 0) {
+        return _getLocalizedText(context, 'hoursAgo',
+            args: [difference.inHours]);
+      } else if (difference.inMinutes > 0) {
+        return _getLocalizedText(context, 'minutesAgo',
+            args: [difference.inMinutes]);
+      } else {
+        return _getLocalizedText(context, 'justNow');
+      }
     } else {
-      return 'เมื่อสักครู่';
+      // Fallback for when context is not available
+      if (difference.inDays > 0) {
+        return '${difference.inDays} days ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} hrs ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} minutes ago';
+      } else {
+        return 'Just now';
+      }
+    }
+  }
+
+  // Helper method to get localized text safely
+  static String _getLocalizedText(BuildContext context, String key,
+      {List<dynamic>? args}) {
+    try {
+      // Get current locale to determine language
+      final locale = Localizations.localeOf(context);
+      final isEnglish = locale.languageCode == 'en';
+
+      switch (key) {
+        case 'noTimeData':
+          return isEnglish ? 'No time data' : 'ไม่มีข้อมูลเวลา';
+        case 'daysAgo':
+          final days = args?[0] ?? 0;
+          return isEnglish ? '$days days ago' : '$days วันที่แล้ว';
+        case 'hoursAgo':
+          final hours = args?[0] ?? 0;
+          return isEnglish ? '$hours hrs ago' : '$hours ชม.ที่แล้ว';
+        case 'minutesAgo':
+          final minutes = args?[0] ?? 0;
+          return isEnglish ? '$minutes minutes ago' : '$minutes นาทีที่แล้ว';
+        case 'justNow':
+          return isEnglish ? 'Just now' : 'เมื่อสักครู่';
+        default:
+          return isEnglish ? 'Unknown time' : 'เวลาไม่ทราบ';
+      }
+    } catch (e) {
+      print('Error getting localized text: $e');
+    }
+
+    // Fallback to English
+    switch (key) {
+      case 'noTimeData':
+        return 'No time data';
+      case 'daysAgo':
+        final days = args?[0] ?? 0;
+        return '$days days ago';
+      case 'hoursAgo':
+        final hours = args?[0] ?? 0;
+        return '$hours hrs ago';
+      case 'minutesAgo':
+        final minutes = args?[0] ?? 0;
+        return '$minutes minutes ago';
+      case 'justNow':
+        return 'Just now';
+      default:
+        return 'Unknown time';
     }
   }
 
   // ⭐ แสดงวันที่เวลาแบบเวลาท้องถิ่น (null-safe)
-  static String formatDate(Timestamp? timestamp) {
-    if (timestamp == null) return 'ไม่มีข้อมูลเวลา';
+  static String formatDate(Timestamp? timestamp, [BuildContext? context]) {
+    if (timestamp == null) {
+      return context != null
+          ? _getLocalizedText(context, 'noTimeData')
+          : 'No time data';
+    }
     return DateFormat('dd/MM/yyyy HH:mm').format(timestamp.toDate().toLocal());
   }
 
   // ⭐ แสดงวันที่เวลาแบบละเอียด พร้อมเวลาท้องถิ่น (null-safe)
-  static String formatDateDetailed(Timestamp? timestamp) {
-    if (timestamp == null) return 'ไม่มีข้อมูลเวลา';
-    return DateFormat('dd MMMM yyyy เวลา HH:mm น.', 'th')
-        .format(timestamp.toDate().toLocal());
+  static String formatDateDetailed(Timestamp? timestamp,
+      [BuildContext? context]) {
+    if (timestamp == null) {
+      return context != null
+          ? _getLocalizedText(context, 'noTimeData')
+          : 'No time data';
+    }
+
+    final locale = context != null ? Localizations.localeOf(context) : null;
+    final isEnglish = locale?.languageCode == 'en';
+
+    if (isEnglish) {
+      return DateFormat('dd MMMM yyyy HH:mm', 'en')
+          .format(timestamp.toDate().toLocal());
+    } else {
+      return DateFormat('dd MMMM yyyy เวลา HH:mm น.', 'th')
+          .format(timestamp.toDate().toLocal());
+    }
   }
 
   // ⭐ ฟังก์ชันใหม่: จัดการ Timestamp หลายรูปแบบ พร้อม null-safety
@@ -80,42 +166,73 @@ class DateTimeFormatters {
   }
 
   // ⭐ ฟังก์ชันใหม่: แสดงเวลาจาก DateTime (null-safe)
-  static String formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return 'ไม่มีข้อมูลเวลา';
+  static String formatDateTime(DateTime? dateTime, [BuildContext? context]) {
+    if (dateTime == null) {
+      return context != null
+          ? _getLocalizedText(context, 'noTimeData')
+          : 'No time data';
+    }
     return DateFormat('dd/MM/yyyy HH:mm').format(dateTime.toLocal());
   }
 
   // ⭐ ฟังก์ชันใหม่: คำนวณเวลาผ่านมา จาก DateTime (null-safe)
-  static String formatTimeAgo(DateTime? dateTime) {
-    if (dateTime == null) return 'ไม่มีข้อมูลเวลา';
+  static String formatTimeAgo(DateTime? dateTime, [BuildContext? context]) {
+    if (dateTime == null) {
+      return context != null
+          ? _getLocalizedText(context, 'noTimeData')
+          : 'No time data';
+    }
 
     final now = DateTime.now().toLocal();
     final date = dateTime.toLocal();
     final difference = now.difference(date);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays} วันที่แล้ว';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชม.';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} นาทีที่แล้ว';
+    if (context != null) {
+      if (difference.inDays > 0) {
+        return _getLocalizedText(context, 'daysAgo', args: [difference.inDays]);
+      } else if (difference.inHours > 0) {
+        return _getLocalizedText(context, 'hoursAgo',
+            args: [difference.inHours]);
+      } else if (difference.inMinutes > 0) {
+        return _getLocalizedText(context, 'minutesAgo',
+            args: [difference.inMinutes]);
+      } else {
+        return _getLocalizedText(context, 'justNow');
+      }
     } else {
-      return 'เมื่อสักครู่';
+      // Fallback for when context is not available
+      if (difference.inDays > 0) {
+        return '${difference.inDays} days ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} hrs ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} minutes ago';
+      } else {
+        return 'Just now';
+      }
     }
   }
 
   // ⭐ ฟังก์ชันใหม่: แปลงข้อมูล timestamp โดยตรงเป็น string (null-safe)
   static String formatTimestampSafe(dynamic timestampData,
-      {String fallbackText = 'ไม่มีข้อมูลเวลา'}) {
+      [BuildContext? context]) {
+    final fallbackText = context != null
+        ? _getLocalizedText(context, 'noTimeData')
+        : 'No time data';
+
     final dateTime = parseTimestamp(timestampData);
-    return dateTime != null ? formatTimeAgo(dateTime) : fallbackText;
+    return dateTime != null ? formatTimeAgo(dateTime, context) : fallbackText;
   }
 
   // ⭐ ฟังก์ชันใหม่: แปลงข้อมูล timestamp เป็นวันที่เวลา (null-safe)
   static String formatTimestampToDateTime(dynamic timestampData,
-      {String fallbackText = 'ไม่มีข้อมูลเวลา'}) {
+      [BuildContext? context]) {
+    final fallbackText = context != null
+        ? _getLocalizedText(context, 'noTimeData')
+        : 'No time data';
+
     final dateTime = parseTimestamp(timestampData);
-    return dateTime != null ? formatDateTime(dateTime) : fallbackText;
+    return dateTime != null ? formatDateTime(dateTime, context) : fallbackText;
   }
 
   // ⭐ ฟังก์ชันใหม่: สำหรับทดสอบ Time Zone

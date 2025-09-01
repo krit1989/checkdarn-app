@@ -11,7 +11,6 @@ import 'dart:math';
 import '../../../generated/gen_l10n/app_localizations.dart';
 import '../models/speed_camera_model.dart';
 import '../services/speed_camera_service.dart';
-import '../services/location_manager.dart';
 import '../../../services/smart_security_service.dart';
 import '../../../services/sound_manager.dart';
 import '../../../services/smart_tile_provider.dart';
@@ -72,8 +71,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       const Color(0xFFFFC107); // เปลี่ยนกลับเป็นสีเหลืองแบบเดิม (สีหลักของแอพ)
   Timer? _badgeResetTimer;
 
+  StreamSubscription<Position>? _positionSubscription;
   Timer? _speedUpdateTimer;
-  Timer? _updateTimer; // Timer หลักสำหรับอัปเดต UI
   Timer? _arrowUpdateTimer; // Timer เฉพาะสำหรับลูกศรนำทาง
   Timer? _headingUpdateTimer; // Timer สำหรับอัปเดตการหมุนแผนที่
   Timer? _followModeResetTimer; // Timer สำหรับกลับมา auto-follow
@@ -88,9 +87,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
   // ระบบเสียงแจ้งเตือน
   final SoundManager _soundManager = SoundManager();
-
-  // Location Manager สำหรับ GPS tracking ที่เร็วขึ้น
-  late LocationManager _locationManager;
 
   // Progressive Beep Alert System - ระบบเสียงบี๊บแบบค่อยเป็นค่อยไป
   Timer? _progressiveBeepTimer;
@@ -182,12 +178,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     // เริ่มระบบ Smart Security สำหรับ Speed Camera (HIGH RISK)
     _initializeSmartSecurity();
 
-    // เริ่ม LocationManager สำหรับ GPS tracking ที่เร็วขึ้น
-    _locationManager = LocationManager(
-      onPositionUpdate: _handleLocationUpdate,
-      onSecurityAlert: _handleSecurityAlert,
-    );
-
     // ใช้ test flags เพื่อหลีกเลี่ยงงานเบื้องหลังในเทส
     if (!widget.skipGetCurrentLocation) {
       _getCurrentLocation();
@@ -195,8 +185,7 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     _loadSpeedCameras();
 
     if (widget.enableBackgroundJobs) {
-      // ใช้ LocationManager แทน _startSpeedTracking() เก่า
-      _locationManager.startTracking();
+      _startSpeedTracking();
       _initializeSoundManager();
       _startConnectionMonitoring();
       _enableWakelock(); // เปิด wakelock เพื่อไม่ให้หน้าจอดับ
@@ -204,7 +193,35 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
       _startResourceMonitoring(); // เริ่มตรวจสอบการใช้ทรัพยากร
       _initializeSmartLoginDetection(); // เริ่มระบบตรวจจับการใช้งานเพื่อเด้งล็อกอิน
 
-      // ไม่ต้องใช้ Timer อีกต่อไป เพราะใช้ ValueNotifier แล้ว
+      // เพิ่ม Timer สำหรับอัปเดตหน้าจอให้ราบรื่น (30 FPS)
+      _speedUpdateTimer =
+          Timer.periodic(const Duration(milliseconds: 33), (timer) {
+        if (mounted) {
+          setState(() {
+            // บังคับอัปเดต UI ทุก 33ms เพื่อให้ตัวเลขเคลื่อนไหวได้ราบรื่น
+          });
+        }
+      });
+
+      // เพิ่ม Timer สำหรับอัปเดตการหมุนแผนที่ให้ราบรื่น (60 FPS)
+      _headingUpdateTimer =
+          Timer.periodic(const Duration(milliseconds: 16), (timer) {
+        if (mounted) {
+          setState(() {
+            // อัปเดตการหมุนแผนที่ตามทิศทางการเดินทาง
+          });
+        }
+      });
+
+      // เพิ่ม Timer เฉพาะสำหรับลูกศรนำทางให้ smooth มากขึ้น (60 FPS)
+      _arrowUpdateTimer =
+          Timer.periodic(const Duration(milliseconds: 16), (timer) {
+        if (mounted && currentSpeed > 1.0) {
+          setState(() {
+            // อัปเดตลูกศรนำทางให้นุ่มนวลมากขึ้น ทุก 16ms (60 FPS)
+          });
+        }
+      });
     }
 
     // Initialize smart map system หลังจาก widget build
@@ -214,72 +231,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
 
     // เพิ่ม WidgetsBindingObserver สำหรับตรวจจับการกลับมาที่หน้าจอ
     WidgetsBinding.instance.addObserver(this);
-  }
-
-  // ==================== LOCATION MANAGER CALLBACKS ====================
-
-  /// จัดการข้อมูล GPS จาก LocationManager
-  void _handleLocationUpdate(Position position) {
-    if (!mounted) return;
-
-    // เริ่มจับเวลา performance
-    final stopwatch = Stopwatch()..start();
-
-    final newPosition = LatLng(position.latitude, position.longitude);
-    final newSpeed = position.speed * 3.6; // m/s เป็น km/h
-
-    setState(() {
-      currentPosition = newPosition;
-      currentSpeed = newSpeed;
-
-      // อัปเดตทิศทางโดยตรงจาก LocationManager
-      if (newSpeed > 10 && position.heading.isFinite) {
-        // ลด smoothing factor เมื่อเคลื่อนที่ให้ตอบสนองเร็วขึ้น
-        _smoothTravelHeading = _interpolateHeading(
-            _smoothTravelHeading, position.heading,
-            smoothFactor: newSpeed > 30 ? 0.9 : 0.7 // เร็วกว่าเดิม
-            );
-        debugPrint(
-            '🧭 Heading updated: ${position.heading.toStringAsFixed(1)}° → ${_smoothTravelHeading.toStringAsFixed(1)}°');
-      } else if (newSpeed <= 1.8) {
-        // หยุดการ interpolate เมื่อไม่เคลื่อนที่
-        debugPrint('🛑 Stopped: No heading interpolation');
-      }
-    });
-
-    // บันทึกการเคลื่อนไหวสำหรับระบบ Smart Login Detection
-    _recordMovementForLoginDetection(newPosition);
-
-    // Intelligent Auto-Follow: ย้ายกล้องตามผู้ใช้แบบอัจฉริยะ
-    if (!_userIsManuallyControlling) {
-      _intelligentMoveCamera(newPosition);
-    }
-
-    _updateNearestCamera();
-
-    // วัด performance
-    stopwatch.stop();
-    final processingTime = stopwatch.elapsedMilliseconds;
-
-    if (processingTime > 50) {
-      // เตือนหากใช้เวลามากกว่า 50ms
-      debugPrint('⚠️ GPS Update Lag: ${processingTime}ms (Target: <50ms)');
-    } else {
-      debugPrint('✅ GPS Update OK: ${processingTime}ms');
-    }
-
-    // Smart preload tiles around new position
-    _schedulePreloadTiles(newPosition);
-  }
-
-  /// จัดการแจ้งเตือนความปลอดภัยจาก LocationManager
-  void _handleSecurityAlert(String alertType) {
-    print('🚨 Security Alert from LocationManager: $alertType');
-
-    if (alertType == 'GPS_SPOOFING_DETECTED') {
-      _trackSuspiciousActivity(
-          'gps_spoofing_detected', 'LocationManager detected GPS spoofing');
-    }
   }
 
   // ==================== SMART SECURITY SYSTEM ====================
@@ -1083,11 +1034,8 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     currentSpeedNotifier.dispose();
     smoothHeadingNotifier.dispose();
 
-    // ใช้ LocationManager แทน _positionSubscription
-    _locationManager.dispose();
-
+    _positionSubscription?.cancel();
     _speedUpdateTimer?.cancel();
-    _updateTimer?.cancel(); // Timer หลักใหม่
     _arrowUpdateTimer?.cancel(); // ยกเลิก arrow update timer
     _headingUpdateTimer?.cancel(); // ยกเลิก heading update timer
     _connectionCheckTimer?.cancel();
@@ -1200,6 +1148,113 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
         _showError('ไม่สามารถโหลดข้อมูลกล้องจับความเร็วได้');
       }
     }
+  }
+
+  void _startSpeedTracking() {
+    // ติดตามความเร็วและทิศทางการเดินทางแบบ real-time
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: LocationAccuracy
+            .bestForNavigation, // เปลี่ยนเป็น bestForNavigation สำหรับความแม่นยำสูงสุด
+        distanceFilter:
+            0, // ตั้งเป็น 0 เพื่อให้อัปเดตทุกการเปลี่ยนแปลง (ความละเอียดสูงสุด)
+        timeLimit: const Duration(
+            seconds: 3), // ลดจาก 5 เป็น 3 วินาที เพื่อการอัปเดตที่เร็วขึ้น
+      ),
+    ).listen((Position position) {
+      if (mounted) {
+        final newPosition = LatLng(position.latitude, position.longitude);
+
+        // ==================== SECURITY VALIDATION ====================
+
+        // ตรวจสอบความถูกต้องของข้อมูล GPS ด้วย Enhanced Anti-Spoofing
+        if (!_isGpsTrusted(position)) {
+          print('🚨 Untrusted GPS data detected, skipping update');
+
+          // ตรวจสอบว่าควรเปิด Security Mode หรือไม่
+          if (_gpsAnomalyCount >= _maxGpsAnomalies) {
+            _trackSuspiciousActivity('gps_spoofing',
+                'GPS anomalies: $_gpsAnomalyCount, accuracy: ${position.accuracy}m');
+          }
+          return;
+        }
+
+        // ตรวจสอบระยะเวลาการใช้งาน
+        _checkSessionDuration();
+
+        // เพิ่มประวัติความเร็วสำหรับการตรวจสอบความปลอดภัย
+        _speedHistory.add(position);
+        if (_speedHistory.length > 20) {
+          _speedHistory.removeAt(0); // เก็บเฉพาะ 20 จุดล่าสุด
+        }
+
+        // ตรวจสอบความเร็วที่สมเหตุสมผล
+        final speedKmh = position.speed * 3.6;
+        if (speedKmh > _maxReasonableSpeed) {
+          _trackSuspiciousActivity('unrealistic_speed',
+              'Speed: ${speedKmh.toInt()} km/h at ${position.latitude}, ${position.longitude}');
+        } else {
+          _lastValidSpeed = speedKmh;
+        }
+
+        // เพิ่มประวัติตำแหน่งสำหรับระบบ Predict Movement
+        _positionHistory.add(position);
+        if (_positionHistory.length > 10) {
+          _positionHistory.removeAt(0); // เก็บเฉพาะ 10 จุดล่าสุด
+        }
+
+        setState(() {
+          currentPosition = newPosition;
+          currentSpeed = position.speed * 3.6; // m/s เป็น km/h
+
+          // บันทึกการเคลื่อนไหวสำหรับระบบ Smart Login Detection
+          _recordMovementForLoginDetection(newPosition);
+
+          // อัปเดตทิศทางการเดินทางจาก GPS (เฉพาะเมื่อเคลื่อนที่)
+          // ลด threshold จาก 2.0 เป็น 1.5 km/h เพื่อเพิ่มความละเอียดเมื่อขับช้า
+          if (currentSpeed > 1.5 && position.heading.isFinite) {
+            // ตรวจสอบความแตกต่างของมุมก่อนการอัปเดต
+            final headingDiff = (position.heading - _smoothTravelHeading).abs();
+            final normalizedDiff =
+                headingDiff > 180 ? 360 - headingDiff : headingDiff;
+
+            // ปรับ threshold แบบละเอียดสำหรับความเร็วต่ำ
+            double threshold;
+            if (currentSpeed < 10) {
+              // ความเร็วต่ำมาก (1.5-10 km/h): ใช้ threshold ต่ำสุด 0.2°
+              threshold = 0.2 + (currentSpeed / 10) * 0.1; // 0.2° - 0.3°
+            } else if (currentSpeed < 30) {
+              // ความเร็วต่ำ (10-30 km/h): threshold ปานกลาง
+              threshold = 0.3 + ((currentSpeed - 10) / 20) * 0.4; // 0.3° - 0.7°
+            } else {
+              // ความเร็วสูง (30+ km/h): threshold สูงเพื่อลดการสั่นไหว
+              threshold = 0.7 + ((currentSpeed - 30) / 70) * 1.3; // 0.7° - 2.0°
+              threshold = threshold.clamp(0.7, 2.0);
+            }
+
+            if (normalizedDiff > threshold) {
+              _smoothTravelHeading =
+                  _interpolateHeading(_smoothTravelHeading, position.heading);
+            }
+          }
+        });
+
+        // Intelligent Auto-Follow: ย้ายกล้องตามผู้ใช้แบบอัจฉริยะ
+        if (!_userIsManuallyControlling) {
+          _intelligentMoveCamera(newPosition);
+        }
+
+        _updateNearestCamera();
+
+        // ระบบ Predict Movement
+        if (_positionHistory.length >= 3) {
+          _predictMovementAndCheck();
+        }
+
+        // Smart preload tiles around new position
+        _schedulePreloadTiles(newPosition);
+      }
+    });
   }
 
   // ระบบทำนายการเคลื่อนที่และตรวจสอบกล้องล่วงหน้า
@@ -1411,35 +1466,54 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
     });
   }
 
-  // Adaptive smooth factor สำหรับการหมุนลูกศรตามความเร็ว
-  double _getAdaptiveSmoothFactor(double speed) {
-    if (speed < 10) return 0.25; // ช้ามาก = หมุนนิ่ง เพื่อกันกระพือ
-    if (speed < 30) return 0.45; // ช้า = หมุนค่อยเป็นค่อยไป
-    return 0.70; // เร็ว = หมุนไวตามทิศทางจริง
-  }
+  double _interpolateHeading(double currentHeading, double targetHeading) {
+    // คำนวณมุมที่สั้นที่สุดสำหรับการหมุน (จัดการกับ 360 -> 0 degrees)
+    double diff = targetHeading - currentHeading;
 
-  double _interpolateHeading(double currentHeading, double targetHeading,
-      {double? smoothFactor}) {
-    // หามุมสั้นสุด - ใช้วิธีที่แม่นยำกว่า
-    var diff = (targetHeading - currentHeading + 540) % 360 - 180;
-
-    // ใช้ adaptive factor ถ้าไม่ได้ส่งค่ามา
-    double factor;
-    if (smoothFactor != null) {
-      factor = smoothFactor;
-    } else {
-      // Guard: GPS heading มักไม่นิ่งเมื่อความเร็ว < 5 km/h
-      if (currentSpeed < 5.0) {
-        return currentHeading; // ค้างค่าเดิมเมื่อช้า
-      }
-      factor = _getAdaptiveSmoothFactor(currentSpeed);
+    if (diff > 180) {
+      diff -= 360;
+    } else if (diff < -180) {
+      diff += 360;
     }
 
-    var next = currentHeading + diff * factor;
+    // ปรับปรุงสูตรคำนวณ smoothFactor เพื่อเพิ่มความละเอียดเมื่อขับช้า
+    double smoothFactor;
 
-    // normalize แทนการ clamp (กันอาการค้างที่ 0/360)
-    next = (next % 360 + 360) % 360;
-    return next;
+    if (currentSpeed < 5) {
+      // ความเร็วต่ำมาก (0-5 km/h): ใช้ factor ต่ำเพื่อความนุ่มนวลแต่ตอบสนอง
+      smoothFactor = 0.15 + (currentSpeed / 5) * 0.1; // 0.15 - 0.25
+    } else if (currentSpeed < 15) {
+      // ความเร็วต่ำ (5-15 km/h): เพิ่มความไวขึ้นเล็กน้อย
+      smoothFactor = 0.25 + ((currentSpeed - 5) / 10) * 0.15; // 0.25 - 0.4
+    } else if (currentSpeed < 50) {
+      // ความเร็วปานกลาง (15-50 km/h): ใช้สูตรปกติ
+      smoothFactor = 0.4 + ((currentSpeed - 15) / 35) * 0.2; // 0.4 - 0.6
+    } else {
+      // ความเร็วสูง (50+ km/h): เพิ่มการตอบสนองเร็วขึ้น
+      smoothFactor = 0.6 + ((currentSpeed - 50) / 150) * 0.2; // 0.6 - 0.8
+      smoothFactor = smoothFactor.clamp(0.6, 0.8);
+    }
+
+    // ปรับ threshold การป้องกันการกระโดดมุมมาก - ให้นุ่มนวลขึ้น
+    if (diff.abs() > 120) {
+      smoothFactor *= 0.4; // ลดมากเมื่อมุมต่างมากกว่า 120 องศา
+    } else if (diff.abs() > 60) {
+      smoothFactor *= 0.6; // ลดปานกลางเมื่อมุมต่างมากกว่า 60 องศา
+    } else if (diff.abs() > 30) {
+      smoothFactor *= 0.8; // ลดเล็กน้อยเมื่อมุมต่างมากกว่า 30 องศา
+    }
+
+    // คำนวณทิศทางใหม่
+    final newHeading = currentHeading + (diff * smoothFactor);
+
+    // ให้แน่ใจว่าผลลัพธ์อยู่ในช่วง 0-360 องศา
+    if (newHeading < 0) {
+      return newHeading + 360;
+    } else if (newHeading >= 360) {
+      return newHeading - 360;
+    }
+
+    return newHeading;
   }
 
   // Smart tile preloading with performance optimization
@@ -2219,15 +2293,10 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
             Positioned(
               bottom: 100,
               left: 20,
-              child: ValueListenableBuilder<double>(
-                valueListenable: currentSpeedNotifier,
-                builder: (context, speed, child) {
-                  return CircularSpeedWidget(
-                    currentSpeed: speed,
-                    speedLimit: nearestCamera?.speedLimit.toDouble(),
-                    isMoving: speed > 2.0, // แสดง glow effect เมื่อเคลื่อนที่
-                  );
-                },
+              child: CircularSpeedWidget(
+                currentSpeed: currentSpeed,
+                speedLimit: nearestCamera?.speedLimit.toDouble(),
+                isMoving: false, // ปิด glow effect - ให้มีแค่สีตามความเร็ว
               ),
             ),
         ],

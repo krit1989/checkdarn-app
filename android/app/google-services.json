@@ -7,56 +7,36 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1051005565361:android:03878a41f334bff357e590",
+        "mobilesdk_app_id": "1:1051005565361:android:9b6e24f5454b044757e590",
         "android_client_info": {
-          "package_name": "com.example.check_darn"
+          "package_name": "com.checkdarn.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1051005565361-gmb6besiku128kecqabsqq8q2558qaff.apps.googleusercontent.com",
+          "client_id": "1051005565361-6sauh5nph6g3v0lktq31bgmgji04nqhc.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.check_darn",
+            "package_name": "com.checkdarn.app",
             "certificate_hash": "61dbc86a2b4b1ba4c13139b906028c9c212c13b7"
           }
         },
         {
-          "client_id": "1051005565361-hm04gtf41djmr25gu0uvmckabc00a3j3.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
+          "client_id": "1051005565361-7v05kbddkl6bgptumv56vr2td7v80ier.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.checkdarn.app",
+            "certificate_hash": "d0793ef6fceea349e233d8df5251737797adccff"
+          }
+        },
         {
-          "current_key": "AIzaSyCmfosvws-kxETQL7QnslQ1ik0hQ_w5UeM"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1051005565361-hm04gtf41djmr25gu0uvmckabc00a3j3.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "1051005565361-do8c9g82ahktd4mmpoc71tnq45jpie6i.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.checkDarn"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:1051005565361:android:20f4884cab5d629a57e590",
-        "android_client_info": {
-          "package_name": "th.co.appfinity.checkdarn"
-        }
-      },
-      "oauth_client": [
+          "client_id": "1051005565361-alur3qi2suna9gnurg79v9ptcpbnil2p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.checkdarn.app",
+            "certificate_hash": "cd70e7164673f6c82ca5222bd632f7b49609be2e"
+          }
+        },
         {
           "client_id": "1051005565361-hm04gtf41djmr25gu0uvmckabc00a3j3.apps.googleusercontent.com",
           "client_type": 3

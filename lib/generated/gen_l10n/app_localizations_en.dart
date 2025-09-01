@@ -612,14 +612,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dailyLimitExceeded =>
-      'Limit exceeded: 5 posts per day. Please wait 24 hrs';
+      'Maximum 5 posts per day. Please wait 24 hours';
 
   @override
   String get cannotGetLocation =>
       'Cannot determine location. Please select location manually';
 
   @override
-  String get success => 'Submitted successfully';
+  String get success => 'Success';
 
   @override
   String get submitTimeoutError =>
@@ -1636,110 +1636,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcome => 'Welcome';
 
   @override
-  String get appSlogan => '\"Know First, Survive First, Safe First\"';
+  String get appSlogan => '\"Stay Aware, Stay Ahead, Stay Safe\"';
 
   @override
   String get appVersion => 'Version 1.0';
-
-  @override
-  String get readyToTest => 'Ready to test';
-
-  @override
-  String get alreadyLoggedIn => 'Already logged in';
-
-  @override
-  String get notLoggedIn => 'Not logged in';
-
-  @override
-  String get testingLogin => 'Testing login...';
-
-  @override
-  String get startLoginTest => '🧪 Starting login test...';
-
-  @override
-  String loginSuccessEmail(String email) {
-    return 'Login successful: $email';
-  }
-
-  @override
-  String loginSuccessName(String name) {
-    return 'Login successful: $name';
-  }
-
-  @override
-  String get userCancelledLogin => 'User cancelled login';
-
-  @override
-  String loginTestFailed(String error) {
-    return '❌ Login test failed: $error';
-  }
-
-  @override
-  String loginFailedGeneral(String error) {
-    return 'Login failed: $error';
-  }
-
-  @override
-  String get loggedOut => 'Logged out';
-
-  @override
-  String get logoutSuccess => 'Logout successful';
-
-  @override
-  String logoutFailedError(String error) {
-    return 'Logout failed: $error';
-  }
-
-  @override
-  String get loginTestTitle => 'Login Test';
-
-  @override
-  String get loginStatusTitle => 'Login Status';
-
-  @override
-  String get userDataTitle => 'User Data';
-
-  @override
-  String get testingTitle => 'Testing';
-
-  @override
-  String get testing => 'Testing...';
-
-  @override
-  String get testLogin => 'Test Login';
-
-  @override
-  String get logoutButton => 'Logout';
-
-  @override
-  String get notesTitle => 'Notes:';
-
-  @override
-  String get debugConsole => '• Check Console/Log for debug details';
-
-  @override
-  String get checkGoogleServices =>
-      '• Check Google Services and Firebase Console';
-
-  @override
-  String get checkSHA1 => '• Check SHA-1 fingerprint in Firebase';
-
-  @override
-  String get testOnDevice => '• Test on real device, not Emulator';
-
-  @override
-  String get simpleTestReady => 'Ready to test';
-
-  @override
-  String get simpleTesting => 'Testing...';
-
-  @override
-  String get simpleTestStart => '🧪 === Starting login test ===';
-
-  @override
-  String authServiceInitialized(bool status) {
-    return 'AuthService initialized\nLogin status: $status';
-  }
 
   @override
   String categoryWithCount(int count) {
@@ -1900,4 +1800,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get reportTimeoutError =>
       'Failed to submit report: Timeout. Please check your internet connection';
+
+  @override
+  String get noTimeData => 'No time data';
+
+  @override
+  String daysAgoFormat(int days) {
+    return '$days days ago';
+  }
+
+  @override
+  String get hoursShort => 'hrs';
+
+  @override
+  String minutesAgoFormat(int minutes) {
+    return '$minutes minutes ago';
+  }
+
+  @override
+  String get justMoments => 'Just now';
 }

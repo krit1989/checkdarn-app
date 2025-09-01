@@ -131,24 +131,19 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      print('🚀 เริ่มกระบวนการล็อกอิน...');
+      print(AppLocalizations.of(context).loginProcessStarted);
 
       final result = await AuthService.signInWithGoogle(context: context);
 
       if (result != null) {
         // ล็อกอินสำเร็จ
         if (mounted) {
-          await _handleSecureNavigation(true);
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับ ${result.user?.displayName ?? 'ผู้ใช้'}',
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          // รอ 1.5 วินาทีแล้วกลับหน้าหลัก (ให้เวลา AuthService แสดงข้อความสำเร็จ)
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              _handleSecureNavigation(true);
+            }
+          });
         }
       } else {
         // ผู้ใช้ยกเลิก
@@ -163,7 +158,8 @@ class _LoginScreenState extends State<LoginScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'ล็อกอินไม่สำเร็จ: ${e.toString().replaceAll('Exception: ', '')}',
+              AppLocalizations.of(context)
+                  .loginFailed(e.toString().replaceAll('Exception: ', '')),
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
@@ -190,25 +186,6 @@ class _LoginScreenState extends State<LoginScreen>
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                // Close button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const SizedBox(width: 40),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () => _handleSecureNavigation(false),
-                      icon: Icon(
-                        Icons.close,
-                        color: _isLoading ? Colors.grey : Colors.black54,
-                        size: 28,
-                      ),
-                    ),
-                  ],
-                ),
-
                 // Main content
                 Expanded(
                   child: SlideTransition(
@@ -283,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 16),
 
                         Text(
-                          'แพลตฟอร์มรายงานเหตุการณ์\nในชุมชนของคุณ',
+                          AppLocalizations.of(context).platformDescription,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -364,8 +341,10 @@ class _LoginScreenState extends State<LoginScreen>
                                     const SizedBox(width: 16),
                                     Text(
                                       _isLoading
-                                          ? 'กำลังเข้าสู่ระบบ...'
-                                          : 'เข้าสู่ระบบด้วย Google',
+                                          ? AppLocalizations.of(context)
+                                              .signingIn
+                                          : AppLocalizations.of(context)
+                                              .signInWithGoogle,
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -389,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ? null
                               : () => _handleSecureNavigation(false),
                           child: Text(
-                            'ข้ามไปก่อน',
+                            AppLocalizations.of(context).skipForNow,
                             style: TextStyle(
                               fontSize: 16,
                               color: _isLoading
@@ -408,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen>
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
                   child: Text(
-                    'การเข้าสู่ระบบจะช่วยให้คุณสามารถ\nรายงานเหตุการณ์และแสดงความคิดเห็นได้',
+                    AppLocalizations.of(context).loginBenefit,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,

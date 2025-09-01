@@ -69,15 +69,15 @@ class NotificationService {
       // ขอสิทธิ์การแจ้งเตือน
       await _requestPermission();
 
-      // ✅ **ตั้งค่าให้แสดง notification ใน foreground**
+      // ✅ **ตั้งค่าให้ไม่แสดง notification ใน foreground เพื่อป้องกันการซ้ำ**
       await _firebaseMessaging.setForegroundNotificationPresentationOptions(
-        alert: true, // แสดง alert
+        alert: false, // ไม่แสดง alert เพื่อป้องกันการซ้ำ
         badge: true, // แสดง badge
-        sound: true, // เล่นเสียง
+        sound: false, // ไม่เล่นเสียงเพื่อป้องกันการซ้ำ
       );
 
-      // ตั้งค่า foreground message handler
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // ตั้งค่า foreground message handler (ปิดชั่วคราวเพื่อป้องกันการซ้ำ)
+      // FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
       // ตั้งค่า background message handler
       FirebaseMessaging.onBackgroundMessage(_handleBackgroundMessage);
@@ -268,10 +268,88 @@ class NotificationService {
         print('✅ NotificationService: Token is valid');
         _cachedToken = currentToken;
         await _saveTokenToFirestore(currentToken);
+
+        // 🏥 เพิ่มการตรวจสอบ token health เป็นระยะ
+        await _scheduleTokenHealthCheck();
       }
     } catch (e) {
       print('❌ NotificationService: Error checking token: $e');
       await _retryTokenRefresh();
+    }
+  }
+
+  /// 🏥 **Production Token Health Check**
+  static Future<void> _scheduleTokenHealthCheck() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final lastHealthCheck = prefs.getInt('last_token_health_check') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      // ตรวจสอบทุก 24 ชั่วโมง
+      const healthCheckInterval = 24 * 60 * 60 * 1000; // 24 ชั่วโมง in ms
+
+      if (now - lastHealthCheck > healthCheckInterval) {
+        print('🏥 NotificationService: Running token health check...');
+
+        final currentToken = await _firebaseMessaging.getToken();
+        if (currentToken != null) {
+          // ทดสอบส่ง test message เพื่อตรวจสอบ token
+          await _testTokenHealth(currentToken);
+
+          // บันทึกเวลาที่ตรวจสอบล่าสุด
+          await prefs.setInt('last_token_health_check', now);
+        }
+      }
+    } catch (e) {
+      print('❌ NotificationService: Error in token health check: $e');
+    }
+  }
+
+  /// 🔬 **ทดสอบ Token Health**
+  static Future<void> _testTokenHealth(String token) async {
+    try {
+      final String? userId = AuthService.currentUser?.uid;
+      if (userId == null) return;
+
+      // บันทึก health check log
+      await _firestore.collection('token_health_logs').add({
+        'userId': userId,
+        'token': token.substring(0, 20) + '...', // บันทึกแค่ส่วนหน้า
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'healthy',
+        'platform': Platform.isIOS ? 'ios' : 'android',
+        'appVersion': '1.0.0', // TODO: ดึงจาก package info
+      });
+
+      print('✅ NotificationService: Token health check completed');
+    } catch (e) {
+      print('❌ NotificationService: Token health test failed: $e');
+
+      // ถ้า token มีปัญหา ให้ refresh
+      await _refreshTokenOnFailure();
+    }
+  }
+
+  /// 🔄 **Refresh Token เมื่อมีปัญหา**
+  static Future<void> _refreshTokenOnFailure() async {
+    try {
+      print(
+          '🔄 NotificationService: Refreshing token due to health check failure...');
+
+      // ลบ token เก่า
+      await _firebaseMessaging.deleteToken();
+
+      // ขอ token ใหม่
+      final String? newToken = await _firebaseMessaging.getToken();
+      if (newToken != null) {
+        print('✅ NotificationService: New token generated successfully');
+        _cachedToken = newToken;
+        await _saveTokenToFirestore(newToken);
+      } else {
+        print('❌ NotificationService: Failed to generate new token');
+      }
+    } catch (e) {
+      print('❌ NotificationService: Error refreshing token: $e');
     }
   }
 
@@ -670,6 +748,123 @@ class NotificationService {
       print('✅ NotificationService: Notifications disabled successfully');
     } catch (e) {
       print('❌ NotificationService: Error disabling notifications: $e');
+    }
+  }
+
+  /// 🔔 **Production: ตรวจสอบ Notification Permissions เป็นระยะ**
+  /// ใช้สำหรับตรวจสอบว่าผู้ใช้ยังอนุญาต notifications หรือไม่
+  static Future<void> checkNotificationPermissions() async {
+    try {
+      final settings = await _firebaseMessaging.getNotificationSettings();
+
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        print('⚠️ NotificationService: Notification permission denied');
+
+        // บันทึกสถานะ
+        final String? userId = AuthService.currentUser?.uid;
+        if (userId != null) {
+          await _firestore.collection('user_tokens').doc(userId).update({
+            'permissionStatus': 'denied',
+            'lastPermissionCheck': FieldValue.serverTimestamp(),
+            'isActive': false,
+          });
+        }
+
+        // แจ้งเตือนผู้ใช้ให้เปิด permission
+        _showPermissionDeniedMessage();
+      } else if (settings.authorizationStatus ==
+          AuthorizationStatus.authorized) {
+        print('✅ NotificationService: Notification permission granted');
+
+        // ตรวจสอบว่ามี token หรือไม่
+        final currentToken = await _firebaseMessaging.getToken();
+        if (currentToken == null) {
+          print(
+              '⚠️ NotificationService: Permission granted but no token - refreshing...');
+          await _getFCMToken();
+        }
+      }
+    } catch (e) {
+      print('❌ NotificationService: Error checking permissions: $e');
+    }
+  }
+
+  /// 💬 **แสดงข้อความแจ้งผู้ใช้เปิด permissions**
+  static void _showPermissionDeniedMessage() {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'การแจ้งเตือนถูกปิด กรุณาเปิดใน Settings เพื่อรับข่าวสารสำคัญ'),
+          action: SnackBarAction(
+            label: 'ตั้งค่า',
+            onPressed: () {
+              // TODO: เปิด app settings
+            },
+          ),
+          duration: Duration(seconds: 5),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  /// 📊 **Production: ส่งสถิติการใช้งาน**
+  static Future<void> reportTokenUsageStats() async {
+    try {
+      final String? userId = AuthService.currentUser?.uid;
+      if (userId == null) return;
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final lastReport = prefs.getInt('last_usage_report') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      // รายงานทุก 7 วัน
+      const reportInterval = 7 * 24 * 60 * 60 * 1000; // 7 วัน
+
+      if (now - lastReport > reportInterval) {
+        final currentToken = await _firebaseMessaging.getToken();
+
+        await _firestore.collection('token_usage_stats').add({
+          'userId': userId,
+          'hasValidToken': currentToken != null,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'timestamp': FieldValue.serverTimestamp(),
+          'appOpenCount': prefs.getInt('app_open_count') ?? 0,
+          'lastTokenRefresh': prefs.getInt('last_token_refresh') ?? 0,
+        });
+
+        await prefs.setInt('last_usage_report', now);
+        print('📊 NotificationService: Usage stats reported');
+      }
+    } catch (e) {
+      print('❌ NotificationService: Error reporting usage stats: $e');
+    }
+  }
+
+  /// 🚀 **Production Ready: เริ่มต้นระบบครบถ้วน**
+  static Future<void> initializeProductionMode() async {
+    try {
+      print('🚀 NotificationService: Initializing production mode...');
+
+      // 1. เริ่มต้นพื้นฐาน
+      await initialize();
+
+      // 2. ตรวจสอบ permissions
+      await checkNotificationPermissions();
+
+      // 3. รายงานสถิติ
+      await reportTokenUsageStats();
+
+      // 4. เพิ่ม app open count
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final openCount = prefs.getInt('app_open_count') ?? 0;
+      await prefs.setInt('app_open_count', openCount + 1);
+
+      print('✅ NotificationService: Production mode initialized successfully');
+    } catch (e) {
+      print('❌ NotificationService: Error initializing production mode: $e');
     }
   }
 

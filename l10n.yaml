@@ -5,3 +5,4 @@ output-class: AppLocalizations
 output-dir: lib/generated/gen_l10n
 nullable-getter: false
 prefer-inline-translations: false
+untranslated-messages-file: untranslated.txt

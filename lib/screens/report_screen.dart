@@ -634,8 +634,12 @@ class _ReportScreenState extends State<ReportScreen> {
 
         if (errorString.contains('เกินขีดจำกัด') ||
             errorString.contains('limit') ||
+            errorString.contains('maximum') ||
+            errorString.contains('daily') ||
+            errorString.contains('posts per day') ||
             errorString.contains('โพสต์ได้สูงสุด')) {
-          errorMessage = e.toString(); // ใช้ข้อความจาก rate limiting โดยตรง
+          errorMessage = AppLocalizations.of(context)
+              .dailyLimitExceeded; // ใช้ AppLocalizations แทน
         } else if (errorString.contains('permission') ||
             errorString.contains('denied') ||
             errorString.contains('unauthorized')) {
@@ -893,7 +897,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                           urlTemplate:
                                               'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                           userAgentPackageName:
-                                              'com.example.check_darn',
+                                              'com.checkdarn.app',
                                         ),
                                         MarkerLayer(
                                           markers: [

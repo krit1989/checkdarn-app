@@ -1535,8 +1535,7 @@ class AppLocalizationsTh extends AppLocalizations {
   String get newEventsTitle => 'เหตุการณ์ใหม่';
 
   @override
-  String get newEventsSubtitle =>
-      'แจ้งเตือนเมื่อมีเหตุการณ์ใหม่ในบริเวณใกล้คุณ';
+  String get newEventsSubtitle => 'แจ้งเตือนเมื่อมีเหตุการณ์ใหม่ใกล้คุณ';
 
   @override
   String get commentsSubtitle =>
@@ -1623,106 +1622,6 @@ class AppLocalizationsTh extends AppLocalizations {
 
   @override
   String get appVersion => 'เวอร์ชัน 1.0';
-
-  @override
-  String get readyToTest => 'พร้อมทดสอบ';
-
-  @override
-  String get alreadyLoggedIn => 'ล็อกอินแล้ว';
-
-  @override
-  String get notLoggedIn => 'ยังไม่ล็อกอิน';
-
-  @override
-  String get testingLogin => 'กำลังทดสอบล็อกอิน...';
-
-  @override
-  String get startLoginTest => '🧪 เริ่มทดสอบการล็อกอิน...';
-
-  @override
-  String loginSuccessEmail(String email) {
-    return 'ล็อกอินสำเร็จ: $email';
-  }
-
-  @override
-  String loginSuccessName(String name) {
-    return 'ล็อกอินสำเร็จ: $name';
-  }
-
-  @override
-  String get userCancelledLogin => 'ผู้ใช้ยกเลิกการล็อกอิน';
-
-  @override
-  String loginTestFailed(String error) {
-    return '❌ ทดสอบล็อกอินล้มเหลว: $error';
-  }
-
-  @override
-  String loginFailedGeneral(String error) {
-    return 'ล็อกอินล้มเหลว: $error';
-  }
-
-  @override
-  String get loggedOut => 'ออกจากระบบแล้ว';
-
-  @override
-  String get logoutSuccess => 'ออกจากระบบสำเร็จ';
-
-  @override
-  String logoutFailedError(String error) {
-    return 'ออกจากระบบล้มเหลว: $error';
-  }
-
-  @override
-  String get loginTestTitle => 'ทดสอบการล็อกอิน';
-
-  @override
-  String get loginStatusTitle => 'สถานะการล็อกอิน';
-
-  @override
-  String get userDataTitle => 'ข้อมูลผู้ใช้';
-
-  @override
-  String get testingTitle => 'การทดสอบ';
-
-  @override
-  String get testing => 'กำลังทดสอบ...';
-
-  @override
-  String get testLogin => 'ทดสอบการล็อกอิน';
-
-  @override
-  String get logoutButton => 'ออกจากระบบ';
-
-  @override
-  String get notesTitle => 'หมายเหตุ:';
-
-  @override
-  String get debugConsole => '• ดู Console/Log เพื่อรายละเอียดการ debug';
-
-  @override
-  String get checkGoogleServices =>
-      '• ตรวจสอบ Google Services และ Firebase Console';
-
-  @override
-  String get checkSHA1 => '• ตรวจสอบ SHA-1 fingerprint ใน Firebase';
-
-  @override
-  String get testOnDevice => '• ทดสอบบนอุปกรณ์จริง ไม่ใช่ Emulator';
-
-  @override
-  String get simpleTestReady => 'พร้อมทดสอบ';
-
-  @override
-  String get simpleTesting => 'กำลังทดสอบ...';
-
-  @override
-  String get simpleTestStart => '🧪 === เริ่มทดสอบการล็อกอิน ===';
-
-  @override
-  String authServiceInitialized(bool status) {
-    return 'เริ่มต้น AuthService แล้ว\nสถานะล็อกอิน: $status';
-  }
 
   @override
   String categoryWithCount(int count) {
@@ -1883,4 +1782,23 @@ class AppLocalizationsTh extends AppLocalizations {
   @override
   String get reportTimeoutError =>
       'ส่งรายงานไม่สำเร็จ: เกินเวลารอคอย กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+
+  @override
+  String get noTimeData => 'ไม่มีข้อมูลเวลา';
+
+  @override
+  String daysAgoFormat(int days) {
+    return '$days วันที่แล้ว';
+  }
+
+  @override
+  String get hoursShort => 'ชม.';
+
+  @override
+  String minutesAgoFormat(int minutes) {
+    return '$minutes นาทีที่แล้ว';
+  }
+
+  @override
+  String get justMoments => 'เมื่อสักครู่';
 }
