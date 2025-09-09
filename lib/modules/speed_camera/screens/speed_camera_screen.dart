@@ -20,7 +20,6 @@ import '../../../services/auth_service.dart';
 import '../../../screens/sound_settings_screen.dart';
 import 'camera_report_screen.dart';
 import '../widgets/speed_camera_marker.dart';
-import '../widgets/circular_speed_widget.dart';
 
 class SpeedCameraScreen extends StatefulWidget {
   /// Test flags to prevent background jobs during testing
@@ -1943,69 +1942,47 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
   // ระบบเคลื่อนไหวกล้องอัจฉริยะ - ปรับตามความเร็วและพฤติกรรม
 
   Widget _buildTravelDirectionMarker() {
-    // ใช้ทิศทางการเดินทางจาก GPS
+    // ใช้จุดวงกลมแสดงตำแหน่งผู้ใช้
     final markerColor = const Color(0xFF1158F2); // สีน้ำเงินหลักของแอป
 
-    return ValueListenableBuilder<double>(
-      valueListenable: smoothHeadingNotifier,
-      builder: (context, heading, child) {
-        return ValueListenableBuilder<double>(
-          valueListenable: currentSpeedNotifier,
-          builder: (context, speed, child) {
-            // ปรับปรุง animation duration เพื่อเพิ่มความละเอียดเมื่อขับช้า
-            Duration animationDuration;
-            if (speed < 5) {
-              // ความเร็วต่ำมาก (0-5 km/h): animation ช้าเพื่อความนุ่มนวลและละเอียด
-              animationDuration = const Duration(milliseconds: 400);
-            } else if (speed < 15) {
-              // ความเร็วต่ำ (5-15 km/h): animation ปานกลาง
-              animationDuration = const Duration(milliseconds: 250);
-            } else if (speed < 30) {
-              // ความเร็วปานกลาง (15-30 km/h): animation เร็วขึ้น
-              animationDuration = const Duration(milliseconds: 160);
-            } else if (speed < 60) {
-              // ความเร็วสูง (30-60 km/h): animation เร็ว
-              animationDuration = const Duration(milliseconds: 120);
-            } else {
-              // ความเร็วสูงมาก (60+ km/h): animation เร็วที่สุด
-              animationDuration = const Duration(milliseconds: 80);
-            }
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // วงรัศมีเดียว - ขอบไม่เข้ม (เพิ่มขนาดเล็กน้อย)
+        Container(
+          width: 91,
+          height: 91,
+          decoration: BoxDecoration(
+            color: markerColor.withValues(alpha: 0.2), // สีฟ้าใสๆ
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: markerColor.withValues(alpha: 0.2), // ขอบไม่เข้ม
+              width: 1,
+            ),
+          ),
+        ),
 
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                // วงรัศมีเดียว - ขอบไม่เข้ม (เพิ่มขนาดเล็กน้อย)
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: markerColor.withValues(alpha: 0.2), // สีฟ้าใสๆ
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: markerColor.withValues(alpha: 0.2), // ขอบไม่เข้ม
-                      width: 1,
-                    ),
-                  ),
-                ),
-
-                // ลูกศรนำทางสีน้ำเงิน - แบบสมูทและนุ่มนวล
-                AnimatedRotation(
-                  turns: heading / 360, // แปลงจากองศาเป็น turns (0-1)
-                  duration:
-                      animationDuration, // ใช้ duration ที่เร็วขึ้นตามความเร็ว
-                  curve: Curves
-                      .easeOutCirc, // เปลี่ยนเป็น curve ที่ตอบสนองเร็วขึ้น
-                  child: Icon(
-                    Icons.navigation,
-                    color: markerColor, // สีน้ำเงินเดิม
-                    size: 48, // ขนาด 1.5 เท่า
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+        // จุดตำแหน่งผู้ใช้ - วงกลมสีน้ำเงินมีขอบขาว
+        Container(
+          width: 21,
+          height: 21,
+          decoration: BoxDecoration(
+            color: markerColor, // สีน้ำเงินหลัก
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white, // ขอบสีขาว
+              width: 2.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -2285,18 +2262,6 @@ class _SpeedCameraScreenState extends State<SpeedCameraScreen>
                     ),
                   ],
                 ),
-              ),
-            ),
-
-          // Floating circular speed widget - แสดงเฉพาะเมื่อโหลดข้อมูลเสร็จแล้ว
-          if (!isLoadingLocation && !isLoadingCameras)
-            Positioned(
-              bottom: 100,
-              left: 20,
-              child: CircularSpeedWidget(
-                currentSpeed: currentSpeed,
-                speedLimit: nearestCamera?.speedLimit.toDouble(),
-                isMoving: false, // ปิด glow effect - ให้มีแค่สีตามความเร็ว
               ),
             ),
         ],

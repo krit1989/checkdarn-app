@@ -86,7 +86,7 @@ class LocationMarkerPainter extends CustomPainter {
     final whiteBorderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 2.2;
     canvas.drawCircle(center, radius * 1.2 + 1, whiteBorderPaint);
 
     // 6. วาด emoji ตรงกลาง (สำหรับหมุดโพส)
