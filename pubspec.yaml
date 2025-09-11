@@ -2,7 +2,7 @@ name: check_darn
 description: แอพพลิเคชั่นเช็กด่านและรายงานเหตุการณ์แบบเรียลไทม์
 publish_to: 'none'
 
-version: 1.0.5+6
+version: 1.0.7
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

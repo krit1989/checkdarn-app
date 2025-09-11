@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/auth_service.dart';
 import '../services/smart_security_service.dart';
 import '../providers/language_provider.dart';
@@ -17,11 +18,26 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isNewEventNotificationEnabled = true;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _initializeSmartSecurity();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = packageInfo.version;
+      });
+    } catch (e) {
+      setState(() {
+        _appVersion = '1.0.6';
+      });
+    }
   }
 
   Future<void> _initializeSmartSecurity() async {
@@ -525,9 +541,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            '1.0.0',
-                            style: TextStyle(
+                          Text(
+                            _appVersion.isEmpty ? '1.0.6' : _appVersion,
+                            style: const TextStyle(
                               fontSize: 14,
                               color: Colors.grey,
                               fontFamily: 'NotoSansThai',
